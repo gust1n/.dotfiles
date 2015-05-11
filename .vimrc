@@ -66,6 +66,7 @@ Plugin 'gmarik/Vundle.vim'
 " List of plugins:
 Plugin 'bling/vim-airline'
 Plugin 'kien/ctrlp.vim'
+Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'scrooloose/nerdtree'
 Plugin 'mhinz/vim-signify'
 Plugin 'Valloric/YouCompleteMe'
@@ -229,7 +230,7 @@ set lbr
 set tw=500
 
 set ai "Auto indent
-set si "Smart indent
+"set si "Smart indent
 set wrap "Wrap lines
 
 
