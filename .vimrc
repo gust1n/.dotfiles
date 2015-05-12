@@ -64,6 +64,7 @@ call vundle#begin()
 Plugin 'gmarik/Vundle.vim'
 
 " List of plugins:
+Plugin 'rking/ag.vim'
 Plugin 'bling/vim-airline'
 Plugin 'kien/ctrlp.vim'
 Plugin 'nathanaelkane/vim-indent-guides'
