@@ -1,10 +1,10 @@
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Author:
-"       Joakim Gustin
-"	Based on: https://github.com/amix/vimrc/blob/master/vimrcs/basic.vim
+"      Joakim Gustin
+"      Based on: https://github.com/amix/vimrc/blob/master/vimrcs/basic.vim
 "
-" Last_modified: 
-"      2015-05-11 
+" Last_modified:
+"      2015-05-13
 "
 " Sections:
 "    -> General
@@ -45,12 +45,11 @@ let mapleader = " "
 let g:mapleader = " "
 
 " Fast saving
-nmap <leader>w :w!<cr>
+"nmap <leader>w :w!<cr>
 
 " :W sudo saves the file 
 " (useful for handling the permission-denied error)
-command W w !sudo tee % > /dev/null
-
+cmap w!! w !sudo tee > /dev/null %
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Plugins (using Vundle)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -63,11 +62,14 @@ call vundle#begin()
 Plugin 'gmarik/Vundle.vim'
 
 " List of plugins:
+Plugin 'mileszs/ack.vim'
 Plugin 'bling/vim-airline'
 Plugin 'kien/ctrlp.vim'
+Plugin 'tpope/vim-fugitive'
 Plugin 'fatih/vim-go'
 Plugin 'nsf/gocode', {'rtp': 'vim/'}
 Plugin 'nathanaelkane/vim-indent-guides'
+Plugin 'scrooloose/nerdcommenter'
 Plugin 'scrooloose/nerdtree'
 Plugin 'honza/vim-snippets'
 Plugin 'mhinz/vim-signify'
@@ -136,7 +138,7 @@ endif
 set ruler
 
 " Height of the command bar
-set cmdheight=2
+set cmdheight=1
 
 " A buffer becomes hidden when it is abandoned
 set hid
@@ -181,8 +183,7 @@ set t_vb=
 set tm=500
 
 " Add a bit extra margin to the left
-set foldcolumn=1
-
+set foldcolumn=0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Colors and Fonts
@@ -277,14 +278,8 @@ map <C-k> <C-W>k
 map <C-h> <C-W>h
 map <C-l> <C-W>l
 
-" Close the current buffer
-map <leader>bd :Bclose<cr>
-
 " Close all the buffers
 map <leader>ba :1,1000 bd!<cr>
-
-" To open a new empty buffer
-nmap <leader>T :enew<cr>
 
 " Move to the next buffer
 nmap <leader>l :bnext<CR>
@@ -294,7 +289,7 @@ nmap <leader>h :bprevious<CR>
 
 " Close the current buffer and move to the previous one
 " This replicates the idea of closing a tab
-nmap <leader>bq :bp <BAR> bd #<CR>
+nmap <leader>bd :bp <BAR> bd #<CR>
 
 " CtrlP search in buffers
 nmap <leader>bp :CtrlPBuffer<cr>
@@ -336,17 +331,11 @@ set laststatus=2
 " Remap VIM 0 to first non-blank character
 map 0 ^
 
-" Move a line of text using ALT+[jk] or Comamnd+[jk] on mac
-nmap <M-j> mz:m+<cr>`z
-nmap <M-k> mz:m-2<cr>`z
-vmap <M-j> :m'>+<cr>`<my`>mzgv`yo`z
-vmap <M-k> :m'<-2<cr>`>my`<mzgv`yo`z
-if has("mac") || has("macunix")
-  nmap <D-j> <M-j>
-  nmap <D-k> <M-k>
-  vmap <D-j> <M-j>
-  vmap <D-k> <M-k>
-endif
+" Move a line of text using leader+[jk]
+nmap <leader>j mz:m+<cr>`z
+nmap <leader>k mz:m-2<cr>`z
+vmap <leader>j :m'>+<cr>`<my`>mzgv`yo`z
+vmap <leader>k :m'<-2<cr>`>my`<mzgv`yo`z
 
 " Delete trailing white space on save, useful for Python and CoffeeScript ;)
 func! DeleteTrailingWS()
@@ -365,10 +354,13 @@ autocmd BufWrite *.coffee :call DeleteTrailingWS()
 " Use The Silver Searcher https://github.com/ggreer/the_silver_searcher
 if executable('ag')
   " Use Ag over Grep
-  set grepprg=ag\ --nogroup\ --nocolor
+  set grepprg=ag\ --nogroup\ --nocolor\ --hidden\ --ignore={.git,.svn}
+
+  " Use Ag over Ack
+  let g:ackprg = 'ag --vimgrep --hidden --ignore={.git,.svn}'
 
   " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
-  let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden --ignore ".git" --ignore ".svn" -g ""'
+  let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden --ignore={.git,.svn} -g ""'
 
   " ag is fast enough that CtrlP doesn't need to cache
   let g:ctrlp_use_caching = 0
@@ -468,9 +460,3 @@ function! <SID>BufcloseCloseIt()
      execute("bdelete! ".l:currentBufNum)
    endif
 endfunction
-
-" Auto reload .vimrc when changed
-"augroup myvimrc
-"    au!
-"    au BufWritePost .vimrc,_vimrc,vimrc,.gvimrc,_gvimrc,gvimrc so $MYVIMRC | if has('gui_running') | so $MYGVIMRC | endif
-"augroup END
