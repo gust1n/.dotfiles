@@ -354,13 +354,13 @@ autocmd BufWrite *.coffee :call DeleteTrailingWS()
 " Use The Silver Searcher https://github.com/ggreer/the_silver_searcher
 if executable('ag')
   " Use Ag over Grep
-  set grepprg=ag\ --nogroup\ --nocolor\ --hidden\ --ignore={.git,.svn}
+  set grepprg=ag\ --nogroup\ --nocolor\ --hidden
 
   " Use Ag over Ack
-  let g:ackprg = 'ag --vimgrep --hidden --ignore={.git,.svn}'
+  let g:ackprg = 'ag --vimgrep --hidden'
 
   " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
-  let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden --ignore={.git,.svn} -g ""'
+  let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
 
   " ag is fast enough that CtrlP doesn't need to cache
   let g:ctrlp_use_caching = 0
