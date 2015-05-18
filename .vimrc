@@ -185,6 +185,9 @@ set tm=500
 " Add a bit extra margin to the left
 set foldcolumn=0
 
+" Faster switching of modes
+set ttimeoutlen=20
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Colors and Fonts
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
