@@ -71,6 +71,7 @@ Plugin 'nsf/gocode', {'rtp': 'vim/'}
 Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'scrooloose/nerdcommenter'
 Plugin 'scrooloose/nerdtree'
+Plugin 'vim-scripts/phpfolding.vim'
 Plugin 'honza/vim-snippets'
 Plugin 'mhinz/vim-signify'
 Plugin 'ervandew/supertab'
@@ -187,6 +188,9 @@ set foldcolumn=0
 
 " Faster switching of modes
 set ttimeoutlen=20
+
+" Disable for secirity reasons (as per http://stevelosh.com/blog/2010/09/coming-home-to-vim/#making-vim-more-useful)
+set modelines=0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Colors and Fonts
@@ -340,6 +344,12 @@ nmap <leader>k mz:m-2<cr>`z
 vmap <leader>j :m'>+<cr>`<my`>mzgv`yo`z
 vmap <leader>k :m'<-2<cr>`>my`<mzgv`yo`z
 
+" Exit insert mode without having to reach for <Esc>
+inoremap hj <Esc>
+
+" Start external command with single bang
+nnoremap ! :!
+
 " Delete trailing white space on save, useful for Python and CoffeeScript ;)
 func! DeleteTrailingWS()
   exe "normal mz"
@@ -349,6 +359,8 @@ endfunc
 autocmd BufWrite *.py :call DeleteTrailingWS()
 autocmd BufWrite *.coffee :call DeleteTrailingWS()
 
+" Autosave
+autocmd InsertLeave,TextChanged * if expand('%') != '' | update | endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ag searching and cope displaying
