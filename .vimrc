@@ -71,7 +71,7 @@ Plugin 'nsf/gocode', {'rtp': 'vim/'}
 Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'scrooloose/nerdcommenter'
 Plugin 'scrooloose/nerdtree'
-Plugin 'vim-scripts/phpfolding.vim'
+Plugin 'spf13/PIV'
 Plugin 'honza/vim-snippets'
 Plugin 'mhinz/vim-signify'
 Plugin 'ervandew/supertab'
