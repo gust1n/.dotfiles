@@ -71,13 +71,13 @@ Plug 'mileszs/ack.vim'
 Plug 'bling/vim-airline'
 Plug 'kien/ctrlp.vim'
 Plug 'tpope/vim-fugitive'
+Plug 'chrisbra/csv.vim'
 Plug 'fatih/vim-go'
 Plug 'nsf/gocode', {'rtp': 'vim/'}
 Plug 'nathanaelkane/vim-indent-guides'
 Plug 'scrooloose/nerdcommenter'
 Plug 'scrooloose/nerdtree'
 Plug 'jeffkreeftmeijer/vim-numbertoggle'
-Plug 'spf13/PIV'
 Plug 'vim-scripts/phpfolding.vim'
 Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
@@ -85,6 +85,7 @@ Plug 'ervandew/supertab'
 Plug 'scrooloose/syntastic'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
+Plug 'maxbrunsfeld/vim-yankstack'
 Plug 'Valloric/YouCompleteMe', { 'do': function('BuildYCM') }
 
 call plug#end()
@@ -124,6 +125,10 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 
 "syntastic
 let g:syntastic_check_on_open=1
+
+"yankstack
+nmap <leader>vp <Plug>yankstack_substitute_older_paste
+"nmap <leader>P <Plug>yankstack_substitute_newer_paste
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM user interface
@@ -279,10 +284,6 @@ vnoremap <silent> # :call VisualSelection('b', '')<CR>
 map j gj
 map k gk
 
-" Map <Space> to / (search) and Ctrl-<Space> to ? (backwards search)
-"map <space> /
-"map <c-space> ?
-
 " Disable highlight when <leader><cr> is pressed
 map <silent> <leader><cr> :noh<cr>
 
@@ -292,24 +293,15 @@ map <C-k> <C-W>k
 map <C-h> <C-W>h
 map <C-l> <C-W>l
 
-" Close all the buffers
-map <leader>ba :1,1000 bd!<cr>
-
 " Move to the next buffer
-nmap <leader>l :bnext<CR>
+nmap <Esc><C-l> :bnext<CR>
 
 " Move to the previous buffer
-nmap <leader>h :bprevious<CR>
+nmap <Esc><C-h> :bprevious<CR>
 
 " Close the current buffer and move to the previous one
 " This replicates the idea of closing a tab
-nmap <leader>bd :bp <BAR> bd #<CR>
-
-" CtrlP search in buffers
-nmap <leader>bp :CtrlPBuffer<cr>
-
-" Show all open buffers and their status
-nmap <leader>bl :ls<CR>
+nmap <leader>x :bp <BAR> bd #<CR>
 
 " Switch CWD to the directory of the open buffer
 map <leader>cd :cd %:p:h<cr>:pwd<cr>
@@ -336,9 +328,6 @@ set viminfo^=%
 " Always show the status line
 set laststatus=2
 
-" Format the status line
-"set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Editing mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -346,10 +335,10 @@ set laststatus=2
 map 0 ^
 
 " Move a line of text using leader+[jk]
-nmap <leader>j mz:m+<cr>`z
-nmap <leader>k mz:m-2<cr>`z
-vmap <leader>j :m'>+<cr>`<my`>mzgv`yo`z
-vmap <leader>k :m'<-2<cr>`>my`<mzgv`yo`z
+nmap <Esc>j mz:m+<cr>`z
+nmap <Esc>k mz:m-2<cr>`z
+vmap <Esc>j :m'>+<cr>`<my`>mzgv`yo`z
+vmap <Esc>k :m'<-2<cr>`>my`<mzgv`yo`z
 
 " Exit insert mode without having to reach for <Esc>
 inoremap hj <Esc>
@@ -414,12 +403,6 @@ vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Misc
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Quickly open a buffer for scribble
-"map <leader>q :e ~/buffer<cr>
-
-" Quickly open a markdown buffer for scribble
-"map <leader>x :e ~/buffer.md<cr>
-
 " Toggle paste mode on and off
 "map <leader>pp :setlocal paste!<cr>
 
