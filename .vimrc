@@ -82,6 +82,7 @@ Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
 Plug 'ervandew/supertab'
 Plug 'scrooloose/syntastic'
+Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
 Plug 'Valloric/YouCompleteMe', { 'do': function('BuildYCM') }
 
