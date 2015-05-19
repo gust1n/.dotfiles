@@ -191,6 +191,9 @@ set tm=500
 " Add a bit extra margin to the left
 set foldcolumn=0
 
+" Faster switching of modes
+set ttimeoutlen=20
+
 " Disable for secirity reasons (as per http://stevelosh.com/blog/2010/09/coming-home-to-vim/#making-vim-more-useful)
 set modelines=0
 
