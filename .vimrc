@@ -239,7 +239,7 @@ set noswapfile
 " => Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Show line numbers by default
-"set number 
+set number 
 
 " Be smart when using tabs ;)
 set smarttab
