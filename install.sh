@@ -6,5 +6,9 @@ ln -s $(pwd)/.vim ${HOME}/.vim
 ln -s $(pwd)/.agignore ${HOME}/.agignore
 ln -s $(pwd)/.tmux.conf ${HOME}/.tmux.conf
 
-# Install Vundle (for installing the rest of the vim plugins)
-git clone https://github.com/gmarik/Vundle.vim.git ${HOME}/.vim/bundle/Vundle.vim
+# Install vim-plug and all plugins
+if [ ! -e $HOME/.vim/autoload/plug.vim ]; then
+	curl -fLo $HOME/.vim/autoload/plug.vim --create-dirs \
+		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+fi
+vim -u $HOME/.vimrc +PlugInstall +PlugClean! +qa

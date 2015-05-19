@@ -51,42 +51,49 @@ let g:mapleader = " "
 " (useful for handling the permission-denied error)
 cmap w!! w !sudo tee > /dev/null %
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Plugins (using Vundle)
+" => Plugins (using vim-plug)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-filetype off                  " required during Vundle init
-" Set the runtime path to include Vundle and initialize
-set rtp+=~/.vim/bundle/Vundle.vim
-call vundle#begin()
+" Build YCM compiled component
+function! BuildYCM(info)
+  " info is a dictionary with 3 fields
+  " - name:   name of the plugin
+  " - status: 'installed', 'updated', or 'unchanged'
+  " - force:  set on PlugInstall! or PlugUpdate!
+  if a:info.status == 'installed' || a:info.force
+    !./install.sh --gocode-completer
+  endif
+endfunction
 
-" let Vundle manage Vundle, required
-Plugin 'gmarik/Vundle.vim'
+call plug#begin('~/.vim/plugged')
 
 " List of plugins:
-Plugin 'mileszs/ack.vim'
-Plugin 'bling/vim-airline'
-Plugin 'kien/ctrlp.vim'
-Plugin 'tpope/vim-fugitive'
-Plugin 'fatih/vim-go'
-Plugin 'nsf/gocode', {'rtp': 'vim/'}
-Plugin 'nathanaelkane/vim-indent-guides'
-Plugin 'scrooloose/nerdcommenter'
-Plugin 'scrooloose/nerdtree'
-Plugin 'spf13/PIV'
-Plugin 'honza/vim-snippets'
-Plugin 'mhinz/vim-signify'
-Plugin 'ervandew/supertab'
-Plugin 'scrooloose/syntastic'
-Plugin 'SirVer/ultisnips'
-Plugin 'Valloric/YouCompleteMe'
+Plug 'mileszs/ack.vim'
+Plug 'bling/vim-airline'
+Plug 'kien/ctrlp.vim'
+Plug 'tpope/vim-fugitive'
+Plug 'fatih/vim-go'
+Plug 'nsf/gocode', {'rtp': 'vim/'}
+Plug 'nathanaelkane/vim-indent-guides'
+Plug 'scrooloose/nerdcommenter'
+Plug 'scrooloose/nerdtree'
+Plug 'jeffkreeftmeijer/vim-numbertoggle'
+Plug 'spf13/PIV'
+Plug 'vim-scripts/phpfolding.vim'
+Plug 'honza/vim-snippets'
+Plug 'mhinz/vim-signify'
+Plug 'ervandew/supertab'
+Plug 'scrooloose/syntastic'
+Plug 'christoomey/vim-tmux-navigator'
+Plug 'SirVer/ultisnips'
+Plug 'Valloric/YouCompleteMe', { 'do': function('BuildYCM') }
 
-" All of your Plugins must be added before the following line
-call vundle#end()            " required
-filetype plugin indent on    " required
+call plug#end()
 
 " Plugin configuration
 
 " airline
 let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one tab
+let g:airline_powerline_fonts = 1
 
 " ctrlp
 nmap <leader>p :CtrlPMixed<cr>
@@ -475,3 +482,4 @@ function! <SID>BufcloseCloseIt()
      execute("bdelete! ".l:currentBufNum)
    endif
 endfunction
+
