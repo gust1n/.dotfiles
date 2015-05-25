@@ -331,7 +331,7 @@ set laststatus=2
 " Remap VIM 0 to first non-blank character
 map 0 ^
 
-" Move a line of text using leader+[jk]
+" Move a line of text using <Esc>+[jk]
 nmap <Esc>j mz:m+<cr>`z
 nmap <Esc>k mz:m-2<cr>`z
 vmap <Esc>j :m'>+<cr>`<my`>mzgv`yo`z
@@ -343,6 +343,10 @@ inoremap hj <Esc>
 " Start external command with single bang
 nnoremap ! :!
 
+" Insert newlines without entering insert mode
+nmap oo o<Esc>k
+nmap OO O<Esc>j
+
 " Delete trailing white space on save, useful for Python and CoffeeScript ;)
 func! DeleteTrailingWS()
   exe "normal mz"
@@ -353,7 +357,7 @@ autocmd BufWrite *.py :call DeleteTrailingWS()
 autocmd BufWrite *.coffee :call DeleteTrailingWS()
 
 " Autosave
-autocmd InsertLeave,TextChanged * if expand('%') != '' | update | endif
+autocmd InsertLeave,TextChanged * if expand('%') != '' | silent! update | endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ag searching and cope displaying
