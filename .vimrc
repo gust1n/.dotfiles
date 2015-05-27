@@ -405,7 +405,7 @@ vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
 " => Misc
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Toggle paste mode on and off
-"map <leader>pp :setlocal paste!<cr>
+map <leader>pp :setlocal paste!<cr>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Helper functions
