@@ -60,7 +60,11 @@ function! BuildYCM(info)
   " - status: 'installed', 'updated', or 'unchanged'
   " - force:  set on PlugInstall! or PlugUpdate!
   if a:info.status == 'installed' || a:info.force
-    !./install.sh --gocode-completer
+    if executable('go')
+      !./install.sh --gocode-completer
+    else
+      !./install.sh
+    endif
   endif
 endfunction
 
@@ -74,15 +78,14 @@ Plug 'tpope/vim-fugitive'
 Plug 'chrisbra/csv.vim'
 Plug 'fatih/vim-go'
 Plug 'nsf/gocode', {'rtp': 'vim/'}
-Plug 'nathanaelkane/vim-indent-guides'
 Plug 'scrooloose/nerdcommenter'
 Plug 'scrooloose/nerdtree'
-Plug 'jeffkreeftmeijer/vim-numbertoggle'
 Plug 'vim-scripts/phpfolding.vim'
 Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
 Plug 'ervandew/supertab'
 Plug 'tpope/vim-surround'
+Plug 'tpope/vim-repeat'
 Plug 'scrooloose/syntastic'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
@@ -98,15 +101,13 @@ let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one 
 let g:airline_powerline_fonts = 1
 
 " ctrlp
-nmap <leader>p :CtrlPMixed<cr>
-
-"indent-guides
-let g:indent_guides_guide_size = 2
+nmap <leader>p :CtrlP<cr>
+nmap <leader>b :CtrlPBuffer<cr>
 
 " nerdtree
 " open nerdtree if no input file specified
-autocmd StdinReadPre * let s:std_in=1
-autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
+"autocmd StdinReadPre * let s:std_in=1
+"autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
 " close vim if only nerdtree left open
 autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTreeType") && b:NERDTreeType == "primary") | q | endif
 let NERDTreeShowHidden=1
@@ -139,6 +140,8 @@ nmap <leader>vp <Plug>yankstack_substitute_older_paste
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Set 7 lines to the cursor - when moving vertically using j/k
 set so=7
+
+set showtabline=1
 
 " Turn on the WiLd menu
 set wildmenu
@@ -292,10 +295,10 @@ map k gk
 map <silent> <leader><cr> :noh<cr>
 
 " Move to the next buffer
-nmap <Esc><C-l> :bnext<CR>
+nmap ﬁ :bnext<CR>
 
 " Move to the previous buffer
-nmap <Esc><C-h> :bprevious<CR>
+nmap ˛ :bprevious<CR>
 
 " Close the current buffer and move to the previous one
 " This replicates the idea of closing a tab
@@ -332,11 +335,11 @@ set laststatus=2
 " Remap VIM 0 to first non-blank character
 map 0 ^
 
-" Move a line of text using <Esc>+[jk]
-nmap <Esc>j mz:m+<cr>`z
-nmap <Esc>k mz:m-2<cr>`z
-vmap <Esc>j :m'>+<cr>`<my`>mzgv`yo`z
-vmap <Esc>k :m'<-2<cr>`>my`<mzgv`yo`z
+" Move a line of text using <alt>+[jk]
+nmap √ mz:m+<cr>`z
+nmap ª mz:m-2<cr>`z
+vmap √ :m'>+<cr>`<my`>mzgv`yo`z
+vmap ª :m'<-2<cr>`>my`<mzgv`yo`z
 
 " Exit insert mode without having to reach for <Esc>
 inoremap hj <Esc>
@@ -345,8 +348,8 @@ inoremap hj <Esc>
 nnoremap ! :!
 
 " Insert newlines without entering insert mode
-nmap oo o<Esc>k
-nmap OO O<Esc>j
+nmap <leader>o o<Esc>k
+nmap <leader>O O<Esc>j
 
 " Delete trailing white space on save, useful for Python and CoffeeScript ;)
 func! DeleteTrailingWS()
@@ -358,7 +361,22 @@ autocmd BufWrite *.py :call DeleteTrailingWS()
 autocmd BufWrite *.coffee :call DeleteTrailingWS()
 
 " Autosave
-autocmd InsertLeave,TextChanged * if expand('%') != '' | silent! update | endif
+func! AutoSave()
+  let l:absPath = expand("%")
+  if l:absPath != ''
+    if filereadable(l:absPath)
+      if filewritable(l:absPath)
+        update
+        echo "Written to disk"
+      else
+        echo "Autosave: No permissions to auto save"
+      endif
+    endif
+  else
+    echo "Autosave: Error getting file path"
+  endif
+endfunc
+autocmd InsertLeave,TextChanged * :call AutoSave()
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ag searching and cope displaying
@@ -379,8 +397,8 @@ if executable('ag')
   let g:ctrlp_use_caching = 0
 endif
 
-" When you press gv you Ag after the selected text
-vnoremap <silent> gv :call VisualSelection('gv', '')<CR>
+" When you press <leader>f you grep after the selected text
+vnoremap <silent> <leader>f :call VisualSelection('ack', '')<CR>
 
 " When you press <leader>r you can search and replace the selected text
 vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
@@ -406,7 +424,7 @@ vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
 " => Misc
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Toggle paste mode on and off
-map <leader>pp :setlocal paste!<cr>
+map \p :setlocal paste!<cr>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Helper functions
@@ -426,8 +444,8 @@ function! VisualSelection(direction, extra_filter) range
 
     if a:direction == 'b'
         execute "normal ?" . l:pattern . "^M"
-    elseif a:direction == 'gv'
-        call CmdLine("Ag \"" . l:pattern . "\" " )
+    elseif a:direction == 'ack'
+        call CmdLine("Ack \"" . l:pattern . "\"<CR>" )
     elseif a:direction == 'replace'
         call CmdLine("%s" . '/'. l:pattern . '/')
     elseif a:direction == 'f'
@@ -436,15 +454,6 @@ function! VisualSelection(direction, extra_filter) range
 
     let @/ = l:pattern
     let @" = l:saved_reg
-endfunction
-
-
-" Returns true if paste mode is enabled
-function! HasPaste()
-    if &paste
-        return 'PASTE MODE  '
-    en
-    return ''
 endfunction
 
 " Don't close window, when deleting a buffer

@@ -6,3 +6,5 @@ vendor
 .svn/
 bower_components/
 node_modules/
+*.min.*
+*.map
