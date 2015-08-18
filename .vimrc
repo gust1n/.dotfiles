@@ -31,7 +31,7 @@
 set nocompatible
 
 " Sets how many lines of history VIM has to remember
-set history=700
+set history=500
 
 " Enable filetype plugins
 filetype plugin indent on
@@ -76,17 +76,21 @@ Plug 'bling/vim-airline'
 Plug 'kien/ctrlp.vim'
 Plug 'tpope/vim-fugitive'
 Plug 'chrisbra/csv.vim'
+Plug 'ctrlpvim/ctrlp.vim'
+"Plug 'nsf/gocode', {'rtp': 'vim/'}
 Plug 'fatih/vim-go'
-Plug 'nsf/gocode', {'rtp': 'vim/'}
+Plug 'terryma/vim-multiple-cursors'
 Plug 'scrooloose/nerdcommenter'
 Plug 'scrooloose/nerdtree'
+Plug 'jeffkreeftmeijer/vim-numbertoggle'
 Plug 'vim-scripts/phpfolding.vim'
+Plug 'tpope/vim-repeat'
 Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
 Plug 'ervandew/supertab'
 Plug 'tpope/vim-surround'
-Plug 'tpope/vim-repeat'
 Plug 'scrooloose/syntastic'
+Plug 'majutsushi/tagbar'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
 Plug 'maxbrunsfeld/vim-yankstack'
@@ -104,6 +108,9 @@ let g:airline_powerline_fonts = 1
 nmap <leader>p :CtrlP<cr>
 nmap <leader>b :CtrlPBuffer<cr>
 
+" vim-go
+let g:go_fmt_command = "goimports"
+
 " nerdtree
 " open nerdtree if no input file specified
 "autocmd StdinReadPre * let s:std_in=1
@@ -114,6 +121,9 @@ let NERDTreeShowHidden=1
 let NERDTreeQuitOnOpen = 1
 let NERDTreeIgnore=['\.vim$', '\.git$', '\.svn$', '\~$']
 map <leader>kb :NERDTreeToggle<CR>
+
+" numbertoggle
+let g:NumberToggleTrigger="<F2>"
 
 " phpfolds
 let g:DisableAutoPHPFolding = 1
@@ -295,10 +305,10 @@ map k gk
 map <silent> <leader><cr> :noh<cr>
 
 " Move to the next buffer
-nmap ﬁ :bnext<CR>
+nmap <Tab> :bnext<CR>
 
 " Move to the previous buffer
-nmap ˛ :bprevious<CR>
+nmap <S-Tab> :bprevious<CR>
 
 " Close the current buffer and move to the previous one
 " This replicates the idea of closing a tab
@@ -362,19 +372,10 @@ autocmd BufWrite *.coffee :call DeleteTrailingWS()
 
 " Autosave
 func! AutoSave()
-  let l:absPath = expand("%")
-  if l:absPath != ''
-    if filereadable(l:absPath)
-      if filewritable(l:absPath)
-        update
-        echo "Written to disk"
-      else
-        echo "Autosave: No permissions to auto save"
-      endif
-    endif
-  else
-    echo "Autosave: Error getting file path"
-  endif
+	if expand("%") != '' && &buftype != "nofile" && &modified
+		update
+		echo expand("%") "Written to disk"
+	endif
 endfunc
 autocmd InsertLeave,TextChanged * :call AutoSave()
 
