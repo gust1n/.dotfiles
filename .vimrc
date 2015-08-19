@@ -164,6 +164,9 @@ else
     set wildignore+=.git\*,.hg\*,.svn\*
 endif
 
+"Disable annoying scratch window (when autocompleting)
+set completeopt-=preview
+
 "Always show current position
 set ruler
 
