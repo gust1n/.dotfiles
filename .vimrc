@@ -3,9 +3,6 @@
 "      Joakim Gustin
 "      Based on: https://github.com/amix/vimrc/blob/master/vimrcs/basic.vim
 "
-" Last_modified:
-"      2015-05-13
-"
 " Sections:
 "    -> General
 "    -> Plugins
@@ -44,95 +41,60 @@ set autoread
 let mapleader = " "
 let g:mapleader = " "
 
-" Fast saving
-"nmap <leader>w :w!<cr>
-
 " :W sudo saves the file 
 " (useful for handling the permission-denied error)
 cmap w!! w !sudo tee > /dev/null %
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Plugins (using vim-plug)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Build YCM compiled component
-function! BuildYCM(info)
-  " info is a dictionary with 3 fields
-  " - name:   name of the plugin
-  " - status: 'installed', 'updated', or 'unchanged'
-  " - force:  set on PlugInstall! or PlugUpdate!
-  if a:info.status == 'installed' || a:info.force
-    if executable('go')
-      !./install.sh --gocode-completer
-    else
-      !./install.sh
-    endif
-  endif
-endfunction
-
 call plug#begin('~/.vim/plugged')
 
 " List of plugins:
-Plug 'mileszs/ack.vim'
 Plug 'bling/vim-airline'
-Plug 'kien/ctrlp.vim'
+Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-fugitive'
-Plug 'chrisbra/csv.vim'
-Plug 'ctrlpvim/ctrlp.vim'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
 Plug 'junegunn/fzf.vim'
 Plug 'fatih/vim-go'
 Plug 'terryma/vim-multiple-cursors'
-Plug 'scrooloose/nerdcommenter'
 Plug 'scrooloose/nerdtree'
-Plug 'jeffkreeftmeijer/vim-numbertoggle'
-Plug 'vim-scripts/phpfolding.vim'
+Plug 'junegunn/vim-peekaboo'
 Plug 'tpope/vim-repeat'
 Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
-Plug 'ervandew/supertab'
 Plug 'tpope/vim-surround'
 Plug 'scrooloose/syntastic'
 Plug 'majutsushi/tagbar'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
-Plug 'maxbrunsfeld/vim-yankstack'
-Plug 'Valloric/YouCompleteMe', { 'do': function('BuildYCM') }
+
+" Color themes:
+Plug 'chriskempson/vim-tomorrow-theme'
 
 call plug#end()
 
 " Plugin configuration
 
-" airline
+"airline
 let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one tab
 let g:airline_powerline_fonts = 1
 
-" ctrlp
-nmap <leader>p :CtrlP<cr>
-nmap <leader>b :CtrlPBuffer<cr>
+"fzf
+nnoremap <silent> <Leader><Leader> :Files<CR>
+nnoremap <silent> <Leader>b  :Buffers<CR>
+imap <c-x><c-f> <plug>(fzf-complete-path)
 
 " vim-go
 let g:go_fmt_command = "goimports"
 
 " nerdtree
-" open nerdtree if no input file specified
-"autocmd StdinReadPre * let s:std_in=1
-"autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
 " close vim if only nerdtree left open
 autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTreeType") && b:NERDTreeType == "primary") | q | endif
 let NERDTreeShowHidden=1
 let NERDTreeQuitOnOpen = 1
 let NERDTreeIgnore=['\.vim$', '\.git$', '\.svn$', '\~$']
 map <leader>kb :NERDTreeToggle<CR>
-
-" numbertoggle
-let g:NumberToggleTrigger="<F2>"
-
-" phpfolds
-let g:DisableAutoPHPFolding = 1
-
-" make YCM compatible with UltiSnips (using supertab)
-let g:ycm_key_list_select_completion = ['<C-n>', '<Down>']
-let g:ycm_key_list_previous_completion = ['<C-p>', '<Up>']
-let g:SuperTabDefaultCompletionType = '<C-n>'
 
 " better key bindings for UltiSnipsExpandTrigger
 let g:UltiSnipsExpandTrigger = "<tab>"
@@ -142,15 +104,14 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 "syntastic
 let g:syntastic_check_on_open=1
 
-"yankstack
-nmap <leader>vp <Plug>yankstack_substitute_older_paste
-"nmap <leader>P <Plug>yankstack_substitute_newer_paste
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM user interface
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Set 7 lines to the cursor - when moving vertically using j/k
 set so=7
+
+" open diffs vertically
+set diffopt+=vertical
 
 set showtabline=1
 
@@ -231,20 +192,12 @@ set modelines=0
 " Enable syntax highlighting
 syntax enable 
 
-try
-    colorscheme Tomorrow
-catch
-endtry
-
 " Set extra options when running in GUI mode
 if has("gui_running")
     set guioptions-=T
     set guioptions-=e
     set t_Co=256
     set guitablabel=%M\ %t
-  if has("gui_macvim")
-    set guifont=Sauce\ Code\ Powerline:h12
-  endif
 endif
 
 " Set utf8 as standard encoding and en_US as the standard language
@@ -253,6 +206,7 @@ set encoding=utf8
 " Use Unix as the standard file type
 set ffs=unix,dos,mac
 
+colorscheme Tomorrow
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Files, backups and undo
@@ -262,12 +216,12 @@ set nobackup
 set nowb
 set noswapfile
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Show line numbers by default
 set number 
+set relativenumber
 
 " Be smart when using tabs ;)
 set smarttab
@@ -283,7 +237,6 @@ set lbr
 set tw=500
 
 set ai "Auto indent
-"set si "Smart indent
 set wrap "Wrap lines
 
 " Display extra whitespace
@@ -377,53 +330,21 @@ autocmd BufWrite *.coffee :call DeleteTrailingWS()
 " Autosave
 func! AutoSave()
 	if expand("%") != '' && &buftype != "nofile" && &modified
-		update
-		echo expand("%") "Written to disk"
+		silent! update
 	endif
 endfunc
 autocmd InsertLeave,TextChanged * :call AutoSave()
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Ag searching and cope displaying
-"    requires ag.vim - it's much better than vimgrep/grep
+" => Find and replace
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Use The Silver Searcher https://github.com/ggreer/the_silver_searcher
-if executable('ag')
-  " Use Ag over Grep
-  set grepprg=ag\ --nogroup\ --nocolor\ --hidden
-
-  " Use Ag over Ack
-  let g:ackprg = 'ag --vimgrep --hidden'
-
-  " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
-  let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
-
-  " ag is fast enough that CtrlP doesn't need to cache
-  let g:ctrlp_use_caching = 0
-endif
-
 " When you press <leader>f you grep after the selected text
-vnoremap <silent> <leader>f :call VisualSelection('ack', '')<CR>
+vnoremap <silent> <leader>f :call VisualSelection('find', '')<CR>
+" and in normal mode we enter simply enter Ag (interactive)
+nnoremap <silent> <leader>f :Ag<CR>
 
 " When you press <leader>r you can search and replace the selected text
 vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
-
-" Do :help cope if you are unsure what cope is. It's super useful!
-"
-" When you search with Ag, display your results in cope by doing:
-"   <leader>cc
-"
-" To go to the next search result do:
-"   <leader>n
-"
-" To go to the previous search results do:
-"   <leader>p
-"
-"map <leader>cc :botright cope<cr>
-"map <leader>co ggVGy:tabnew<cr>:set syntax=qf<cr>pgg
-"map <leader>n :cn<cr>
-"map <leader>p :cp<cr>
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Misc
@@ -449,8 +370,8 @@ function! VisualSelection(direction, extra_filter) range
 
     if a:direction == 'b'
         execute "normal ?" . l:pattern . "^M"
-    elseif a:direction == 'ack'
-        call CmdLine("Ack \"" . l:pattern . "\"<CR>" )
+    elseif a:direction == 'find'
+        call CmdLine("Ag " . l:pattern . "<CR>")
     elseif a:direction == 'replace'
         call CmdLine("%s" . '/'. l:pattern . '/')
     elseif a:direction == 'f'
@@ -460,25 +381,3 @@ function! VisualSelection(direction, extra_filter) range
     let @/ = l:pattern
     let @" = l:saved_reg
 endfunction
-
-" Don't close window, when deleting a buffer
-command! Bclose call <SID>BufcloseCloseIt()
-function! <SID>BufcloseCloseIt()
-   let l:currentBufNum = bufnr("%")
-   let l:alternateBufNum = bufnr("#")
-
-   if buflisted(l:alternateBufNum)
-     buffer #
-   else
-     bnext
-   endif
-
-   if bufnr("%") == l:currentBufNum
-     new
-   endif
-
-   if buflisted(l:currentBufNum)
-     execute("bdelete! ".l:currentBufNum)
-   endif
-endfunction
-
