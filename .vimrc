@@ -77,7 +77,8 @@ Plug 'kien/ctrlp.vim'
 Plug 'tpope/vim-fugitive'
 Plug 'chrisbra/csv.vim'
 Plug 'ctrlpvim/ctrlp.vim'
-"Plug 'nsf/gocode', {'rtp': 'vim/'}
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
+Plug 'junegunn/fzf.vim'
 Plug 'fatih/vim-go'
 Plug 'terryma/vim-multiple-cursors'
 Plug 'scrooloose/nerdcommenter'
