@@ -54,9 +54,6 @@ call plug#begin('~/.vim/plugged')
 Plug 'bling/vim-airline'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-fugitive'
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
-Plug 'junegunn/fzf.vim'
-Plug 'fatih/vim-go'
 Plug 'terryma/vim-multiple-cursors'
 Plug 'scrooloose/nerdtree'
 Plug 'junegunn/vim-peekaboo'
@@ -68,6 +65,15 @@ Plug 'scrooloose/syntastic'
 Plug 'majutsushi/tagbar'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips'
+
+" Conditionally included plugins:
+if executable('fzf')
+	Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
+	Plug 'junegunn/fzf.vim'
+endif
+if executable('go')
+	Plug 'fatih/vim-go'
+endif
 
 " Color themes:
 Plug 'chriskempson/vim-tomorrow-theme'
@@ -81,9 +87,11 @@ let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one 
 let g:airline_powerline_fonts = 1
 
 "fzf
-nnoremap <silent> <Leader><Leader> :Files<CR>
-nnoremap <silent> <Leader>b  :Buffers<CR>
-imap <c-x><c-f> <plug>(fzf-complete-path)
+if executable('fzf')
+	nnoremap <silent> <Leader><Leader> :Files<CR>
+	nnoremap <silent> <Leader>b  :Buffers<CR>
+	imap <c-x><c-f> <plug>(fzf-complete-path)
+endif
 
 " vim-go
 let g:go_fmt_command = "goimports"
@@ -116,6 +124,7 @@ autocmd InsertEnter,InsertLeave * set cul!
 " open diffs vertically
 set diffopt+=vertical
 
+" always show the tab line, for airline (which shows buffers)
 set showtabline=1
 
 " Turn on the WiLd menu
@@ -147,7 +156,7 @@ set whichwrap+=<,>,h,l
 
 " In many terminal emulators the mouse works just fine, thus enable it.
 if has('mouse')
-  set mouse=a
+	set mouse=a
 endif
 
 " Ignore case when searching
@@ -211,7 +220,6 @@ set encoding=utf8
 set ffs=unix,dos,mac
 
 colorscheme Tomorrow
-let g:airline_theme='tomorrow'
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Files, backups and undo
@@ -281,19 +289,18 @@ map <leader>cd :cd %:p:h<cr>:pwd<cr>
 
 " Specify the behavior when switching between buffers
 try
-  set switchbuf=useopen,usetab,newtab
-  set stal=2
+	set switchbuf=useopen,usetab,newtab
+	set stal=2
 catch
 endtry
 
 " Return to last edit position when opening files (You want this!)
 autocmd BufReadPost *
-     \ if line("'\"") > 0 && line("'\"") <= line("$") |
-     \   exe "normal! g`\"" |
-     \ endif
+	\ if line("'\"") > 0 && line("'\"") <= line("$") |
+	\   exe "normal! g`\"" |
+	\ endif
 " Remember info about open buffers on close
 set viminfo^=%
-
 
 """"""""""""""""""""""""""""""
 " => Status line
@@ -323,11 +330,11 @@ nnoremap ! :!
 nmap <leader>o o<Esc>k
 nmap <leader>O O<Esc>j
 
-" Delete trailing white space on save, useful for Python and CoffeeScript ;)
+" Delete trailing white space on save, set relevant filetypes below
 func! DeleteTrailingWS()
-  exe "normal mz"
-  %s/\s\+$//ge
-  exe "normal `z"
+	exe "normal mz"
+	%s/\s\+$//ge
+	exe "normal `z"
 endfunc
 autocmd BufWrite *.py :call DeleteTrailingWS()
 autocmd BufWrite *.coffee :call DeleteTrailingWS()
@@ -346,7 +353,9 @@ autocmd InsertLeave,TextChanged * :call AutoSave()
 " When you press <leader>f you grep after the selected text
 vnoremap <silent> <leader>f :call VisualSelection('find', '')<CR>
 " and in normal mode we enter simply enter Ag (interactive)
-nnoremap <silent> <leader>f :Ag<CR>
+if executable('fzf')
+	nnoremap <silent> <leader>f :Ag<CR>
+endif
 
 " When you press <leader>r you can search and replace the selected text
 vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
