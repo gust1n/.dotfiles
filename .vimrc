@@ -41,7 +41,7 @@ set autoread
 let mapleader = " "
 let g:mapleader = " "
 
-" :W sudo saves the file 
+" :W sudo saves the file
 " (useful for handling the permission-denied error)
 cmap w!! w !sudo tee > /dev/null %
 
@@ -150,23 +150,23 @@ endif
 " Ignore case when searching
 set ignorecase
 
-" When searching try to be smart about cases 
+" When searching try to be smart about cases
 set smartcase
 
 " Highlight search results
 set hlsearch
 
 " Makes search act like search in modern browsers
-set incsearch 
+set incsearch
 
 " Don't redraw while executing macros (good performance config)
-set lazyredraw 
+set lazyredraw
 
 " For regular expressions turn magic on
 set magic
 
 " Show matching brackets when text indicator is over them
-set showmatch 
+set showmatch
 
 " How many tenths of a second to blink when matching brackets
 set mat=2
@@ -183,21 +183,22 @@ set foldcolumn=0
 " Faster switching of modes
 set ttimeoutlen=20
 
-" Disable for secirity reasons (as per http://stevelosh.com/blog/2010/09/coming-home-to-vim/#making-vim-more-useful)
+" Disable for security reasons (as per http://stevelosh.com/blog/2010/09/coming-home-to-vim/#making-vim-more-useful)
 set modelines=0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Colors and Fonts
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable syntax highlighting
-syntax enable 
+syntax enable
 
 " Set extra options when running in GUI mode
 if has("gui_running")
-    set guioptions-=T
-    set guioptions-=e
-    set t_Co=256
-    set guitablabel=%M\ %t
+	set guioptions-=T
+	set guioptions-=e
+	set t_Co=256
+	set guitablabel=%M\ %t
+	set guifont=Source\ Code\ Pro\ for\ Powerline:h12
 endif
 
 " Set utf8 as standard encoding and en_US as the standard language
@@ -220,7 +221,7 @@ set noswapfile
 " => Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Show line numbers by default
-set number 
+set number
 set relativenumber
 
 " Be smart when using tabs ;)
@@ -274,7 +275,7 @@ nmap <leader>x :bp <BAR> bd #<CR>
 " Switch CWD to the directory of the open buffer
 map <leader>cd :cd %:p:h<cr>:pwd<cr>
 
-" Specify the behavior when switching between buffers 
+" Specify the behavior when switching between buffers
 try
   set switchbuf=useopen,usetab,newtab
   set stal=2
@@ -356,28 +357,28 @@ map \p :setlocal paste!<cr>
 " => Helper functions
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 function! CmdLine(str)
-    exe "menu Foo.Bar :" . a:str
-    emenu Foo.Bar
-    unmenu Foo
-endfunction 
+	exe "menu Foo.Bar :" . a:str
+	emenu Foo.Bar
+	unmenu Foo
+endfunction
 
 function! VisualSelection(direction, extra_filter) range
-    let l:saved_reg = @"
-    execute "normal! vgvy"
+	let l:saved_reg = @"
+	execute "normal! vgvy"
 
-    let l:pattern = escape(@", '\\/.*$^~[]')
-    let l:pattern = substitute(l:pattern, "\n$", "", "")
+	let l:pattern = escape(@", '\\/.*$^~[]')
+	let l:pattern = substitute(l:pattern, "\n$", "", "")
 
-    if a:direction == 'b'
-        execute "normal ?" . l:pattern . "^M"
-    elseif a:direction == 'find'
-        call CmdLine("Ag " . l:pattern . "<CR>")
-    elseif a:direction == 'replace'
-        call CmdLine("%s" . '/'. l:pattern . '/')
-    elseif a:direction == 'f'
-        execute "normal /" . l:pattern . "^M"
-    endif
+	if a:direction == 'b'
+		execute "normal ?" . l:pattern . "^M"
+	elseif a:direction == 'find'
+		call CmdLine("Ag " . l:pattern . "<CR>")
+	elseif a:direction == 'replace'
+		call CmdLine("%s" . '/'. l:pattern . '/')
+	elseif a:direction == 'f'
+		execute "normal /" . l:pattern . "^M"
+	endif
 
-    let @/ = l:pattern
-    let @" = l:saved_reg
+	let @/ = l:pattern
+	let @" = l:saved_reg
 endfunction
