@@ -110,6 +110,9 @@ let g:syntastic_check_on_open=1
 " Set 7 lines to the cursor - when moving vertically using j/k
 set so=7
 
+" Indicate insert mode with cursorline
+autocmd InsertEnter,InsertLeave * set cul!
+
 " open diffs vertically
 set diffopt+=vertical
 
@@ -208,6 +211,7 @@ set encoding=utf8
 set ffs=unix,dos,mac
 
 colorscheme Tomorrow
+let g:airline_theme='tomorrow'
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Files, backups and undo
