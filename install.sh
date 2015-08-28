@@ -7,7 +7,7 @@ touch bashrc-extra
 
 # Symlink all files folders (and backup existing)
 mkdir -pv bak
-for rc in *rc *profile tmux.conf agignore; do
+for rc in *rc *profile tmux.conf agignore gitignore; do
 	[ -e ~/.$rc ] && mv -v ~/.$rc bak/.$rc
 	ln -sfv $BASE/$rc ~/.$rc
 done
@@ -26,7 +26,7 @@ if [ $(uname -s) = 'Darwin' ]; then
 	brew update
 	# Install GNU core utilities (those that come with OS X are outdated).
 	# Don’t forget to add `$(brew --prefix coreutils)/libexec/gnubin` to `$PATH`.
-	brew install coreutils
+	brew install coreutils --with-default-names
 	# Install GNU `sed`, overwriting the built-in `sed`.
 	brew install gnu-sed --with-default-names
 	# Install Bash 4.
