@@ -24,9 +24,40 @@ if [ $(uname -s) = 'Darwin' ]; then
 
 	echo "Updating homebrew"
 	brew update
-	brew install \
-		ag bash-completion bash-git-prompt composer cscope ctags \
-		git go mysql redis tmux vim wget
+	# Install GNU core utilities (those that come with OS X are outdated).
+	# Don’t forget to add `$(brew --prefix coreutils)/libexec/gnubin` to `$PATH`.
+	brew install coreutils
+	# Install GNU `sed`, overwriting the built-in `sed`.
+	brew install gnu-sed --with-default-names
+	# Install Bash 4.
+	# Note: don’t forget to add `/usr/local/bin/bash` to `/etc/shells` before
+	# running `chsh`.
+	brew install bash
+	brew tap homebrew/versions
+	brew install bash-completion2
+
+	# Install `wget` with IRI support.
+	brew install wget --with-iri
+
+	# Install more recent versions of some OS X tools.
+	brew install vim --override-system-vi
+	brew install homebrew/dupes/grep
+	brew install homebrew/dupes/openssh
+
+	# Useful tools
+	brew install ag
+	brew install composer
+	brew install cscope
+	brew install ctags
+	brew install git
+	brew install go
+	brew install mysql
+	brew install redis
+	brew install tmux
+	brew install ssh-copy-id
+
+	# Remove outdated versions from the cellar.
+	brew cleanup
 fi
 
 git config --global user.email "jocke.gustin@gmail.com"
