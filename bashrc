@@ -63,7 +63,7 @@ export PS2;
 ### Global
 export GOPATH=~/go
 if [ -z "$PATH_EXPANDED" ]; then
-	export PATH=/usr/local/bin:$GOPATH/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH
+	export PATH=/usr/local/bin:$GOPATH/bin:$PATH
 	export PATH_EXPANDED=1
 fi
 export EDITOR=vim

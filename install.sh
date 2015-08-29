@@ -25,7 +25,8 @@ if [ $(uname -s) = 'Darwin' ]; then
 	echo "Updating homebrew"
 	brew update
 	# Install GNU core utilities (those that come with OS X are outdated).
-	# Don’t forget to add `$(brew --prefix coreutils)/libexec/gnubin` to `$PATH`.
+	# Don’t forget to add `$(brew --prefix coreutils)/libexec/gnubin` to `$PATH`
+	# (unless installed --with-default-names).
 	brew install coreutils --with-default-names
 	# Install GNU `sed`, overwriting the built-in `sed`.
 	brew install gnu-sed --with-default-names
