@@ -282,7 +282,7 @@ nmap <S-Tab> :bprevious<CR>
 
 " Close the current buffer and move to the previous one
 " This replicates the idea of closing a tab
-nmap <silent> <leader>x :bp <BAR> bd #<CR>
+nmap <silent> <leader>x :bp <BAR> silent! bd #<CR>
 
 " Switch CWD to the directory of the open buffer
 map <leader>cd :cd %:p:h<cr>:pwd<cr>
