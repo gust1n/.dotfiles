@@ -97,4 +97,25 @@ fi
 EXTRA=$BASE/bashrc-extra
 [ -f "$EXTRA" ] && source "$EXTRA"
 
+# fzf (https://github.com/junegunn/fzf)
+# --------------------------------------------------------------------
+if [ -n "$TMUX_PANE" ]; then
+	fzf_tmux_helper() {
+		local sz=$1;  shift
+		local cmd=$1; shift
+		tmux split-window $sz \
+			"bash -c \"\$(tmux send-keys -t $TMUX_PANE \"\$(source ~/.fzf.bash; $cmd)\" $*)\""
+	}
+
+	# https://github.com/wellle/tmux-complete.vim
+	fzf_tmux_words() {
+		fzf_tmux_helper \
+			'-p 40' \
+			'~/.vim/plugged/tmux-complete.vim/sh/tmuxcomplete | fzf --multi | paste -sd" " -'
+	}
+
+	# Bind CTRL-X-CTRL-T to tmuxcomplete
+	bind '"\C-x\C-t": "$(fzf_tmux_words)\e\C-e"'
+fi
+
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash

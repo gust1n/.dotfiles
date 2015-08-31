@@ -62,6 +62,7 @@ Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
 Plug 'tpope/vim-surround'
 Plug 'scrooloose/syntastic'
+Plug 'wellle/tmux-complete.vim'
 Plug 'majutsushi/tagbar'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips', { 'on': [] }
@@ -115,6 +116,10 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 
 "syntastic
 let g:syntastic_check_on_open=0
+
+"tmux-complete
+let g:tmuxcomplete#trigger = ''
+inoremap <expr> <c-x><c-t> fzf#complete(tmuxcomplete#complete(0,''))
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM user interface
