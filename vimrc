@@ -62,8 +62,8 @@ Plug 'honza/vim-snippets'
 Plug 'mhinz/vim-signify'
 Plug 'tpope/vim-surround'
 Plug 'scrooloose/syntastic'
-Plug 'wellle/tmux-complete.vim'
 Plug 'majutsushi/tagbar'
+Plug 'wellle/tmux-complete.vim', { 'do': 'chmod +x ./sh/tmuxcomplete' }
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips', { 'on': [] }
 
