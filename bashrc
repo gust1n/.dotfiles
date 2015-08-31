@@ -80,7 +80,7 @@ alias cd.....='cd ../../../..'
 alias cd......='cd ../../../../..'
 
 ### git
-alias gs='git status'
+alias gst='git status'
 alias gc='git commit'
 alias ga='git add'
 alias gd='git diff'
