@@ -324,6 +324,9 @@ nmap ª mz:m-2<cr>`z
 vmap √ :m'>+<cr>`<my`>mzgv`yo`z
 vmap ª :m'<-2<cr>`>my`<mzgv`yo`z
 
+" OS X inspired "settings" shortcut
+nnoremap <leader>, :e ~/.vimrc<CR>
+
 " Exit insert mode without having to reach for <Esc>
 inoremap hj <Esc>
 
