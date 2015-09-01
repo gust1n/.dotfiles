@@ -73,10 +73,14 @@ Plug 'SirVer/ultisnips', { 'on': [] }
 if executable('go')
 	Plug 'fatih/vim-go'
 endif
-augroup load_ultisnips
-	autocmd!
-	autocmd InsertEnter * call plug#load('ultisnips')
-augroup END
+
+" Load ultisnips on first time entering insert mode
+func! LoadUltisnips()
+	if !exists(':UltiSnipsEdit')
+		call plug#load('ultisnips')
+	endif
+endfunc
+autocmd InsertEnter * :call LoadUltisnips()
 
 " Color themes:
 Plug 'chriskempson/vim-tomorrow-theme'
