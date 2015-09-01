@@ -54,6 +54,8 @@ call plug#begin('~/.vim/plugged')
 Plug 'bling/vim-airline'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-fugitive'
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
+Plug 'junegunn/fzf.vim'
 Plug 'terryma/vim-multiple-cursors'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'junegunn/vim-peekaboo'
@@ -68,10 +70,6 @@ Plug 'christoomey/vim-tmux-navigator'
 Plug 'SirVer/ultisnips', { 'on': [] }
 
 " Conditionally included plugins:
-if executable('fzf')
-	Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
-	Plug 'junegunn/fzf.vim'
-endif
 if executable('go')
 	Plug 'fatih/vim-go'
 endif
@@ -92,11 +90,9 @@ let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one 
 let g:airline_powerline_fonts = 1
 
 "fzf
-if executable('fzf')
-	nnoremap <silent> <Leader><Leader> :Files<CR>
-	nnoremap <silent> <Leader>b  :Buffers<CR>
-	imap <c-x><c-f> <plug>(fzf-complete-path)
-endif
+nnoremap <silent> <Leader><Leader> :Files<CR>
+nnoremap <silent> <Leader>b  :Buffers<CR>
+imap <c-x><c-f> <plug>(fzf-complete-path)
 
 " vim-go
 let g:go_fmt_command = "goimports"
