@@ -94,8 +94,8 @@ let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one 
 let g:airline_powerline_fonts = 1
 
 "fzf
-nnoremap <silent> <Leader><Leader> :Files<CR>
-nnoremap <silent> <Leader>b  :Buffers<CR>
+nnoremap <silent> <Leader>t :Files<CR>
+nnoremap <silent> <Leader>b :Buffers<CR>
 imap <c-x><c-f> <plug>(fzf-complete-path)
 
 " vim-go
