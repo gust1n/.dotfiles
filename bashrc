@@ -63,7 +63,7 @@ export PS2;
 ### Global
 export GOPATH=~/go
 if [ -z "$PATH_EXPANDED" ]; then
-	export PATH=/usr/local/bin:$GOPATH/bin:$PATH
+	export PATH=/usr/local/bin:~/bin:$GOPATH/bin:$PATH
 	export PATH_EXPANDED=1
 fi
 export EDITOR=vim
@@ -99,4 +99,14 @@ fi
 EXTRA=$BASE/bashrc-extra
 [ -f "$EXTRA" ] && source "$EXTRA"
 
+# Z integration
+source $BASE/bin/z.sh
+unalias z 2> /dev/null
+z() {
+  if [[ -z "$*" ]]; then
+    cd "$(_z -l 2>&1 | fzf-tmux +s --tac | sed 's/^[0-9,.]* *//')"
+  else
+    _z "$@"
+  fi
+}
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
