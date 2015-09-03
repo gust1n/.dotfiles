@@ -85,6 +85,11 @@ autocmd InsertEnter * :call LoadUltisnips()
 " Color themes:
 Plug 'chriskempson/vim-tomorrow-theme'
 
+" Enable local plugins (if exists)
+if filereadable(expand("~/.vimrc.plugins.local"))
+	source ~/.vimrc.plugins.local
+endif
+
 call plug#end()
 
 " Plugin configuration
