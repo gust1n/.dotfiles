@@ -2,9 +2,6 @@
 
 BASE=$(pwd)
 
-# File to put all system specific stuff in
-touch bashrc-extra
-
 # Symlink all files folders (and backup existing)
 mkdir -pv bak
 for rc in *rc *profile tmux.conf agignore gitignore; do

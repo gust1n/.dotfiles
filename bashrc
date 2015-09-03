@@ -96,9 +96,6 @@ elif [ "$PLATFORM" = Darwin ]; then
 	alias ls='ls -G'
 fi
 
-EXTRA=$BASE/bashrc-extra
-[ -f "$EXTRA" ] && source "$EXTRA"
-
 # Z integration
 source $BASE/bin/z.sh
 unalias z 2> /dev/null
