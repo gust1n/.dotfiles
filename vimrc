@@ -308,9 +308,9 @@ try
 catch
 endtry
 
-" Return to last edit position when opening files (You want this!)
+" Return to last edit position when opening files (but not for commit messages)
 autocmd BufReadPost *
-	\ if line("'\"") > 0 && line("'\"") <= line("$") |
+	\ if &ft != 'gitcommit' && &ft != 'svn' && line("'\"") > 0 && line("'\"") <= line("$") |
 	\   exe "normal! g`\"" |
 	\ endif
 " Remember info about open buffers on close
