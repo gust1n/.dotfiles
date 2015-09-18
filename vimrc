@@ -100,8 +100,10 @@ let g:airline_powerline_fonts = 1
 
 "fzf
 nnoremap <silent> <Leader>t :Files<CR>
+nnoremap <silent> <Leader>p :Commands<CR>
 nnoremap <silent> <Leader>b :Buffers<CR>
 imap <c-x><c-f> <plug>(fzf-complete-path)
+imap <c-x><c-l> <plug>(fzf-complete-line)
 
 " vim-go
 let g:go_fmt_command = "goimports"
