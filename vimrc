@@ -245,6 +245,9 @@ set nobackup
 set nowb
 set noswapfile
 
+" Recognize *.md as markdown
+au BufNewFile,BufFilePre,BufRead *.md set filetype=markdown
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
