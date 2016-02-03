@@ -280,8 +280,8 @@ set list listchars=tab:»·,trail:·,nbsp:·
 """"""""""""""""""""""""""""""
 " Visual mode pressing * or # searches for the current selection
 " Super useful! From an idea by Michael Naumann
-vnoremap <silent> * :call VisualSelection('f', '')<CR>
-vnoremap <silent> # :call VisualSelection('b', '')<CR>
+vnoremap <silent> * :call VisualSelection('f')<CR>
+vnoremap <silent> # :call VisualSelection('b')<CR>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -374,14 +374,14 @@ autocmd InsertLeave,TextChanged * :call AutoSave()
 " => Find and replace, quickfix
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " When you press <leader>f you grep after the selected text
-vnoremap <silent> <leader>f :call VisualSelection('find', '')<CR>
+vnoremap <silent> <leader>f :call VisualSelection('find')<CR>
 " and in normal mode we enter simply enter Ag (interactive)
 if executable('fzf')
 	nnoremap <silent> <leader>f :Ag<CR>
 endif
 
 " When you press <leader>r you can search and replace the selected text
-vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
+vnoremap <silent> <leader>r :call VisualSelection('replace')<CR>
 
 " Similar to :bufdo this performs a command on all files in quickfix
 command! -nargs=+ QuickFixDo call QuickFixDo(<q-args>)
@@ -401,7 +401,7 @@ function! CmdLine(str)
 	unmenu Foo
 endfunction
 
-function! VisualSelection(direction, extra_filter) range
+function! VisualSelection(direction) range
 	let l:saved_reg = @"
 	execute "normal! vgvy"
 
