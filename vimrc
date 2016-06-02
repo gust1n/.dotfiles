@@ -54,11 +54,12 @@ call plug#begin('~/.vim/plugged')
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'tpope/vim-commentary'
+Plug 'editorconfig/editorconfig-vim'
+Plug 'mattn/emmet-vim'
 Plug 'tpope/vim-fugitive'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
 Plug 'junegunn/fzf.vim'
 Plug 'airblade/vim-gitgutter'
-Plug 'terryma/vim-multiple-cursors'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'junegunn/vim-peekaboo'
 Plug 'tpope/vim-repeat'
@@ -98,6 +99,9 @@ call plug#end()
 "airline
 let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one tab
 let g:airline_powerline_fonts = 1
+
+"gitgutter
+let g:gitgutter_map_keys = 0
 
 "fzf
 nnoremap <silent> <Leader>t :Files<CR>
@@ -275,6 +279,16 @@ set wrap "Wrap lines
 " Display extra whitespace
 set list listchars=tab:»·,trail:·,nbsp:·
 
+" Folding
+set foldmethod=syntax
+set foldlevelstart=99		" No folds at start
+
+let javaScript_fold=1		" JavaScript
+let php_folding=1			" PHP
+let sh_fold_enabled=1		" sh
+let vimsyn_folding="af"		" Vim script
+let xml_syntax_folding=1	" XML
+
 """"""""""""""""""""""""""""""
 " => Visual mode related
 """"""""""""""""""""""""""""""
@@ -290,6 +304,9 @@ vnoremap <silent> # :call VisualSelection('b')<CR>
 " Treat long lines as break lines (useful when moving around in them)
 map j gj
 map k gk
+
+noremap <leader>l $
+noremap <leader>h ^
 
 " Disable highlight when <leader><cr> is pressed
 map <silent> <leader><cr> :noh<cr>
@@ -321,6 +338,12 @@ autocmd BufReadPost *
 	\ endif
 " Remember info about open buffers on close
 set viminfo^=%
+
+" Let arrow keys resize window
+nnoremap <silent> <Right> :call IntelligentHorizontalResize('right')<CR>
+nnoremap <silent> <Left> :call IntelligentHorizontalResize('left')<CR>
+nnoremap <silent> <Up> :resize -2<CR>
+nnoremap <silent> <Down> :resize +2<CR>
 
 """"""""""""""""""""""""""""""
 " => Status line
@@ -447,4 +470,22 @@ function! QuickFixDo(command)
 		" Close the buffer
 		bd
 	endfor
+endfunction
+
+" Be aware of whether you are right or left vertical split
+" so you can use arrows more naturally.
+" Inspired by https://github.com/ethagnawl.
+function! IntelligentHorizontalResize(direction) abort
+	let l:window_resize_count = 5
+	let l:current_window_is_last_window = (winnr() == winnr('$'))
+
+	if (a:direction ==# 'left')
+		let [l:modifier_1, l:modifier_2] = ['+', '-']
+	else
+		let [l:modifier_1, l:modifier_2] = ['-', '+']
+	endif
+
+	let l:modifier = l:current_window_is_last_window ? l:modifier_1 : l:modifier_2
+	let l:command = 'vertical resize ' . l:modifier . l:window_resize_count . '<CR>'
+	execute l:command
 endfunction
