@@ -41,7 +41,7 @@ set autoread
 let mapleader = " "
 let g:mapleader = " "
 
-" :W sudo saves the file
+" :w!! sudo saves the file
 " (useful for handling the permission-denied error)
 cmap w!! w !sudo tee > /dev/null %
 
@@ -55,11 +55,14 @@ Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'tpope/vim-commentary'
 Plug 'editorconfig/editorconfig-vim'
+Plug 'isRuslan/vim-es6'
 Plug 'mattn/emmet-vim'
 Plug 'tpope/vim-fugitive'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': 'yes \| ./install' }
 Plug 'junegunn/fzf.vim'
 Plug 'airblade/vim-gitgutter'
+Plug 'pangloss/vim-javascript'
+Plug 'mxw/vim-jsx'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'junegunn/vim-peekaboo'
 Plug 'tpope/vim-repeat'
@@ -85,7 +88,7 @@ endfunc
 autocmd InsertEnter * :call LoadUltisnips()
 
 " Color themes:
-Plug 'chriskempson/vim-tomorrow-theme'
+Plug 'chriskempson/base16-vim'
 
 " Enable local plugins (if exists)
 if filereadable(expand("~/.vimrc.plugins.local"))
@@ -97,7 +100,6 @@ call plug#end()
 " Plugin configuration
 
 "airline
-let g:airline#extensions#tabline#enabled = 1 " Display open buffers if only one tab
 let g:airline_powerline_fonts = 1
 
 "gitgutter
@@ -112,6 +114,10 @@ imap <c-x><c-l> <plug>(fzf-complete-line)
 
 " vim-go
 let g:go_fmt_command = "goimports"
+au FileType go nmap <leader>gb <Plug>(go-build)
+
+"vim-jsx
+let g:jsx_ext_required = 0 "Also show jsx syntax in .js files
 
 " nerdtree
 " close vim if only nerdtree left open
@@ -128,6 +134,8 @@ let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
 
 "syntastic
 let g:syntastic_check_on_open=0
+let g:syntastic_go_checkers = ['golint', 'govet', 'errcheck']
+let g:syntastic_mode_map = { 'mode': 'active', 'passive_filetypes': ['go'] }
 
 "tmux-complete
 let g:tmuxcomplete#trigger = ''
@@ -145,7 +153,7 @@ autocmd InsertEnter,InsertLeave * set cul!
 " open diffs vertically
 set diffopt+=vertical
 
-" always show the tab line, for airline (which shows buffers)
+" Show tabline if > 1 tabs
 set showtabline=1
 
 " Turn on the WiLd menu
@@ -240,7 +248,8 @@ set encoding=utf8
 " Use Unix as the standard file type
 set ffs=unix,dos,mac
 
-colorscheme Tomorrow
+let base16colorspace=256
+colorscheme base16-tomorrow-night
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Files, backups and undo
@@ -327,7 +336,6 @@ map <leader>cd :cd %:p:h<cr>:pwd<cr>
 " Specify the behavior when switching between buffers
 try
 	set switchbuf=useopen,usetab,newtab
-	set stal=2
 catch
 endtry
 
