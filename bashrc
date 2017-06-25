@@ -68,7 +68,6 @@ if [ -z "$PATH_EXPANDED" ]; then
 fi
 export EDITOR=vim
 export LANG=en_US.UTF-8
-export FZF_DEFAULT_COMMAND='ag -l -g ""'
 
 ### OS X
 COPYFILE_DISABLE=1; export COPYFILE_DISABLE # turn off special handling of ._* files in tar, etc.
