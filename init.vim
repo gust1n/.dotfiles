@@ -45,7 +45,9 @@ Plug 'tpope/vim-fugitive'
 Plug 'mhinz/vim-signify'
 
 " Lang
-Plug 'jodosha/vim-godebug'
+if has('nvim')
+	Plug 'jodosha/vim-godebug'
+endif
 Plug 'fatih/vim-go', { 'do': ':GoInstallBinaries' }
 Plug 'pangloss/vim-javascript'
 Plug 'mxw/vim-jsx'
@@ -88,7 +90,7 @@ let maplocalleader = ' '
 
 set termguicolors
 
-colorscheme tomorrow-night
+colorscheme Tomorrow-Night
 
 augroup vimrc
 	autocmd!
@@ -140,7 +142,9 @@ endtry
 " ============================================================================
 
 " terminal mode
-:tnoremap <Esc> <C-\><C-n>
+if has('nvim')
+	:tnoremap <Esc> <C-\><C-n>
+endif
 
 " Let arrow keys resize window
 nnoremap <silent> <Right> :call IntelligentHorizontalResize('right')<CR>
@@ -168,6 +172,12 @@ nnoremap <silent> <Leader>p :Commands<CR>
 nnoremap <silent> <Leader>b :Buffers<CR>
 imap <c-x><c-f> <plug>(fzf-complete-path)
 imap <c-x><c-l> <plug>(fzf-complete-line)
+let g:rg_command = '
+    \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
+    \ -g "*.{js,json,php,md,styl,pug,jade,html,config,py,cpp,c,go,hs,rb,conf,fa,lst}"
+    \ -g "!{.config,.git,node_modules,vendor,build,yarn.lock,*.sty,*.bst,*.coffee,dist}/*" '
+
+command! -bang -nargs=* F call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
 " Fugitive
 nmap <Leader>gs :Gstatus<CR>gg<c-n>
