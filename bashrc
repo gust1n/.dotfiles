@@ -66,7 +66,7 @@ if [ -z "$PATH_EXPANDED" ]; then
 	export PATH=/usr/local/bin:~/bin:$GOPATH/bin:$PATH
 	export PATH_EXPANDED=1
 fi
-export EDITOR=vim
+export EDITOR=nvim
 export LANG=en_US.UTF-8
 
 ### OS X
@@ -106,6 +106,7 @@ z() {
   fi
 }
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+export FZF_DEFAULT_COMMAND='rg --files --no-ignore-vcs --hidden'
 export FZF_DEFAULT_OPTS='--bind J:down,K:up --reverse --ansi '
 bind -x '"\C-p": fvim'
 
