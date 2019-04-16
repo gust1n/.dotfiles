@@ -77,4 +77,4 @@ fi
 vim -u ~/.vimrc +PlugInstall +PlugClean! +qa
 
 # Check if ag is installed and prompt to install otherwise
-command -v ag >/dev/null 2>&1 || { echo >&2 "ag (the silver searcher) is needed but not found as executable in $PATH, please install."; }
+command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
