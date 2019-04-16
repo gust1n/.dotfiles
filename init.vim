@@ -20,65 +20,48 @@ Plug 'chriskempson/vim-tomorrow-theme'
 " Edit
 Plug 'editorconfig/editorconfig-vim'
 Plug 'junegunn/vim-peekaboo'
-Plug 'junegunn/fzf',        { 'do': './install --all' }
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-surround'
-Plug 'tpope/vim-commentary',        { 'on': '<Plug>Commentary' }
-Plug 'mbbill/undotree',             { 'on': 'UndotreeToggle'   }
-Plug 'vim-airline/vim-airline'
-Plug 'vim-airline/vim-airline-themes'
-Plug 'SirVer/ultisnips'
-Plug 'honza/vim-snippets'
-Plug 'justinmk/vim-sneak'
-Plug 'szw/vim-maximizer'
+Plug 'tpope/vim-commentary',        { 'on': '<Plug>Commentary' } " (Un)comment code
+Plug 'itchyny/lightline.vim' " Statusline
+Plug 'tpope/vim-sleuth' " Auto detect indentation
 
 " Browsing
-Plug 'Yggdroot/indentLine', { 'on': 'IndentLinesEnable' }
-autocmd! User indentLine doautocmd indentLine Syntax
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'majutsushi/tagbar'
 Plug 'scrooloose/nerdtree'
 
 " Git
 Plug 'tpope/vim-fugitive'
-Plug 'mhinz/vim-signify'
+Plug 'airblade/vim-gitgutter'
 
 " Lang
-if has('nvim')
-	Plug 'jodosha/vim-godebug'
-endif
 Plug 'fatih/vim-go', { 'do': ':GoInstallBinaries' }
+let g:go_def_mode='gopls'
+let g:go_fmt_command = "goimports"
 Plug 'pangloss/vim-javascript'
 Plug 'mxw/vim-jsx'
 Plug 'honza/dockerfile.vim'
-Plug 'ternjs/tern_for_vim',        { 'do': 'npm install' }
-Plug 'posva/vim-vue'
+Plug 'leafgarland/typescript-vim'
 
 " Lint
 Plug 'w0rp/ale'
-let g:ale_html_tidy_options = '-q -e -language en --show-body-only yes'
-
+let g:ale_sign_column_always = 1
+let g:ale_completion_enabled = 1
+let g:ale_linters = {
+\   'javascript': ['eslint'],
+\   'typescript': ['tslint', 'tsserver'],
+\}
+let g:ale_fixers = {
+\   'javascript': ['prettier'],
+\   'typescript': ['prettier']
+\}
+let g:ale_fix_on_save = 1
 
 call plug#end()
 endif
-
-" Plugin configuration
-
-" airline
-let g:airline#extensions#tabline#enabled = 1
-" let g:airline_section_y = airline#section#create_right(['ffenc', autosaving])
-
-" ultisnips
-let g:UltiSnipsExpandTrigger = "<tab>"
-let g:UltiSnipsJumpForwardTrigger = "<tab>"
-let g:UltiSnipsJumpBackwardTrigger = "<s-tab>"
-
-" vim-go
-let g:go_fmt_command = "goimports"
-
-" sneak
-let g:sneak#label = 1
 
 " }}}
 " ============================================================================
@@ -93,7 +76,7 @@ set termguicolors
 colorscheme Tomorrow-Night
 
 augroup vimrc
-	autocmd!
+    autocmd!
 augroup END
 
 set autoindent
@@ -132,9 +115,13 @@ set foldlevelstart=99 "No folds at start
 
 " Specify the behavior when switching between buffers
 try
-	set switchbuf=useopen,usetab,newtab
+    set switchbuf=useopen,usetab,newtab
 catch
 endtry
+
+if exists('&inccommand')
+    set inccommand=nosplit
+endif
 
 " }}}
 " ============================================================================
@@ -143,20 +130,18 @@ endtry
 
 " terminal mode
 if has('nvim')
-	:tnoremap <Esc> <C-\><C-n>
+    :tnoremap <expr> <esc> &filetype == 'fzf' ? "\<esc>" : "\<c-\>\<c-n>"
 endif
+
+" Language client
+nnoremap <silent> gd :ALEGoToDefinition<CR>
+nnoremap <silent> K :ALEHover<CR>
 
 " Let arrow keys resize window
 nnoremap <silent> <Right> :call IntelligentHorizontalResize('right')<CR>
 nnoremap <silent> <Left> :call IntelligentHorizontalResize('left')<CR>
 nnoremap <silent> <Up> :resize -2<CR>
 nnoremap <silent> <Down> :resize +2<CR>
-
-" Move to the next buffer
-nmap <Tab> :bnext<CR>
-
-" Move to the previous buffer
-nmap <S-Tab> :bprevious<CR>
 
 " Move selection up/down linewise with <alt>+[jk]
 nmap √ mz:m+<cr>`z
@@ -172,12 +157,6 @@ nnoremap <silent> <Leader>p :Commands<CR>
 nnoremap <silent> <Leader>b :Buffers<CR>
 imap <c-x><c-f> <plug>(fzf-complete-path)
 imap <c-x><c-l> <plug>(fzf-complete-line)
-let g:rg_command = '
-    \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
-    \ -g "*.{js,json,php,md,styl,pug,jade,html,config,py,cpp,c,go,hs,rb,conf,fa,lst}"
-    \ -g "!{.config,.git,node_modules,vendor,build,yarn.lock,*.sty,*.bst,*.coffee,dist}/*" '
-
-command! -bang -nargs=* F call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
 " Fugitive
 nmap <Leader>gs :Gstatus<CR>gg<c-n>
@@ -185,9 +164,9 @@ nnoremap <Leader>gd :Gdiff<CR>
 
 " When you press <leader>f you grep after the selected text
 vnoremap <silent> <leader>f :call VisualSelection('find')<CR>
-" and in normal mode we enter simply enter Ag (interactive)
+" and in normal mode we enter simply enter interactive 'find in project'
 if executable('fzf')
-	nnoremap <silent> <leader>f :Ag<CR>
+	nnoremap <silent> <leader>f :F<CR>
 endif
 
 " When you press <leader>r you can search and replace the selected text
@@ -232,25 +211,6 @@ augroup reload_vimrc
 augroup END
 
 " ----------------------------------------------------------------------------
-" AutoSave
-" ----------------------------------------------------------------------------
-
-function! s:autosave(enable)
-	augroup autosave
-		autocmd!
-		if a:enable
-			autocmd TextChanged,InsertLeave <buffer>
-						\  if empty(&buftype) && !empty(bufname(''))
-						\|   silent! update
-						\| endif
-		endif
-	augroup END
-endfunction
-
-command! -bang AutoSave call s:autosave(<bang>1)
-call s:autosave(1) " enabled by default
-
-" ----------------------------------------------------------------------------
 " Visual Selection
 " ----------------------------------------------------------------------------
 function! CmdLine(str)
@@ -268,7 +228,7 @@ function! VisualSelection(direction) range
 	if a:direction == 'b'
 		execute "normal ?" . l:pattern . "^M"
 	elseif a:direction == 'find'
-		call CmdLine("Ag " . l:pattern . "<CR>")
+		call CmdLine("F " . l:pattern . "<CR>")
 	elseif a:direction == 'replace'
 		call CmdLine("%s" . '/'. l:pattern . '/')
 	elseif a:direction == 'f'
