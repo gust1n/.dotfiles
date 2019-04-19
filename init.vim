@@ -18,19 +18,33 @@ silent! if plug#begin('~/.local/share/nvim/bundle')
 Plug 'chriskempson/vim-tomorrow-theme'
 
 " Edit
+Plug 'w0rp/ale' " Linter
+let g:ale_sign_column_always = 1
+let g:ale_open_list = 1
+let g:ale_linters = {
+\   'javascript': ['eslint'],
+\   'typescript': ['tslint', 'tsserver'],
+\}
+let g:ale_fixers = {
+\   'javascript': ['prettier'],
+\   'typescript': ['prettier']
+\}
+let g:ale_fix_on_save = 1
 Plug 'editorconfig/editorconfig-vim'
 Plug 'junegunn/vim-peekaboo'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-surround'
-Plug 'tpope/vim-commentary',        { 'on': '<Plug>Commentary' } " (Un)comment code
-Plug 'itchyny/lightline.vim' " Statusline
+Plug 'tpope/vim-commentary',        { 'on': '<Plug>Commentary' }
+Plug 'itchyny/lightline.vim'
+let g:lightline = {
+      \ 'colorscheme': 'Tomorrow_Night',
+      \ }
 Plug 'tpope/vim-sleuth' " Auto detect indentation
 
 " Browsing
 Plug 'christoomey/vim-tmux-navigator'
-Plug 'majutsushi/tagbar'
 Plug 'scrooloose/nerdtree'
 
 " Git
@@ -45,20 +59,6 @@ Plug 'pangloss/vim-javascript'
 Plug 'mxw/vim-jsx'
 Plug 'honza/dockerfile.vim'
 Plug 'leafgarland/typescript-vim'
-
-" Lint
-Plug 'w0rp/ale'
-let g:ale_sign_column_always = 1
-let g:ale_completion_enabled = 1
-let g:ale_linters = {
-\   'javascript': ['eslint'],
-\   'typescript': ['tslint', 'tsserver'],
-\}
-let g:ale_fixers = {
-\   'javascript': ['prettier'],
-\   'typescript': ['prettier']
-\}
-let g:ale_fix_on_save = 1
 
 call plug#end()
 endif
@@ -79,6 +79,7 @@ augroup vimrc
     autocmd!
 augroup END
 
+set noshowmode " no need to show mode when using lightline
 set autoindent
 set wrap "Wrap lines
 set number "Show line numbers by default
@@ -228,7 +229,7 @@ function! VisualSelection(direction) range
 	if a:direction == 'b'
 		execute "normal ?" . l:pattern . "^M"
 	elseif a:direction == 'find'
-		call CmdLine("F " . l:pattern . "<CR>")
+		call CmdLine("Rg " . l:pattern . "<CR>")
 	elseif a:direction == 'replace'
 		call CmdLine("%s" . '/'. l:pattern . '/')
 	elseif a:direction == 'f'
