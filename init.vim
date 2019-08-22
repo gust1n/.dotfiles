@@ -20,16 +20,16 @@ Plug 'chriskempson/vim-tomorrow-theme'
 " Edit
 Plug 'w0rp/ale' " Linter
 let g:ale_sign_column_always = 1
-let g:ale_open_list = 1
+let g:ale_open_list = 'on_save'
 let g:ale_linters = {
-\   'javascript': ['eslint'],
+\   'javascript': ['eslint', 'tsserver'],
 \   'typescript': ['tslint', 'tsserver'],
 \}
 let g:ale_fixers = {
-\   'javascript': ['prettier'],
 \   'typescript': ['prettier']
 \}
 let g:ale_fix_on_save = 1
+let g:ale_go_langserver_executable = 'gopls'
 Plug 'editorconfig/editorconfig-vim'
 Plug 'junegunn/vim-peekaboo'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
@@ -39,8 +39,17 @@ Plug 'tpope/vim-surround'
 Plug 'tpope/vim-commentary',        { 'on': '<Plug>Commentary' }
 Plug 'itchyny/lightline.vim'
 let g:lightline = {
+      \ 'component_function': {
+      \   'mode': 'LightlineMode',
+      \ },
       \ 'colorscheme': 'Tomorrow_Night',
       \ }
+
+function! LightlineMode()
+  return &filetype ==# 'fzf' ? 'FZF' :
+        \ lightline#mode()
+endfunction
+
 Plug 'tpope/vim-sleuth' " Auto detect indentation
 
 " Browsing
@@ -159,6 +168,8 @@ nnoremap <silent> <Leader>b :Buffers<CR>
 imap <c-x><c-f> <plug>(fzf-complete-path)
 imap <c-x><c-l> <plug>(fzf-complete-line)
 
+command! -nargs=+ F :Rg <args>
+
 " Fugitive
 nmap <Leader>gs :Gstatus<CR>gg<c-n>
 nnoremap <Leader>gd :Gdiff<CR>
@@ -197,6 +208,8 @@ nmap <leader>O O<Esc>j
 " vim-commentary
 map  gc  <Plug>Commentary
 nmap gcc <Plug>CommentaryLine
+
+nmap <leader>j <Plug>(ale_next_wrap)
 
 " }}}
 " ============================================================================
