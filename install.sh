@@ -52,9 +52,16 @@ if [ ! -e ~/.bin/z.sh ]; then
 	curl https://raw.githubusercontent.com/rupa/z/master/z.sh -o ~/.bin/z.sh
 fi
 
-# TODO: Make configurable
-git config --global user.email "jocke.gustin@gmail.com"
-git config --global user.name "Jocke Gustin"
+read -p 'Git User Name (empty to skip): ' gitname
+
+if [ ! -z "$gitname" ]
+then
+	read -p 'Git User Email: ' gitemail
+	git config --global user.email $gitemail
+	git config --global user.name "$gitname"
+	echo "Configured to use git as $gitname <$gitemail>"
+fi
+
 git config --global core.excludesfile ~/.gitignore
 
 # Check if some base tools are installed and prompt to install otherwise
