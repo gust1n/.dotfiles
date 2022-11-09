@@ -2,79 +2,61 @@
 
 BASE=$(pwd)
 
-# Symlink all files folders (and backup existing)
 mkdir -pv bak
-for rc in *rc *profile tmux.conf agignore gitignore; do
-	[ -e ~/.$rc ] && mv -v ~/.$rc bak/.$rc
-	ln -sfv $BASE/$rc ~/.$rc
+
+# Symlink all .config files and directories (and backup existing)
+config_dir=$BASE/config
+for entry in "$config_dir"/*
+do
+	dir_name=$(basename "$entry")
+	dir_path=~/.config/$dir_name
+	mkdir -p $dir_path
+
+	for fileentry in "$entry"/*
+	do
+		file_name=$(basename "$fileentry")
+		file_path=$dir_path/$file_name
+		[ -e $file_path ] && echo "backing up existing $file_path" && mv -v $file_path bak
+		echo "symlinking $file_path -> $fileentry"
+		ln -sfv $fileentry $file_path
+	done
 done
+
+
+# Symlink all files folders (and backup existing)
+for rc in *rc *profile *ignore; do
+	target_location=~/.$rc
+	[ -e ~/.$rc ] && echo "backing up existing $target_location" && mv -v $target_location bak/.$rc
+	echo "symlinking $target_location -> $BASE/$rc"
+	ln -sfv $BASE/$rc $target_location
+done
+
+# Dynamically create bashrc
+echo "creating .bashrc from template"
+# cp $BASE/template/bashrc ~/.bashrc
+sed -e "s|__REPLACE__|$BASE|g" $BASE/bashrc_template > ~/.bashrc
+chmod +x ~/.bashrc
+chmod 600 ~/.bashrc
+
+# download some helpers
+mkdir -pv ~/.bin
 
 # git-prompt
-if [ ! -e ~/.git-prompt.sh ]; then
-	curl https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh -o ~/.git-prompt.sh
+if [ ! -e ~/.bin/git-prompt.sh ]; then
+	echo "downloading ~/.bin/git-prompt.sh"
+	curl https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh -o ~/.bin/git-prompt.sh
+fi
+# z.sh
+if [ ! -e ~/.bin/z.sh ]; then
+	echo "downloading ~/.bin/z.sh"
+	curl https://raw.githubusercontent.com/rupa/z/master/z.sh -o ~/.bin/z.sh
 fi
 
-# scripts
-mkdir -p ~/bin
-for bin in $BASE/bin/*; do
-	ln -svf $bin ~/bin
-done
-
-if [ $(uname -s) = 'Darwin' ]; then
-	# Homebrew
-	[ -z "$(which brew)" ] &&
-		ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-
-	echo "Updating homebrew"
-	brew update
-	# Install GNU core utilities (those that come with OS X are outdated).
-	# Don’t forget to add `$(brew --prefix coreutils)/libexec/gnubin` to `$PATH`
-	# (unless installed --with-default-names).
-	brew install coreutils --with-default-names
-	# Install GNU `sed`, overwriting the built-in `sed`.
-	brew install gnu-sed --with-default-names
-	# Install Bash 4.
-	# Note: don’t forget to add `/usr/local/bin/bash` to `/etc/shells` before
-	# running `chsh`.
-	brew install bash
-	brew tap homebrew/versions
-	brew install bash-completion2
-
-	# Install `wget` with IRI support.
-	brew install wget --with-iri
-
-	# Install more recent versions of some OS X tools.
-	brew install vim --override-system-vi
-	brew install homebrew/dupes/grep
-	brew install homebrew/dupes/openssh
-
-	# Useful tools
-	brew install ag
-	brew install composer
-	brew install cscope
-	brew install ctags
-	brew install git
-	brew install go
-	brew install mysql
-	brew install redis
-	brew install tmux
-	brew install ssh-copy-id
-
-	# Remove outdated versions from the cellar.
-	brew cleanup
-fi
-
+# TODO: Make configurable
 git config --global user.email "jocke.gustin@gmail.com"
 git config --global user.name "Jocke Gustin"
+git config --global core.excludesfile ~/.gitignore
 
-tmux source-file ~/.tmux.conf
-
-# Install vim-plug and all plugins
-if [ ! -e ~/.vim/autoload/plug.vim ]; then
-	curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-fi
-vim -u ~/.vimrc +PlugInstall +PlugClean! +qa
-
-# Check if ag is installed and prompt to install otherwise
+# Check if some base tools are installed and prompt to install otherwise
 command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
+command -v fzf >/dev/null 2>&1 || { echo >&2 "fz is needed but not found as executable in $PATH, please install."; }
