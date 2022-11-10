@@ -99,6 +99,9 @@ vim.wo.number = true
 -- Scroll when 7 lines from top/bottom
 vim.wo.so = 7
 
+-- Visual aid for detecting long lines
+vim.opt.colorcolumn = "120"
+
 --Enable break indent
 vim.o.breakindent = true
 
