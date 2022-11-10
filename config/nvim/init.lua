@@ -224,6 +224,8 @@ vim.api.nvim_set_keymap('n', '<leader><cr>', ':noh<CR>', { noremap = true, silen
 vim.api.nvim_set_keymap('n', '<leader>o', 'o<Esc>k', { noremap = false, silent = false })
 vim.api.nvim_set_keymap('n', '<leader>O', 'O<Esc>j', { noremap = false, silent = false })
 
+-- Remap ctrl-c to Esc to better support LSP and other background processes
+vim.api.nvim_set_keymap('i', '<C-c>', '<Esc>', { noremap = false, silent = false })
 
 -- Treesitter configuration
 -- Parsers must be installed manually via :TSInstall
