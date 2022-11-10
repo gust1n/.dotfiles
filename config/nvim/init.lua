@@ -185,6 +185,7 @@ require('mason-lspconfig').setup()
 require('mason-tool-installer').setup {
   ensure_installed = {
     'gopls',
+    'gofumpt',
     'goimports',
   },
   auto_update = true,
@@ -194,7 +195,8 @@ require('mason-tool-installer').setup {
 -- Null LS
 require("null-ls").setup({
     sources = {
-	require("null-ls").builtins.formatting.goimports
+	require("null-ls").builtins.formatting.gofumpt,
+	require("null-ls").builtins.formatting.goimports,
     },
 })
 
@@ -358,7 +360,7 @@ lspconfig.gopls.setup {
 end
 
 -- Enable the following language servers
-local servers = { 'gopls', 'tsserver' }
+local servers = { 'gopls' }
 for _, lsp in ipairs(servers) do
   lspconfig[lsp].setup {
     on_attach = on_attach,
