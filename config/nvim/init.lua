@@ -35,13 +35,10 @@ require('packer').startup(function()
 
   use 'simeji/winresizer' -- smart resize command
 
-  use { 'ibhagwan/fzf-lua',
-    -- optional for icon support
-    requires = { 'kyazdani42/nvim-web-devicons' }
-  }
+  use 'ibhagwan/fzf-lua'
 
   use 'joshdick/onedark.vim' -- Theme inspired by Atom
-  -- use 'itchyny/lightline.vim' -- Fancier statusline
+
   use'nvim-lualine/lualine.nvim'-- Fancier statusline
 
   use { 'lewis6991/gitsigns.nvim', requires = { 'nvim-lua/plenary.nvim' } } -- Git signs in sign column
@@ -49,36 +46,50 @@ require('packer').startup(function()
   use 'nvim-treesitter/nvim-treesitter'
   use 'nvim-treesitter/nvim-treesitter-textobjects'
 
-  use 'ray-x/lsp_signature.nvim'
-  use 'nvim-lua/popup.nvim'
+  use 'ray-x/lsp_signature.nvim' -- function signature hints
   use 'christoomey/vim-tmux-navigator'
   use {
 	  "folke/trouble.nvim",
-	  requires = "kyazdani42/nvim-web-devicons",
 	  config = function()
 		  require("trouble").setup {
 			  position = "bottom",
-			  -- icons = false,
-			  -- fold_open = "v", -- icon used for open folds
-			  -- fold_closed = ">", -- icon used for closed folds
-			  -- indent_lines = false, -- add an indent guide below the fold icons
+			  icons = false,
+			  fold_open = "v", -- icon used for open folds
+			  fold_closed = ">", -- icon used for closed folds
+			  indent_lines = false, -- add an indent guide below the fold icons
 			  auto_open = true, -- automatically open the list when you have diagnostics
 			  auto_close = true, -- automatically close the list when you have no diagnostics
 		          auto_preview = false, -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
-			  -- signs = {
-				  -- -- icons / text used for a diagnostic
-				  -- error = "error",
-				  -- warning = "warn",
-				  -- hint = "hint",
-				  -- information = "info"
-			  -- },
-			  -- use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
+			  signs = {
+				  -- icons / text used for a diagnostic
+				  error = "error",
+				  warning = "warn",
+				  hint = "hint",
+				  information = "info"
+			  },
+			  use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
 		  }
 	  end
   }
   use {
-	  'kyazdani42/nvim-tree.lua',
-	  config = function() require'nvim-tree'.setup {} end
+	'kyazdani42/nvim-tree.lua',
+	config = function() require'nvim-tree'.setup {
+			renderer = {
+				icons = {
+					show = {
+						folder = false,
+						file = false,
+					},
+					glyphs = {
+						folder = {
+							arrow_closed = ">",
+							arrow_open = "v",
+						}
+					}
+				}
+			},
+	} 
+	end
   }
 end)
 
