@@ -26,8 +26,6 @@ require('packer').startup(function()
 
   use 'christoomey/vim-system-copy' -- Copy to system clipboard
 
-  use 'RRethy/vim-illuminate' -- Highlight word under cursor
-
   use 'tpope/vim-fugitive' -- Git
   use 'tpope/vim-commentary' -- Smart commenting
   use 'tpope/vim-surround' -- Surround movement
