@@ -354,8 +354,8 @@ lspconfig.gopls.setup {
   require "lsp_signature".on_attach({
 	  bind = true,
 	  hi_parameter = "IncSearch",
-	  hint_enable = true,
-	  floating_window = false,
+	  hint_enable = false,
+	  floating_window = true,
   }, bufnr)
 end
 
