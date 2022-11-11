@@ -93,6 +93,9 @@ vim.opt.mouse = ""
 --Set highlight on search
 vim.o.hlsearch = true
 
+-- Scroll offset
+vim.o.scrolloff = 7
+
 --Show line numbers
 vim.wo.number = true
 
