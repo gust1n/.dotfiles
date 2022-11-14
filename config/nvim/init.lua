@@ -22,7 +22,18 @@ require('packer').startup(function()
    use 'williamboman/mason-lspconfig.nvim'
    use 'WhoIsSethDaniel/mason-tool-installer.nvim'
    use 'neovim/nvim-lspconfig' -- Collection of configurations for built-in LSP client
-   use 'jose-elias-alvarez/null-ls.nvim' -- Plug into the Language Server with other tools
+   use {
+      'jose-elias-alvarez/null-ls.nvim',
+      config = function()
+         local null_ls = require("null-ls")
+         local sources = {
+            null_ls.builtins.formatting.gofumpt,
+            null_ls.builtins.formatting.goimports,
+         }
+         require("custom_code_actions")
+         null_ls.setup({ sources = sources, debug = false })
+      end
+   }
 
    use 'christoomey/vim-system-copy' -- Copy to system clipboard
 
@@ -205,14 +216,6 @@ require('mason-tool-installer').setup {
    auto_update = true,
    run_on_start = true,
 }
-
--- Null LS
-require("null-ls").setup({
-   sources = {
-      require("null-ls").builtins.formatting.gofumpt,
-      require("null-ls").builtins.formatting.goimports,
-   },
-})
 
 -- Gitsigns
 require('gitsigns').setup {
