@@ -5,6 +5,7 @@ BASE=$(pwd)
 mkdir -pv bak
 
 # Symlink all .config files and directories (and backup existing)
+shopt -s dotglob
 config_dir=$BASE/config
 for entry in "$config_dir"/*
 do
