@@ -20,7 +20,26 @@ require('packer').startup(function()
 
    use 'williamboman/mason.nvim' -- Installer for LSPs, linters etc
    use 'williamboman/mason-lspconfig.nvim'
-   use 'WhoIsSethDaniel/mason-tool-installer.nvim'
+   use {
+      'WhoIsSethDaniel/mason-tool-installer.nvim',
+      config = function()
+         local mti = require('mason-tool-installer')
+         local tools = {}
+         if vim.fn.executable('go') == 1 then
+            table.insert(tools, 'gopls')
+            table.insert(tools, 'gofumpt')
+            table.insert(tools, 'goimports')
+         end
+         if vim.fn.executable('lua') == 1 then
+            table.insert(tools, 'lua-language-server')
+         end
+         mti.setup {
+            ensure_installed = tools,
+            auto_update = true,
+            run_on_start = true,
+         }
+      end
+   }
    use 'neovim/nvim-lspconfig' -- Collection of configurations for built-in LSP client
    use {
       'jose-elias-alvarez/null-ls.nvim',
@@ -206,16 +225,6 @@ vim.cmd [[
 -- Mason
 require('mason').setup()
 require('mason-lspconfig').setup()
-require('mason-tool-installer').setup {
-   ensure_installed = {
-      'gopls',
-      'gofumpt',
-      'goimports',
-      'lua-language-server',
-   },
-   auto_update = true,
-   run_on_start = true,
-}
 
 -- Gitsigns
 require('gitsigns').setup {
