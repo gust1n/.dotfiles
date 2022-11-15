@@ -395,8 +395,14 @@ local on_attach = function(client, bufnr)
    }, bufnr)
 end
 
--- Enable the following language servers
-local servers = { 'gopls', 'sumneko_lua' }
+-- Conditionally enable language servers
+local servers = {}
+if vim.fn.executable('go') == 1 then
+   table.insert(servers, 'gopls')
+end
+if vim.fn.executable('lua') == 1 then
+   table.insert(servers, 'sumneko_lua')
+end
 for _, lsp in ipairs(servers) do
    lspconfig[lsp].setup {
       on_attach = on_attach,
