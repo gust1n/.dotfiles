@@ -16,12 +16,21 @@ local use = require('packer').use
 require('packer').startup(function()
    use 'wbthomason/packer.nvim' -- Inception
 
-   use 'williamboman/mason.nvim' -- Installer for LSPs, linters etc
-   use 'williamboman/mason-lspconfig.nvim'
+   use {
+      'williamboman/mason.nvim',
+      config = function()
+         require('mason').setup()
+      end
+   }
+   use {
+      'williamboman/mason-lspconfig.nvim',
+      config = function()
+         require('mason-lspconfig').setup()
+      end
+   }
    use {
       'WhoIsSethDaniel/mason-tool-installer.nvim',
       config = function()
-         local mti = require('mason-tool-installer')
          local tools = {}
          if vim.fn.executable('go') == 1 then
             table.insert(tools, 'gopls')
@@ -31,7 +40,7 @@ require('packer').startup(function()
          if vim.fn.executable('lua') == 1 then
             table.insert(tools, 'lua-language-server')
          end
-         mti.setup {
+         require('mason-tool-installer').setup {
             ensure_installed = tools,
             auto_update = true,
             run_on_start = true,
@@ -72,11 +81,88 @@ require('packer').startup(function()
 
    use 'joshdick/onedark.vim' -- Theme inspired by Atom
 
-   use 'nvim-lualine/lualine.nvim' -- Fancier statusline
+   use {
+      'nvim-lualine/lualine.nvim',
+      config = function()
+         require('lualine').setup {
+            options = {
+               icons_enabled = false,
+               theme = 'onedark',
+               globalstatus = true,
+               section_separators = '',
+               component_separators = ''
+            },
+            sections = {
+               lualine_a = { 'mode' },
+               lualine_b = { 'branch', 'diff' },
+               lualine_c = { 'filename' },
+               lualine_x = { 'diagnostics', 'encoding', 'fileformat', 'filetype' },
+               lualine_y = { 'progress' },
+               lualine_z = { 'location' }
+            },
+            inactive_sections = {
+               lualine_a = {},
+               lualine_b = {},
+               lualine_c = { 'filename' },
+               lualine_x = { 'location' },
+               lualine_y = {},
+               lualine_z = {}
+            },
+         }
+      end
+   }
 
-   use { 'lewis6991/gitsigns.nvim', requires = { 'nvim-lua/plenary.nvim' } } -- Git signs in sign column
+   use {
+      'lewis6991/gitsigns.nvim',
+      requires = { 'nvim-lua/plenary.nvim' },
+      config = function()
+         require('gitsigns').setup {
+            signs = {
+               add = { hl = 'GitGutterAdd', text = '+' },
+               change = { hl = 'GitGutterChange', text = '~' },
+               delete = { hl = 'GitGutterDelete', text = '_' },
+               topdelete = { hl = 'GitGutterDelete', text = '‾' },
+               changedelete = { hl = 'GitGutterChange', text = '~' },
+            },
+         }
+      end
+   }
 
-   use 'nvim-treesitter/nvim-treesitter'
+   -- Treesitter configuration
+   -- Parsers must be installed manually via :TSInstall
+   use {
+      'nvim-treesitter/nvim-treesitter',
+      config = function()
+         require('nvim-treesitter.configs').setup {
+            highlight = {
+               enable = true, -- false will disable the whole extension
+            },
+            incremental_selection = {
+               enable = false,
+            },
+            indent = {
+               enable = true,
+            },
+            textobjects = {
+               select = {
+                  enable = true,
+                  lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+                  keymaps = {
+                     -- You can use the capture groups defined in textobjects.scm
+                     ['af'] = '@function.outer',
+                     ['if'] = '@function.inner',
+                     ['ac'] = '@class.outer',
+                     ['ic'] = '@class.inner',
+                  },
+               },
+               move = {
+                  enable = false,
+                  set_jumps = true, -- whether to set jumps in the jumplist
+               },
+            },
+         }
+      end
+   }
    use 'nvim-treesitter/nvim-treesitter-textobjects'
 
    use 'ray-x/lsp_signature.nvim' -- function signature hints
@@ -172,40 +258,6 @@ vim.o.termguicolors = true
 vim.g.onedark_terminal_italics = 2
 vim.cmd [[colorscheme onedark]]
 
--- fzf-lua config
-require('fzf-lua').setup {
-   grep = {
-      rg_glob = true,
-   }
-}
-
--- lualine setup
-require('lualine').setup {
-   options = {
-      icons_enabled = false,
-      theme = 'onedark',
-      globalstatus = true,
-      section_separators = '',
-      component_separators = ''
-   },
-   sections = {
-      lualine_a = { 'mode' },
-      lualine_b = { 'branch', 'diff' },
-      lualine_c = { 'filename' },
-      lualine_x = { 'diagnostics', 'encoding', 'fileformat', 'filetype' },
-      lualine_y = { 'progress' },
-      lualine_z = { 'location' }
-   },
-   inactive_sections = {
-      lualine_a = {},
-      lualine_b = {},
-      lualine_c = { 'filename' },
-      lualine_x = { 'location' },
-      lualine_y = {},
-      lualine_z = {}
-   },
-}
-
 --Remap space as leader key
 vim.api.nvim_set_keymap('', '<Space>', '<Nop>', { noremap = true, silent = true })
 vim.g.mapleader = ' '
@@ -224,21 +276,6 @@ vim.cmd [[
     autocmd TextYankPost * silent! lua vim.highlight.on_yank()
   augroup end
 ]]
-
--- Mason
-require('mason').setup()
-require('mason-lspconfig').setup()
-
--- Gitsigns
-require('gitsigns').setup {
-   signs = {
-      add = { hl = 'GitGutterAdd', text = '+' },
-      change = { hl = 'GitGutterChange', text = '~' },
-      delete = { hl = 'GitGutterDelete', text = '_' },
-      topdelete = { hl = 'GitGutterDelete', text = '‾' },
-      changedelete = { hl = 'GitGutterChange', text = '~' },
-   },
-}
 
 --Add leader shortcuts
 vim.api.nvim_set_keymap('n', '<leader>kb', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
@@ -260,59 +297,6 @@ vim.api.nvim_set_keymap('n', '<leader>O', 'O<Esc>j', { noremap = false, silent =
 
 -- Remap ctrl-c to Esc to better support LSP and other background processes
 vim.api.nvim_set_keymap('i', '<C-c>', '<Esc>', { noremap = false, silent = false })
-
--- Treesitter configuration
--- Parsers must be installed manually via :TSInstall
-require('nvim-treesitter.configs').setup {
-   highlight = {
-      enable = true, -- false will disable the whole extension
-   },
-   incremental_selection = {
-      enable = true,
-      keymaps = {
-         init_selection = 'gnn',
-         node_incremental = 'grn',
-         scope_incremental = 'grc',
-         node_decremental = 'grm',
-      },
-   },
-   indent = {
-      enable = true,
-   },
-   textobjects = {
-      select = {
-         enable = true,
-         lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-         keymaps = {
-            -- You can use the capture groups defined in textobjects.scm
-            ['af'] = '@function.outer',
-            ['if'] = '@function.inner',
-            ['ac'] = '@class.outer',
-            ['ic'] = '@class.inner',
-         },
-      },
-      move = {
-         enable = true,
-         set_jumps = true, -- whether to set jumps in the jumplist
-         goto_next_start = {
-            [']m'] = '@function.outer',
-            [']]'] = '@class.outer',
-         },
-         goto_next_end = {
-            [']M'] = '@function.outer',
-            [']['] = '@class.outer',
-         },
-         goto_previous_start = {
-            ['[m'] = '@function.outer',
-            ['[['] = '@class.outer',
-         },
-         goto_previous_end = {
-            ['[M'] = '@function.outer',
-            ['[]'] = '@class.outer',
-         },
-      },
-   },
-}
 
 -- LSP settings
 
