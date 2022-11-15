@@ -392,6 +392,8 @@ local on_attach = function(client, bufnr)
       hi_parameter = "IncSearch",
       hint_enable = false,
       floating_window = true,
+      floating_window_above_cur_line = false,
+      doc_lines = 0,
    }, bufnr)
 end
 
