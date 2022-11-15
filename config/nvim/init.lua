@@ -12,8 +12,6 @@ vim.cmd [[
   augroup end
 ]]
 
--- Config that need to be before packer
-
 local use = require('packer').use
 require('packer').startup(function()
    use 'wbthomason/packer.nvim' -- Inception
@@ -45,12 +43,17 @@ require('packer').startup(function()
       'jose-elias-alvarez/null-ls.nvim',
       config = function()
          local null_ls = require("null-ls")
-         local sources = {
-            null_ls.builtins.formatting.gofumpt,
-            null_ls.builtins.formatting.goimports,
-         }
-         require("custom_code_actions")
-         null_ls.setup({ sources = sources, debug = false })
+         local sources = {}
+         local has_sources = false
+         if vim.fn.executable('go') == 1 then
+            table.insert(sources, null_ls.builtins.formatting.gofumpt)
+            table.insert(sources, null_ls.builtins.formatting.goimports)
+            has_sources = true
+         end
+         if has_sources then
+            require("custom_code_actions")
+            null_ls.setup({ sources = sources, debug = false })
+         end
       end
    }
 
