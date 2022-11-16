@@ -28,12 +28,28 @@ local replace_buf = function(params, output)
    )
 end
 
+local insert_buf = function(bufnr, line_number, output)
+   vim.lsp.util.apply_text_edits(
+      { {
+         range = u.range.to_lsp({
+            row = line_number,
+            col = 1,
+            end_row = line_number,
+            end_col = 1,
+         }),
+         newText = output:gsub("[\r\n]$", ""),
+      } },
+      bufnr,
+      nclient.get_offset_encoding()
+   )
+end
+
 local gomodifytags = {
    method = null_ls.methods.CODE_ACTION,
    filetypes = { "go" },
    generator = {
       fn = function(context)
-         -- Find if there is struct to add tags to using treesitter
+         -- Find if cursor is at or inside a struct
          local parser = parsers.get_parser(context.bufnr)
          local root = ts_utils.get_root_for_position(context.range.row, context.range.col, parser)
          if not root then
@@ -95,6 +111,31 @@ local gomodifytags = {
                      return
                   end
                   replace_buf(context, output)
+               end
+            },
+            {
+               title = "[impl] Generate interface stubs",
+               action = function()
+                  local interface_name = prompt_tag_name()
+                  if not interface_name then
+                     return
+                  end
+                  local struct_receiver = string.sub(struct_name, 1, 1) .. "*" .. struct_name
+                  local cmd = string.format('impl %s %s', struct_receiver, interface_name)
+                  local output = vim.fn.system(cmd)
+                  local err = vim.v.shell_error
+                  -- find struct end
+                  while (context.content[lineNo] ~= "}") do
+                     lineNo = lineNo + 1
+                  end
+                  if 0 ~= err then
+                     print('error invoking impl', output)
+                     return
+                  else
+                     insert_buf(context.bufnr, lineNo+1, "\r" .. output)
+                  end
+                  print('impl output', output)
+                  -- replace_buf(context, output)
                end
             },
          }
