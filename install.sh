@@ -67,4 +67,4 @@ git config --global core.excludesfile ~/.gitignore
 
 # Check if some base tools are installed and prompt to install otherwise
 command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
-command -v fzf >/dev/null 2>&1 || { echo >&2 "fz is needed but not found as executable in $PATH, please install."; }
+command -v fzf >/dev/null 2>&1 || { echo >&2 "fzf is needed but not found as executable in $PATH, please install."; }
