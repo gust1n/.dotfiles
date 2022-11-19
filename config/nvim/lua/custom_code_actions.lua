@@ -132,7 +132,7 @@ local gomodifytags = {
                      print('error invoking impl', output)
                      return
                   else
-                     insert_buf(context.bufnr, lineNo+1, "\r" .. output)
+                     insert_buf(context.bufnr, lineNo + 1, "\r" .. output)
                   end
                   print('impl output', output)
                   -- replace_buf(context, output)
@@ -143,3 +143,36 @@ local gomodifytags = {
    }
 }
 null_ls.register(gomodifytags)
+
+_G.fzf_godoc = function(opts)
+   local fzf_lua = require 'fzf-lua'
+   opts = opts or {}
+   opts.prompt = "GoDoc> "
+   opts.actions = {
+      ['default'] = function(selected)
+         local output = vim.fn.system("go doc " .. selected[1])
+         local err = vim.v.shell_error
+         if 0 ~= err then
+            print('error invoking impl', output)
+            return
+         else
+            vim.cmd('sview')
+            local win = vim.api.nvim_get_current_win()
+            local buf = vim.api.nvim_create_buf(false, false)
+            vim.api.nvim_win_set_buf(win, buf)
+            replace_buf({ content = {}, bufnr = buf }, output)
+            vim.cmd('setlocal syntax=go')
+            vim.cmd('setlocal buftype=nofile')
+            vim.cmd('setlocal bufhidden=hide')
+            vim.cmd('setlocal noswapfile')
+            vim.cmd('setlocal nobuflisted')
+            vim.cmd('setlocal nomodifiable')
+         end
+      end
+   }
+   fzf_lua.fzf_exec("cat ~/.gostdlibsymbols", opts)
+end
+
+if vim.fn.filereadable("~/.gostdlibsymbols") then
+   vim.cmd([[command! -nargs=* GoDoc lua _G.fzf_godoc()]])
+end
