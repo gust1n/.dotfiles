@@ -165,7 +165,19 @@ require('packer').startup(function()
    }
    use 'nvim-treesitter/nvim-treesitter-textobjects'
 
-   use 'ray-x/lsp_signature.nvim' -- function signature hints
+   use {
+      'ray-x/lsp_signature.nvim', -- function signature hints
+      config = function()
+         require("lsp_signature").setup {
+            bind = true,
+            hi_parameter = "IncSearch",
+            hint_enable = false,
+            floating_window = true,
+            floating_window_above_cur_line = false,
+            doc_lines = 0,
+         }
+      end
+   }
    use 'christoomey/vim-tmux-navigator'
    use {
       "folke/trouble.nvim",
@@ -287,6 +299,8 @@ vim.api.nvim_set_keymap('n', '<leader>b', [[<cmd>lua require('fzf-lua').buffers(
 vim.api.nvim_set_keymap('n', '<leader>t', [[<cmd>lua require('fzf-lua').files()<CR>]], { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<leader>f', [[<cmd>lua require('fzf-lua').grep({ search = "" })<CR>]],
    { noremap = true, silent = true })
+vim.api.nvim_set_keymap('v', '<Leader>f', [[<cmd>lua require('fzf-lua').grep_visual()<CR>]],
+   { noremap = true, silent = true })
 
 -- Clear highlight
 vim.api.nvim_set_keymap('n', '<leader><cr>', ':noh<CR>', { noremap = true, silent = true })
@@ -335,78 +349,55 @@ end
 -- group for enabling auto format on save
 local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
 
+-- language specific LSP setup
 local lspconfig = require 'lspconfig'
-local on_attach = function(client, bufnr)
-   vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
-
-   if client.supports_method("textDocument/formatting") then
-      vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-      vim.api.nvim_create_autocmd("BufWritePre", {
-         group = augroup,
-         buffer = bufnr,
-         callback = function()
-            lsp_formatting(bufnr)
-         end,
-      })
-   end
-
-   lspconfig.gopls.setup {
-      settings = {
-         gopls = {
-            env = {
-               GOFLAGS = "-tags=emulation"
-            }
+lspconfig.gopls.setup {
+   settings = {
+      gopls = {
+         env = {
+            GOFLAGS = "-tags=emulation"
          }
       }
    }
-   lspconfig.sumneko_lua.setup {
-      settings = {
-         Lua = {
-            diagnostics = {
-               globals = { 'vim' }
-            }
+}
+lspconfig.sumneko_lua.setup {
+   settings = {
+      Lua = {
+         diagnostics = {
+            globals = { 'vim' }
          }
       }
    }
+}
 
-   local opts = { noremap = true, silent = true }
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gr', '<cmd>FzfLua lsp_references<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<d', '<cmd>lua vim.diagnostic.goto_prev()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '>d', '<cmd>lua vim.diagnostic.goto_next()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>e', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>dq', '<cmd>lua vim.diagnostic.setloclist()<CR>', opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>dt', [[<cmd>lua require('fzf-lua').diagnostics_workspace()<CR>]],
-      opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>p', [[<cmd>lua require('fzf-lua').lsp_document_symbols()<CR>]], opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>s', [[<cmd>lua require('fzf-lua').lsp_live_workspace_symbols()<CR>]]
-      , opts)
-   vim.api.nvim_buf_set_keymap(bufnr, 'v', '<Leader>f', [[<cmd>lua require('fzf-lua').grep_visual()<CR>]], opts)
+vim.api.nvim_create_autocmd('LspAttach', {
+   callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      vim.api.nvim_buf_set_option(args.buf, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
 
-   -- setup function signature hints
-   require "lsp_signature".on_attach({
-      bind = true,
-      hi_parameter = "IncSearch",
-      hint_enable = false,
-      floating_window = true,
-      floating_window_above_cur_line = false,
-      doc_lines = 0,
-   }, bufnr)
-end
+      if client.supports_method("textDocument/formatting") then
+         vim.api.nvim_clear_autocmds({ group = augroup, buffer = args.buf })
+         vim.api.nvim_create_autocmd("BufWritePre", {
+            group = augroup,
+            buffer = args.buf,
+            callback = function()
+               lsp_formatting(args.buf)
+            end,
+         })
+      end
 
--- Conditionally enable language servers
-local servers = {}
-if vim.fn.executable('go') == 1 then
-   table.insert(servers, 'gopls')
-end
-if vim.fn.executable('lua') == 1 then
-   table.insert(servers, 'sumneko_lua')
-end
-for _, lsp in ipairs(servers) do
-   lspconfig[lsp].setup {
-      on_attach = on_attach,
-   }
-end
+      local opts = { buffer = args.buf }
+      vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
+      vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
+      vim.keymap.set('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
+      vim.keymap.set('n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
+      vim.keymap.set('n', 'gr', '<cmd>FzfLua lsp_references<CR>', opts)
+      vim.keymap.set('n', '<d', '<cmd>lua vim.diagnostic.goto_prev()<CR>', opts)
+      vim.keymap.set('n', '>d', '<cmd>lua vim.diagnostic.goto_next()<CR>', opts)
+      vim.keymap.set('n', '<leader>e', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
+      vim.keymap.set('n', '<leader>dq', '<cmd>lua vim.diagnostic.setloclist()<CR>', opts)
+      vim.keymap.set('n', '<leader>dt', [[<cmd>lua require('fzf-lua').diagnostics_workspace()<CR>]], opts)
+      vim.keymap.set('n', '<leader>p', [[<cmd>lua require('fzf-lua').lsp_document_symbols()<CR>]], opts)
+      vim.keymap.set('n', '<leader>s', [[<cmd>lua require('fzf-lua').lsp_live_workspace_symbols()<CR>]], opts)
+   end,
+})
