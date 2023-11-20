@@ -1,229 +1,24 @@
--- Install packer (if not done already)
-local install_path = vim.fn.stdpath 'data' .. '/site/pack/packer/start/packer.nvim'
-
-if vim.fn.empty(vim.fn.glob(install_path)) > 0 then
-   vim.fn.execute('!git clone https://github.com/wbthomason/packer.nvim ' .. install_path)
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+   vim.fn.system({
+      "git",
+      "clone",
+      "--filter=blob:none",
+      "https://github.com/folke/lazy.nvim.git",
+      "--branch=stable", -- latest stable release
+      lazypath,
+   })
 end
+vim.opt.rtp:prepend(lazypath)
 
-vim.cmd [[
-  augroup Packer
-    autocmd!
-    autocmd BufWritePost init.lua PackerCompile
-  augroup end
-]]
+--Remap space as leader key
+-- TODO: Is this first line needed?
+vim.api.nvim_set_keymap('', '<Space>', '<Nop>', { noremap = true, silent = true })
+vim.g.mapleader = ' '
+vim.g.maplocalleader = ' '
 
-local use = require('packer').use
-require('packer').startup(function()
-   use 'wbthomason/packer.nvim' -- Inception
 
-   use {
-      'williamboman/mason.nvim',
-      config = function()
-         require('mason').setup()
-      end
-   }
-   use {
-      'williamboman/mason-lspconfig.nvim',
-      config = function()
-         require('mason-lspconfig').setup()
-      end
-   }
-   use {
-      'WhoIsSethDaniel/mason-tool-installer.nvim',
-      config = function()
-         local tools = {}
-         if vim.fn.executable('go') == 1 then
-            table.insert(tools, 'gopls')
-            table.insert(tools, 'gofumpt')
-            table.insert(tools, 'goimports')
-         end
-         if vim.fn.executable('lua') == 1 then
-            table.insert(tools, 'lua-language-server')
-         end
-         require('mason-tool-installer').setup {
-            ensure_installed = tools,
-            auto_update = true,
-            run_on_start = true,
-         }
-      end
-   }
-   use 'neovim/nvim-lspconfig' -- Collection of configurations for built-in LSP client
-   use {
-      'jose-elias-alvarez/null-ls.nvim',
-      config = function()
-         local null_ls = require("null-ls")
-         local sources = {}
-         local has_sources = false
-         if vim.fn.executable('go') == 1 then
-            table.insert(sources, null_ls.builtins.formatting.gofumpt)
-            table.insert(sources, null_ls.builtins.formatting.goimports)
-            has_sources = true
-         end
-         if has_sources then
-            require("custom_code_actions")
-            null_ls.setup({ sources = sources, debug = false })
-         end
-      end
-   }
-
-   use 'christoomey/vim-system-copy' -- Copy to system clipboard
-
-   use 'tpope/vim-fugitive' -- Git
-   use 'tpope/vim-commentary' -- Smart commenting
-   use 'tpope/vim-surround' -- Surround movement
-
-   use 'editorconfig/editorconfig-vim' -- Read .editorconfig files
-   use 'junegunn/vim-peekaboo' -- Peek registers
-
-   use 'simeji/winresizer' -- smart resize command
-
-   use 'ibhagwan/fzf-lua'
-
-   use 'joshdick/onedark.vim' -- Theme inspired by Atom
-
-   use {
-      'nvim-lualine/lualine.nvim',
-      config = function()
-         require('lualine').setup {
-            options = {
-               icons_enabled = false,
-               theme = 'onedark',
-               globalstatus = true,
-               section_separators = '',
-               component_separators = ''
-            },
-            sections = {
-               lualine_a = { 'mode' },
-               lualine_b = { 'branch', 'diff' },
-               lualine_c = { 'filename' },
-               lualine_x = { 'diagnostics', 'encoding', 'fileformat', 'filetype' },
-               lualine_y = { 'progress' },
-               lualine_z = { 'location' }
-            },
-            inactive_sections = {
-               lualine_a = {},
-               lualine_b = {},
-               lualine_c = { 'filename' },
-               lualine_x = { 'location' },
-               lualine_y = {},
-               lualine_z = {}
-            },
-         }
-      end
-   }
-
-   use {
-      'lewis6991/gitsigns.nvim',
-      requires = { 'nvim-lua/plenary.nvim' },
-      config = function()
-         require('gitsigns').setup {
-            signs = {
-               add = { hl = 'GitGutterAdd', text = '+' },
-               change = { hl = 'GitGutterChange', text = '~' },
-               delete = { hl = 'GitGutterDelete', text = '_' },
-               topdelete = { hl = 'GitGutterDelete', text = '‾' },
-               changedelete = { hl = 'GitGutterChange', text = '~' },
-            },
-         }
-      end
-   }
-
-   -- Treesitter configuration
-   -- Parsers must be installed manually via :TSInstall
-   use {
-      'nvim-treesitter/nvim-treesitter',
-      config = function()
-         require('nvim-treesitter.configs').setup {
-            highlight = {
-               enable = true, -- false will disable the whole extension
-            },
-            incremental_selection = {
-               enable = false,
-            },
-            indent = {
-               enable = true,
-            },
-            textobjects = {
-               select = {
-                  enable = true,
-                  lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-                  keymaps = {
-                     -- You can use the capture groups defined in textobjects.scm
-                     ['af'] = '@function.outer',
-                     ['if'] = '@function.inner',
-                     ['ac'] = '@class.outer',
-                     ['ic'] = '@class.inner',
-                  },
-               },
-               move = {
-                  enable = false,
-                  set_jumps = true, -- whether to set jumps in the jumplist
-               },
-            },
-         }
-      end
-   }
-   use 'nvim-treesitter/nvim-treesitter-textobjects'
-
-   use {
-      'ray-x/lsp_signature.nvim', -- function signature hints
-      config = function()
-         require("lsp_signature").setup {
-            bind = true,
-            hi_parameter = "IncSearch",
-            hint_enable = false,
-            floating_window = true,
-            floating_window_above_cur_line = false,
-            doc_lines = 0,
-         }
-      end
-   }
-   use 'christoomey/vim-tmux-navigator'
-   use {
-      "folke/trouble.nvim",
-      config = function()
-         require("trouble").setup {
-            position = "bottom",
-            icons = false,
-            fold_open = "v", -- icon used for open folds
-            fold_closed = ">", -- icon used for closed folds
-            indent_lines = false, -- add an indent guide below the fold icons
-            auto_open = true, -- automatically open the list when you have diagnostics
-            auto_close = true, -- automatically close the list when you have no diagnostics
-            auto_preview = false, -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
-            signs = {
-               -- icons / text used for a diagnostic
-               error = "error",
-               warning = "warn",
-               hint = "hint",
-               information = "info"
-            },
-            use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
-         }
-      end
-   }
-   use {
-      'kyazdani42/nvim-tree.lua',
-      config = function()
-         require 'nvim-tree'.setup {
-            renderer = {
-               icons = {
-                  show = {
-                     folder = false,
-                     file = false,
-                  },
-                  glyphs = {
-                     folder = {
-                        arrow_closed = ">",
-                        arrow_open = "v",
-                     }
-                  }
-               }
-            },
-         }
-      end
-   }
-end)
+require('lazy').setup('plugins')
 
 --Global statusline
 vim.opt.laststatus = 3
@@ -270,11 +65,6 @@ vim.o.termguicolors = true
 vim.g.onedark_terminal_italics = 2
 vim.cmd [[colorscheme onedark]]
 
---Remap space as leader key
-vim.api.nvim_set_keymap('', '<Space>', '<Nop>', { noremap = true, silent = true })
-vim.g.mapleader = ' '
-vim.g.maplocalleader = ' '
-
 vim.api.nvim_set_keymap('n', '<>k', "v:count == 0 ? 'gk' : 'k'", { noremap = true, expr = true, silent = true })
 
 --Remap for dealing with word wrap
@@ -290,7 +80,6 @@ vim.cmd [[
 ]]
 
 --Add leader shortcuts
-vim.api.nvim_set_keymap('n', '<leader>kb', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<leader>w', ':WinResizerStartResize<CR>', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<leader>a', [[<cmd>lua require('fzf-lua').lsp_code_actions()<CR>]],
    { noremap = true, silent = true })
@@ -316,10 +105,10 @@ vim.api.nvim_set_keymap('i', '<C-c>', '<Esc>', { noremap = false, silent = false
 
 vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
    vim.lsp.diagnostic.on_publish_diagnostics, {
-   virtual_text = true,
-   signs = true,
-   update_in_insert = false,
-}
+      virtual_text = true,
+      signs = true,
+      update_in_insert = false,
+   }
 )
 
 local function has_value(tab, val)
