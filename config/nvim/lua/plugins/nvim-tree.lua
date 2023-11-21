@@ -4,7 +4,7 @@ return {
    keys = {
       { "<leader>kb", "<cmd>NvimTreeToggle<cr>", desc = "NvimTreeToggle" },
    },
-   config = {
+   opts = {
       renderer = {
          icons = {
             show = {
