@@ -61,9 +61,6 @@ return {
    'simeji/winresizer',             -- smart resize command
 
    'ibhagwan/fzf-lua',
-
-   'joshdick/onedark.vim', -- Theme inspired by Atom
-
    {
       'lewis6991/gitsigns.nvim',
       dependencies = { 'nvim-lua/plenary.nvim' },
