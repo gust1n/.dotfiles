@@ -1,36 +1,10 @@
 return {
    {
-      'williamboman/mason.nvim',
-      config = function()
-         require('mason').setup()
-      end
+      'neovim/nvim-lspconfig', -- Collection of configurations for built-in LSP client
+      -- This is due to some weird mod_cache issue introduced in
+      -- https://github.com/neovim/nvim-lspconfig/commit/9a2cc569c88662fa41d414bdb65b13ea72349f86
+      commit = '80861dc087982a6ed8ba91ec4836adce619f5a8a',
    },
-   {
-      'williamboman/mason-lspconfig.nvim',
-      config = function()
-         require('mason-lspconfig').setup()
-      end
-   },
-   {
-      'WhoIsSethDaniel/mason-tool-installer.nvim',
-      config = function()
-         local tools = {}
-         if vim.fn.executable('go') == 1 then
-            table.insert(tools, 'gopls')
-            table.insert(tools, 'gofumpt')
-            table.insert(tools, 'goimports')
-         end
-         if vim.fn.executable('lua') == 1 then
-            table.insert(tools, 'lua-language-server')
-         end
-         require('mason-tool-installer').setup {
-            ensure_installed = tools,
-            auto_update = true,
-            run_on_start = true,
-         }
-      end
-   },
-   'neovim/nvim-lspconfig', -- Collection of configurations for built-in LSP client
    {
       'jose-elias-alvarez/null-ls.nvim',
       config = function()
