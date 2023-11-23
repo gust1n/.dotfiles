@@ -21,48 +21,8 @@ vim.g.maplocalleader = ' '
 -- Load plugins from ./plugins directory.
 require('lazy').setup('plugins')
 
---Global statusline
-vim.opt.laststatus = 3
+require('config/options')
 
--- Disable mouse
-vim.opt.mouse = ""
-
---Set highlight on search
-vim.o.hlsearch = true
-
--- Scroll offset
-vim.o.scrolloff = 7
-
---Show line numbers
-vim.wo.number = true
-
--- Scroll when 7 lines from top/bottom
-vim.wo.so = 7
-
--- Visual aid for detecting long lines
-vim.opt.colorcolumn = "120"
-
---Enable break indent
-vim.o.breakindent = true
-
---Save undo history
-vim.opt.undofile = true
-
---Case insensitive searching UNLESS /C or capital in search
-vim.o.ignorecase = true
-vim.o.smartcase = true
-
---Decrease update time
-vim.o.updatetime = 250
-
--- Always show sign column
-vim.wo.signcolumn = 'yes'
-
--- Set completeopt to have a better completion experience
-vim.o.completeopt = 'menuone,noselect'
-
---Set colorscheme (order is important here)
-vim.o.termguicolors = true
 vim.cmd [[colorscheme base16-tomorrow-night-eighties]]
 
 vim.api.nvim_set_keymap('n', '<>k', "v:count == 0 ? 'gk' : 'k'", { noremap = true, expr = true, silent = true })
@@ -80,7 +40,6 @@ vim.cmd [[
 ]]
 
 --Add leader shortcuts
-vim.api.nvim_set_keymap('n', '<leader>w', ':WinResizerStartResize<CR>', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<leader>a', [[<cmd>lua require('fzf-lua').lsp_code_actions()<CR>]],
    { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<leader>b', [[<cmd>lua require('fzf-lua').buffers()<CR>]],

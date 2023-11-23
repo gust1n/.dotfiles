@@ -5,23 +5,6 @@ return {
       -- https://github.com/neovim/nvim-lspconfig/commit/9a2cc569c88662fa41d414bdb65b13ea72349f86
       commit = '80861dc087982a6ed8ba91ec4836adce619f5a8a',
    },
-   {
-      'jose-elias-alvarez/null-ls.nvim',
-      config = function()
-         local null_ls = require("null-ls")
-         local sources = {}
-         local has_sources = false
-         if vim.fn.executable('go') == 1 then
-            table.insert(sources, null_ls.builtins.formatting.gofumpt)
-            table.insert(sources, null_ls.builtins.formatting.goimports)
-            has_sources = true
-         end
-         if has_sources then
-            require("custom_code_actions")
-            null_ls.setup({ sources = sources, debug = false })
-         end
-      end
-   },
 
    'christoomey/vim-system-copy',   -- Copy to system clipboard
 
@@ -31,8 +14,6 @@ return {
 
    'editorconfig/editorconfig-vim', -- Read .editorconfig files
    'junegunn/vim-peekaboo',         -- Peek registers
-
-   'simeji/winresizer',             -- smart resize command
 
    'ibhagwan/fzf-lua',
    {
@@ -50,44 +31,6 @@ return {
          }
       end
    },
-
-   -- Treesitter configuration
-   -- Parsers must be installed manually via :TSInstall
-   {
-      'nvim-treesitter/nvim-treesitter',
-      config = function()
-         require('nvim-treesitter.configs').setup {
-            highlight = {
-               enable = true, -- false will disable the whole extension
-            },
-            incremental_selection = {
-               enable = false,
-            },
-            indent = {
-               enable = true,
-            },
-            textobjects = {
-               select = {
-                  enable = true,
-                  lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-                  keymaps = {
-                     -- You can use the capture groups defined in textobjects.scm
-                     ['af'] = '@function.outer',
-                     ['if'] = '@function.inner',
-                     ['ac'] = '@class.outer',
-                     ['ic'] = '@class.inner',
-                  },
-               },
-               move = {
-                  enable = false,
-                  set_jumps = true, -- whether to set jumps in the jumplist
-               },
-            },
-         }
-      end
-   },
-   'nvim-treesitter/nvim-treesitter-textobjects',
-
    {
       'ray-x/lsp_signature.nvim', -- function signature hints
       config = function()
