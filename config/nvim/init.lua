@@ -22,14 +22,9 @@ vim.g.maplocalleader = ' '
 require('lazy').setup('plugins')
 
 require('config/options')
+require('config/keymaps')
 
 vim.cmd [[colorscheme base16-tomorrow-night-eighties]]
-
-vim.api.nvim_set_keymap('n', '<>k', "v:count == 0 ? 'gk' : 'k'", { noremap = true, expr = true, silent = true })
-
---Remap for dealing with word wrap
-vim.api.nvim_set_keymap('n', 'k', "v:count == 0 ? 'gk' : 'k'", { noremap = true, expr = true, silent = true })
-vim.api.nvim_set_keymap('n', 'j', "v:count == 0 ? 'gj' : 'j'", { noremap = true, expr = true, silent = true })
 
 -- Flash selection on yank
 vim.cmd [[
