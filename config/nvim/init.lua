@@ -1,3 +1,4 @@
+-- install lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
    vim.fn.system({
@@ -11,12 +12,13 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
---Remap space as leader key
+--Remap space as leader key, need to go before lazy setup
 -- TODO: Is this first line needed?
 vim.api.nvim_set_keymap('', '<Space>', '<Nop>', { noremap = true, silent = true })
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Load plugins from ./plugins directory.
 require('lazy').setup('plugins')
 
 --Global statusline
@@ -142,7 +144,7 @@ lspconfig.gopls.setup {
    settings = {
       gopls = {
          env = {
-            GOFLAGS = "-tags=emulation"
+            GOFLAGS = "-tags=replay,e2e"
          }
       }
    }
