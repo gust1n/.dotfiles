@@ -13,3 +13,6 @@ Thumbs.db
 # Logs
 log/
 *.log
+
+# Go files
+go.work*
