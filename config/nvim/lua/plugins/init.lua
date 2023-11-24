@@ -15,7 +15,6 @@ return {
    'editorconfig/editorconfig-vim', -- Read .editorconfig files
    'junegunn/vim-peekaboo',         -- Peek registers
 
-   'ibhagwan/fzf-lua',
    {
       'lewis6991/gitsigns.nvim',
       dependencies = { 'nvim-lua/plenary.nvim' },

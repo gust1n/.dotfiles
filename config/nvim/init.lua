@@ -35,15 +35,6 @@ vim.cmd [[
 ]]
 
 --Add leader shortcuts
-vim.api.nvim_set_keymap('n', '<leader>a', [[<cmd>lua require('fzf-lua').lsp_code_actions()<CR>]],
-   { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>b', [[<cmd>lua require('fzf-lua').buffers()<CR>]],
-   { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>t', [[<cmd>lua require('fzf-lua').files()<CR>]], { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>f', [[<cmd>lua require('fzf-lua').grep({ search = "" })<CR>]],
-   { noremap = true, silent = true })
-vim.api.nvim_set_keymap('v', '<Leader>f', [[<cmd>lua require('fzf-lua').grep_visual()<CR>]],
-   { noremap = true, silent = true })
 
 -- Clear highlight
 vim.api.nvim_set_keymap('n', '<leader><cr>', ':noh<CR>', { noremap = true, silent = true })
