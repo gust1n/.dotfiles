@@ -34,18 +34,6 @@ vim.cmd [[
   augroup end
 ]]
 
---Add leader shortcuts
-
--- Clear highlight
-vim.api.nvim_set_keymap('n', '<leader><cr>', ':noh<CR>', { noremap = true, silent = true })
-
--- Insert newlines without leaving normal mode
-vim.api.nvim_set_keymap('n', '<leader>o', 'o<Esc>k', { noremap = false, silent = false })
-vim.api.nvim_set_keymap('n', '<leader>O', 'O<Esc>j', { noremap = false, silent = false })
-
--- Remap ctrl-c to Esc to better support LSP and other background processes
-vim.api.nvim_set_keymap('i', '<C-c>', '<Esc>', { noremap = false, silent = false })
-
 -- LSP settings
 
 vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
