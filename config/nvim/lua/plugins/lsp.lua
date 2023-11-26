@@ -14,7 +14,7 @@ return {
             hi_parameter = "IncSearch",
             hint_enable = false,
             floating_window = true,
-            floating_window_above_cur_line = false,
+            floating_window_above_cur_line = true,
             doc_lines = 0,
          }
       end
@@ -58,12 +58,12 @@ return {
       opts = {
          position = "bottom",
          icons = false,
-         fold_open = "v",         -- icon used for open folds
-         fold_closed = ">",       -- icon used for closed folds
-         indent_lines = false,    -- add an indent guide below the fold icons
-         auto_open = true,        -- automatically open the list when you have diagnostics
-         auto_close = true,       -- automatically close the list when you have no diagnostics
-         auto_preview = false,    -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
+         fold_open = "v",      -- icon used for open folds
+         fold_closed = ">",    -- icon used for closed folds
+         indent_lines = false, -- add an indent guide below the fold icons
+         auto_open = true,     -- automatically open the list when you have diagnostics
+         auto_close = true,    -- automatically close the list when you have no diagnostics
+         auto_preview = false, -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
          signs = {
             -- icons / text used for a diagnostic
             error = "error",
@@ -71,7 +71,7 @@ return {
             hint = "hint",
             information = "info"
          },
-         use_diagnostic_signs = true    -- enabling this will use the signs defined in your lsp client
+         use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
       }
    },
 }
