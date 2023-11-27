@@ -8,16 +8,17 @@ return {
    -- function signature hints
    {
       'ray-x/lsp_signature.nvim',
-      config = function()
-         require("lsp_signature").setup {
-            bind = true,
-            hi_parameter = "IncSearch",
-            hint_enable = false,
-            floating_window = true,
-            floating_window_above_cur_line = true,
-            doc_lines = 0,
-         }
-      end
+      event = "VeryLazy",
+      opts = {
+         bind = true,
+         hi_parameter = "IncSearch",
+         hint_enable = false,
+         floating_window = true,
+         floating_window_above_cur_line = true,
+         doc_lines = 0,
+         toggle_key = "<C-k>",
+
+      },
    },
    -- tools installer
    {
