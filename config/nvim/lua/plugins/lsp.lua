@@ -56,8 +56,8 @@ return {
    -- fancy LSP diagnostics
    {
       "folke/trouble.nvim",
+      cmd = { "TroubleToggle", "Trouble" },
       opts = {
-         position = "bottom",
          icons = false,
          fold_open = "v",      -- icon used for open folds
          fold_closed = ">",    -- icon used for closed folds
@@ -73,6 +73,37 @@ return {
             information = "info"
          },
          use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
-      }
+      },
+      keys = {
+         { "<leader>dd", "<cmd>TroubleToggle workspace_diagnostics<cr>", desc = "Workspace Diagnostics (Trouble)" },
+         {
+            "dn",
+            function()
+               if require("trouble").is_open() then
+                  require("trouble").previous({ skip_groups = true, jump = true })
+               else
+                  local ok, err = pcall(vim.cmd.cprev)
+                  if not ok then
+                     vim.notify(err, vim.log.levels.ERROR)
+                  end
+               end
+            end,
+            desc = "Previous trouble/quickfix item",
+         },
+         {
+            "dp",
+            function()
+               if require("trouble").is_open() then
+                  require("trouble").next({ skip_groups = true, jump = true })
+               else
+                  local ok, err = pcall(vim.cmd.cnext)
+                  if not ok then
+                     vim.notify(err, vim.log.levels.ERROR)
+                  end
+               end
+            end,
+            desc = "Next trouble/quickfix item",
+         },
+      },
    },
 }
