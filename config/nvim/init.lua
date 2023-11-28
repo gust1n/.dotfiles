@@ -14,36 +14,34 @@ vim.opt.rtp:prepend(lazypath)
 
 --Remap space as leader key, need to go before lazy setup
 -- TODO: Is this first line needed?
-vim.api.nvim_set_keymap('', '<Space>', '<Nop>', { noremap = true, silent = true })
-vim.g.mapleader = ' '
-vim.g.maplocalleader = ' '
+vim.api.nvim_set_keymap("", "<Space>", "<Nop>", { noremap = true, silent = true })
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
 
 -- Load plugins from ./plugins directory.
-require('lazy').setup('plugins')
+require("lazy").setup("plugins")
 
-require('config/options')
-require('config/keymaps')
-require('config/autocmds')
+require("config/options")
+require("config/keymaps")
+require("config/autocmds")
 
-vim.cmd [[colorscheme base16-tomorrow-night-eighties]]
+vim.cmd.colorscheme("onedark")
 
 -- LSP settings
 
-vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
-   vim.lsp.diagnostic.on_publish_diagnostics, {
-      virtual_text = true,
-      signs = true,
-      update_in_insert = false,
-   }
-)
+vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(vim.lsp.diagnostic.on_publish_diagnostics, {
+   virtual_text = true,
+   signs = true,
+   update_in_insert = false,
+})
 
 -- language specific LSP setup
-local lspconfig = require 'lspconfig'
-lspconfig.gopls.setup {
+local lspconfig = require("lspconfig")
+lspconfig.gopls.setup({
    settings = {
       gopls = {
          env = {
-            GOFLAGS = "-tags=replay,e2e"
+            GOFLAGS = "-tags=replay,e2e",
          },
          codelenses = {
             gc_details = false,
@@ -76,15 +74,15 @@ lspconfig.gopls.setup {
          staticcheck = true,
          directoryFilters = { "-.git", "-.vscode", "-.idea", "-.vscode-test", "-node_modules" },
          semanticTokens = true,
-      }
-   }
-}
-lspconfig.lua_ls.setup {
+      },
+   },
+})
+lspconfig.lua_ls.setup({
    settings = {
       Lua = {
          diagnostics = {
-            globals = { 'vim' }
-         }
-      }
-   }
-}
+            globals = { "vim" },
+         },
+      },
+   },
+})
