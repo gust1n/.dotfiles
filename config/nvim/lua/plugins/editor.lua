@@ -1,20 +1,20 @@
 return {
-   'tpope/vim-commentary',           -- Smart commenting
-   'tpope/vim-surround',             -- Surround movement
-   'christoomey/vim-tmux-navigator', -- navigate tmux and vim splits
+   "tpope/vim-commentary", -- Smart commenting
+   "tpope/vim-surround", -- Surround movement
+   "christoomey/vim-tmux-navigator", -- navigate tmux and vim splits
    -- fzf based navigation and search
    {
       "ibhagwan/fzf-lua",
       keys = {
-         { "<leader>b", "<cmd>lua require('fzf-lua').buffers()<cr>",            desc = "FzfBuffers" },
-         { "<leader>t", "<cmd>lua require('fzf-lua').files()<cr>",              desc = "FzfFiles" },
+         { "<leader>b", "<cmd>lua require('fzf-lua').buffers()<cr>", desc = "FzfBuffers" },
+         { "<leader>t", "<cmd>lua require('fzf-lua').files()<cr>", desc = "FzfFiles" },
          { "<leader>f", "<cmd>lua require('fzf-lua').grep({ search = ''})<cr>", desc = "FzfGrep" },
-         { "<leader>f", "<cmd>lua require('fzf-lua').grep_visual()<cr>",        desc = "FzFVisualGrep", mode = "v" },
+         { "<leader>f", "<cmd>lua require('fzf-lua').grep_visual()<cr>", desc = "FzFVisualGrep", mode = "v" },
       },
    },
    -- file tree explorer
    {
-      'kyazdani42/nvim-tree.lua',
+      "kyazdani42/nvim-tree.lua",
       cmd = "NvimTreeToggle",
       keys = {
          { "<leader>kb", "<cmd>NvimTreeToggle<cr>", desc = "NvimTreeToggle" },
@@ -30,24 +30,24 @@ return {
                   folder = {
                      arrow_closed = ">",
                      arrow_open = "v",
-                  }
-               }
-            }
+                  },
+               },
+            },
          },
-      }
+      },
    },
    -- show git status in sign column
    {
-      'lewis6991/gitsigns.nvim',
+      "lewis6991/gitsigns.nvim",
       event = "VeryLazy",
       opts = {
          signs = {
-            add          = { text = '+' },
-            change       = { text = '│' },
-            delete       = { text = '_' },
-            topdelete    = { text = '‾' },
-            changedelete = { text = '~' },
-            untracked    = { text = '┆' },
+            add = { text = "+" },
+            change = { text = "│" },
+            delete = { text = "_" },
+            topdelete = { text = "‾" },
+            changedelete = { text = "~" },
+            untracked = { text = "┆" },
          },
          on_attach = function(buffer)
             local gs = package.loaded.gitsigns
@@ -70,7 +70,7 @@ return {
             map("n", "<leader>ghD", function() gs.diffthis("~") end, "Diff This ~")
             map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", "GitSigns Select Hunk")
          end,
-      }
+      },
    },
    -- formatter
    {
@@ -80,12 +80,12 @@ return {
       opts = {
          formatters_by_ft = {
             lua = { "stylua" },
-            go = { "gofumpt", "goimports" },
+            go = { "goimports" },
          },
          format_on_save = {
             timeout_ms = 500,
             lsp_fallback = true,
          },
       },
-   }
+   },
 }

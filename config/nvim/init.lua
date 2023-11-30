@@ -42,6 +42,7 @@ lspconfig.gopls.setup({
       gopls = {
          env = {
             GOFLAGS = "-tags=replay,e2e",
+            GOPRIVATE = "github.com/einride/*,go.einride.tech/*",
          },
          codelenses = {
             gc_details = false,
@@ -72,6 +73,7 @@ lspconfig.gopls.setup({
          usePlaceholders = true,
          completeUnimported = true,
          staticcheck = true,
+         gofumpt = true,
          directoryFilters = { "-.git", "-.vscode", "-.idea", "-.vscode-test", "-node_modules" },
          semanticTokens = true,
       },
