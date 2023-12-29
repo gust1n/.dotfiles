@@ -2,7 +2,7 @@ return {
    {
       "navarasu/onedark.nvim",
       opts = {
-         style = "warmer",
+         style = "dark",
       },
    },
    "junegunn/vim-peekaboo", -- Peek registers
