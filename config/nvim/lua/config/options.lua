@@ -5,6 +5,7 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 opt.breakindent = true --Enable break indent
 opt.clipboard = "unnamedplus" -- Sync with system clipboard
+opt.textwidth = 80
 opt.colorcolumn = "120" -- Visual aid for detecting long lines
 opt.completeopt = "menu,menuone,noselect"
 opt.hlsearch = true --Set highlight on search
