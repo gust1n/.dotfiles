@@ -25,11 +25,17 @@ return {
             section_separators = "",
             component_separators = "",
          },
+         extensions = { "fzf", "nvim-tree", "trouble", "quickfix" },
          sections = {
             lualine_a = { "mode" },
             lualine_b = { "branch", "diff" },
             lualine_c = { "filename" },
-            lualine_x = { "diagnostics", "encoding", "fileformat", "filetype" },
+            lualine_x = {
+               { "diagnostics", sources = { "nvim_workspace_diagnostic" } },
+               "encoding",
+               "fileformat",
+               "filetype",
+            },
             lualine_y = { "progress" },
             lualine_z = { "location" },
          },
