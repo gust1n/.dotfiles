@@ -8,6 +8,7 @@ opt.clipboard = "unnamedplus" -- Sync with system clipboard
 opt.textwidth = 80
 opt.colorcolumn = "120" -- Visual aid for detecting long lines
 opt.completeopt = "menu,menuone,noselect"
+opt.formatoptions = "tcqjroln" -- default is tcqj
 opt.hlsearch = true --Set highlight on search
 opt.ignorecase = true -- Ignore case sensitive match in search
 opt.laststatus = 3 --Global statusline
