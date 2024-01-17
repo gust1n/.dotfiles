@@ -1,6 +1,15 @@
 return {
-   "tpope/vim-commentary", -- Smart commenting
-   "tpope/vim-surround", -- Surround movement
+   {
+      "echasnovski/mini.nvim",
+      version = false,
+      config = function(_, _)
+         require("mini.ai").setup() -- Smart text objects
+         require("mini.comment").setup() -- Syntax aware line commenting
+         require("mini.move").setup() -- Move lines of code
+         require("mini.surround").setup() -- Surround movement
+         require("mini.starter").setup() -- Start screen
+      end,
+   },
    "christoomey/vim-tmux-navigator", -- navigate tmux and vim splits
    -- fzf based navigation and search
    {
