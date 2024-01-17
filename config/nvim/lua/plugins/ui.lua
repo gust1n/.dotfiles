@@ -1,20 +1,20 @@
 return {
-   {
+   { -- Theme inspired by Atoms One Dark
       "navarasu/onedark.nvim",
       opts = {
          style = "dark",
       },
    },
-   "junegunn/vim-peekaboo", -- Peek registers
-   -- interactive resize
-   {
+   { -- Peek registers
+      "junegunn/vim-peekaboo",
+   },
+   { -- Interactive resize
       "simeji/winresizer",
       keys = {
          { "<leader>w", "<cmd>WinResizerStartResize<cr>", desc = "NvimTreeToggle" },
       },
    },
-   -- Custom status line
-   {
+   { -- Custom status line
       "nvim-lualine/lualine.nvim",
       event = "VeryLazy",
       opts = {

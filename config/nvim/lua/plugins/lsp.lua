@@ -1,6 +1,6 @@
 return {
-   {
-      "neovim/nvim-lspconfig", -- Collection of configurations for built-in LSP client
+   { -- Collection of configurations for built-in LSP client
+      "neovim/nvim-lspconfig",
       dependencies = {
          "mason.nvim",
          "williamboman/mason-lspconfig.nvim",
@@ -53,8 +53,7 @@ return {
          end
       end,
    },
-   -- Hook non LSP tools into LSP engine
-   {
+   { -- Hook non LSP tools into LSP engine
       "nvimtools/none-ls.nvim",
       dependencies = {
          "nvim-lua/plenary.nvim",
@@ -68,8 +67,7 @@ return {
          })
       end,
    },
-   -- Function signature hints
-   {
+   { -- Function signature hints
       "ray-x/lsp_signature.nvim",
       event = "VeryLazy",
       opts = {
@@ -82,8 +80,7 @@ return {
          toggle_key = "<C-k>",
       },
    },
-   -- Tools installer
-   {
+   { -- Tools installer
       "williamboman/mason.nvim",
       cmd = "Mason",
       build = ":MasonUpdate",
@@ -123,8 +120,7 @@ return {
          end
       end,
    },
-   -- Fancy LSP diagnostics
-   {
+   { -- Fancy LSP diagnostics
       "folke/trouble.nvim",
       cmd = { "TroubleToggle", "Trouble" },
       opts = {

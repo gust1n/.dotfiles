@@ -1,5 +1,5 @@
 return {
-   {
+   { -- collection of mini plugins
       "echasnovski/mini.nvim",
       version = false,
       config = function(_, _)
@@ -10,9 +10,10 @@ return {
          require("mini.starter").setup() -- Start screen
       end,
    },
-   "christoomey/vim-tmux-navigator", -- navigate tmux and vim splits
-   -- fzf based navigation and search
-   {
+   { -- navigate tmux and vim splits
+      "christoomey/vim-tmux-navigator",
+   },
+   { -- fzf based navigation and search
       "ibhagwan/fzf-lua",
       keys = {
          { "<leader>b", "<cmd>lua require('fzf-lua').buffers()<cr>", desc = "FzfBuffers" },
@@ -21,8 +22,7 @@ return {
          { "<leader>f", "<cmd>lua require('fzf-lua').grep_visual()<cr>", desc = "FzFVisualGrep", mode = "v" },
       },
    },
-   -- file tree explorer
-   {
+   { -- file tree explorer
       "kyazdani42/nvim-tree.lua",
       cmd = "NvimTreeToggle",
       keys = {
@@ -45,8 +45,7 @@ return {
          },
       },
    },
-   -- show git status in sign column
-   {
+   { -- show git status in sign column
       "lewis6991/gitsigns.nvim",
       event = "VeryLazy",
       opts = {
@@ -58,31 +57,9 @@ return {
             changedelete = { text = "~" },
             untracked = { text = "┆" },
          },
-         on_attach = function(buffer)
-            local gs = package.loaded.gitsigns
-
-            local function map(mode, l, r, desc)
-               vim.keymap.set(mode, l, r, { buffer = buffer, desc = desc })
-            end
-
-            -- stylua: ignore start
-            map("n", "<leader>ghn", gs.next_hunk, "Next Hunk")
-            map("n", "<leader>ghp", gs.prev_hunk, "Prev Hunk")
-            map({ "n", "v" }, "<leader>ghs", ":Gitsigns stage_hunk<CR>", "Stage Hunk")
-            map({ "n", "v" }, "<leader>ghr", ":Gitsigns reset_hunk<CR>", "Reset Hunk")
-            map("n", "<leader>ghS", gs.stage_buffer, "Stage Buffer")
-            map("n", "<leader>ghu", gs.undo_stage_hunk, "Undo Stage Hunk")
-            map("n", "<leader>ghR", gs.reset_buffer, "Reset Buffer")
-            map("n", "<leader>ghp", gs.preview_hunk, "Preview Hunk")
-            map("n", "<leader>ghb", function() gs.blame_line({ full = true }) end, "Blame Line")
-            map("n", "<leader>ghd", gs.diffthis, "Diff This")
-            map("n", "<leader>ghD", function() gs.diffthis("~") end, "Diff This ~")
-            map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", "GitSigns Select Hunk")
-         end,
       },
    },
-   -- formatter
-   {
+   { -- formatter
       "stevearc/conform.nvim",
       event = { "BufWritePre" },
       cmd = { "ConformInfo" },
