@@ -1,4 +1,4 @@
--- install lazy.nvim
+-- Install lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
    vim.fn.system({
@@ -12,15 +12,14 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
---Remap space as leader key, need to go before lazy setup
--- TODO: Is this first line needed?
-vim.api.nvim_set_keymap("", "<Space>", "<Nop>", { noremap = true, silent = true })
+-- Remap space as leader key, need to go before lazy setup
 vim.g.mapleader = " "
-vim.g.maplocalleader = " "
+vim.g.maplocalleader = "\\" -- I don't use local leader
 
--- Load plugins from ./plugins directory.
+-- Load plugins from ./lua/plugins
 require("lazy").setup("plugins")
 
+-- Load configuration from ./lua/config
 require("config/options")
 require("config/keymaps")
 require("config/autocmds")
