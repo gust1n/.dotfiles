@@ -1,13 +1,76 @@
 return {
    {
-      'neovim/nvim-lspconfig', -- Collection of configurations for built-in LSP client
-      -- This is due to some weird mod_cache issue introduced in
-      -- https://github.com/neovim/nvim-lspconfig/commit/9a2cc569c88662fa41d414bdb65b13ea72349f86
-      commit = '80861dc087982a6ed8ba91ec4836adce619f5a8a',
+      "neovim/nvim-lspconfig", -- Collection of configurations for built-in LSP client
+      dependencies = {
+         "mason.nvim",
+         "williamboman/mason-lspconfig.nvim",
+      },
+      opts = {
+         -- options for vim.diagnostic.config()
+         diagnostics = {
+            severity_sort = true,
+         },
+         -- custom LSP server setup configuration
+         servers = {
+            lua_ls = {
+               settings = {
+                  Lua = {
+                     diagnostics = {
+                        globals = { "vim" },
+                     },
+                  },
+               },
+            },
+            gopls = {
+               settings = {
+                  gopls = {
+                     env = {
+                        GOFLAGS = "-tags=replay,e2e",
+                        GOPRIVATE = "github.com/einride/*,go.einride.tech/*",
+                     },
+                     analyses = {
+                        fieldalignment = false,
+                     },
+                     usePlaceholders = false,
+                     staticcheck = false,
+                     gofumpt = false,
+                     semanticTokens = true,
+                  },
+               },
+            },
+         },
+      },
+      config = function(_, opts)
+         -- Setup global diagnostics configuration
+         vim.diagnostic.config(vim.deepcopy(opts.diagnostics))
+
+         -- Setup individual servers
+         local servers = opts.servers
+         for server, server_opts in pairs(servers) do
+            if server_opts then
+               require("lspconfig")[server].setup(server_opts)
+            end
+         end
+      end,
    },
-   -- function signature hints
+   -- Hook non LSP tools into LSP engine
    {
-      'ray-x/lsp_signature.nvim',
+      "nvimtools/none-ls.nvim",
+      dependencies = {
+         "nvim-lua/plenary.nvim",
+      },
+      opts = function(_, opts)
+         local nls = require("null-ls")
+         opts.sources = vim.list_extend(opts.sources or {}, {
+            -- Go
+            nls.builtins.code_actions.gomodifytags,
+            nls.builtins.code_actions.impl,
+         })
+      end,
+   },
+   -- Function signature hints
+   {
+      "ray-x/lsp_signature.nvim",
       event = "VeryLazy",
       opts = {
          bind = true,
@@ -17,10 +80,9 @@ return {
          floating_window_above_cur_line = true,
          doc_lines = 0,
          toggle_key = "<C-k>",
-
       },
    },
-   -- tools installer
+   -- Tools installer
    {
       "williamboman/mason.nvim",
       cmd = "Mason",
@@ -30,9 +92,17 @@ return {
       },
       opts = {
          ensure_installed = {
+            -- Go
+            "gopls",
+            "gofumpt",
+            "goimports",
+            "gomodifytags",
+            "impl",
+            -- Lua
+            "lua-language-server",
             "stylua",
+            -- sh
             "shfmt",
-            -- "flake8",
          },
       },
       config = function(_, opts)
@@ -53,26 +123,26 @@ return {
          end
       end,
    },
-   -- fancy LSP diagnostics
+   -- Fancy LSP diagnostics
    {
       "folke/trouble.nvim",
       cmd = { "TroubleToggle", "Trouble" },
       opts = {
          icons = false,
-         fold_open = "v",      -- icon used for open folds
-         fold_closed = ">",    -- icon used for closed folds
+         fold_open = "v", -- icon used for open folds
+         fold_closed = ">", -- icon used for closed folds
          indent_lines = false, -- add an indent guide below the fold icons
-         auto_open = true,     -- automatically open the list when you have diagnostics
-         auto_close = true,    -- automatically close the list when you have no diagnostics
+         auto_open = true, -- automatically open the list when you have diagnostics
+         auto_close = true, -- automatically close the list when you have no diagnostics
          auto_preview = false, -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
          signs = {
             -- icons / text used for a diagnostic
             error = "error",
             warning = "warn",
             hint = "hint",
-            information = "info"
+            information = "info",
          },
-         use_diagnostic_signs = true -- enabling this will use the signs defined in your lsp client
+         use_diagnostic_signs = true, -- enabling this will use the signs defined in your lsp client
       },
       keys = {
          { "<leader>dd", "<cmd>TroubleToggle workspace_diagnostics<cr>", desc = "Workspace Diagnostics (Trouble)" },
