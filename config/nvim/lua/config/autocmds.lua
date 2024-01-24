@@ -21,7 +21,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.keymap.set("n", "<d", vim.diagnostic.goto_prev, opts)
       vim.keymap.set("n", ">d", vim.diagnostic.goto_next, opts)
       vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, opts)
-      vim.keymap.set("n", "<leader>p", [[<cmd>lua require('fzf-lua').lsp_document_symbols()<CR>]], opts)
+      vim.keymap.set("n", "<leader>p", "<cmd>FzfLua builtin<CR>", opts)
       vim.keymap.set("n", "<leader>s", [[<cmd>lua require('fzf-lua').lsp_live_workspace_symbols()<CR>]], opts)
    end,
 })
