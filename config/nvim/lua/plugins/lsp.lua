@@ -122,31 +122,32 @@ return {
    },
    { -- Fancy LSP diagnostics
       "folke/trouble.nvim",
-      cmd = { "TroubleToggle", "Trouble" },
+      cmd = { "Trouble" },
       opts = {
-         icons = false,
-         fold_open = "v", -- icon used for open folds
-         fold_closed = ">", -- icon used for closed folds
-         indent_lines = false, -- add an indent guide below the fold icons
-         auto_open = true, -- automatically open the list when you have diagnostics
-         auto_close = true, -- automatically close the list when you have no diagnostics
-         auto_preview = false, -- automatically preview the location of the diagnostic. <esc> to close preview and go back to last window
-         signs = {
-            -- icons / text used for a diagnostic
-            error = "error",
-            warning = "warn",
-            hint = "hint",
-            information = "info",
+         icons = {
+            indent = {
+               top = "│ ",
+               middle = "├╴",
+               last = "└╴",
+               fold_open = "> ",
+               fold_closed = "v ",
+            },
+            folder_closed = "> ",
+            folder_open = "v ",
+            kinds = {
+               File = "□ ",
+            },
          },
-         use_diagnostic_signs = true, -- enabling this will use the signs defined in your lsp client
+         auto_close = true, -- automatically close the list when you have no diagnostics
+         auto_preview = false, -- automatically preview the location of the diagnostic.
       },
       keys = {
-         { "<leader>dd", "<cmd>TroubleToggle workspace_diagnostics<cr>", desc = "Workspace Diagnostics (Trouble)" },
+         { "<leader>dd", "<cmd>Trouble diagnostics toggle focus=false<cr>", desc = "Workspace Diagnostics (Trouble)" },
          {
             "dn",
             function()
                if require("trouble").is_open() then
-                  require("trouble").previous({ skip_groups = true, jump = true })
+                  require("trouble").prev({ skip_groups = true, jump = true })
                else
                   local ok, err = pcall(vim.cmd.cprev)
                   if not ok then
