@@ -26,6 +26,9 @@ return {
    },
    { -- fzf based navigation and search
       "ibhagwan/fzf-lua",
+      config = function()
+         require("fzf-lua").register_ui_select()
+      end,
       keys = {
          { "<leader>b", "<cmd>lua require('fzf-lua').buffers()<cr>", desc = "FzfBuffers" },
          { "<leader>t", "<cmd>lua require('fzf-lua').files()<cr>", desc = "FzfFiles" },
