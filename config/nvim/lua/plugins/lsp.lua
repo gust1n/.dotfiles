@@ -53,20 +53,6 @@ return {
          end
       end,
    },
-   { -- Hook non LSP tools into LSP engine
-      "nvimtools/none-ls.nvim",
-      dependencies = {
-         "nvim-lua/plenary.nvim",
-      },
-      opts = function(_, opts)
-         local nls = require("null-ls")
-         opts.sources = vim.list_extend(opts.sources or {}, {
-            -- Go
-            nls.builtins.code_actions.gomodifytags,
-            nls.builtins.code_actions.impl,
-         })
-      end,
-   },
    { -- Function signature hints
       "ray-x/lsp_signature.nvim",
       event = "VeryLazy",
@@ -93,8 +79,6 @@ return {
             "gopls",
             "gofumpt",
             "goimports",
-            "gomodifytags",
-            "impl",
             -- Lua
             "lua-language-server",
             "stylua",
