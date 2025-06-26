@@ -27,6 +27,11 @@ return {
    { -- fzf based navigation and search
       "ibhagwan/fzf-lua",
       config = function()
+         require("fzf-lua").setup({
+            grep = {
+               multiline = 1,
+            },
+         })
          require("fzf-lua").register_ui_select()
       end,
       keys = {
