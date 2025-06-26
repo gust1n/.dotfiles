@@ -37,7 +37,7 @@ return {
       keys = {
          { "<leader>b", "<cmd>lua require('fzf-lua').buffers()<cr>", desc = "FzfBuffers" },
          { "<leader>t", "<cmd>lua require('fzf-lua').files()<cr>", desc = "FzfFiles" },
-         { "<leader>f", "<cmd>lua require('fzf-lua').grep({ search = ''})<cr>", desc = "FzfGrep" },
+         { "<leader>f", "<cmd>lua require('fzf-lua').grep_project()<cr>", desc = "FzfGrep" },
          { "<leader>f", "<cmd>lua require('fzf-lua').grep_visual()<cr>", desc = "FzFVisualGrep", mode = "v" },
       },
    },
