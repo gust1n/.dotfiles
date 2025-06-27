@@ -28,19 +28,10 @@ return {
          require("fzf-lua").setup()
          require("fzf-lua").register_ui_select()
       end,
-      keys = {
-         { "<leader>b", "<cmd>FzfLua buffers<cr>",      desc = "Buffers" },
-         { "<leader>t", "<cmd>FzfLua files<cr>",        desc = "Files" },
-         { "<leader>f", "<cmd>FzfLua grep_project<cr>", desc = "Grep" },
-         { "<leader>f", "<cmd>FzfLua grep_visual<cr>",  desc = "Visual Grep", mode = "v" },
-      },
    },
    {
       "kyazdani42/nvim-tree.lua",
       cmd = "NvimTreeToggle",
-      keys = {
-         { "<leader>kb", "<cmd>NvimTreeToggle<cr>", desc = "File Tree" },
-      },
       opts = {
          renderer = {
             icons = {
