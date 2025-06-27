@@ -6,7 +6,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
    if vim.v.shell_error ~= 0 then
       vim.api.nvim_echo({
          { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-         { out, "WarningMsg" },
+         { out,                            "WarningMsg" },
          { "\nPress any key to exit..." },
       }, true, {})
       vim.fn.getchar()
@@ -19,17 +19,27 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\" -- I don't use local leader
 
+-- Ensure Mason's bin directory is in PATH early
+local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
+local current_path = vim.env.PATH or ""
+if not string.find(current_path, mason_path, 1, true) then
+   vim.env.PATH = mason_path .. ":" .. current_path
+end
+
 -- Load configuration from ./lua/config
 require("config/options")
 require("config/keymaps")
 require("config/autocmds")
+
+-- Load language configurations (registers LSP and formatter configs)
+require("plugins/lang/lua")
+require("plugins/lang/go")
 
 -- Setup lazy.nvim
 require("lazy").setup({
    spec = {
       -- Load plugins from ./lua/plugins
       { import = "plugins" },
-      { import = "plugins.lang" },
    },
    -- Configure any other settings here. See the documentation for more details.
    -- colorscheme that will be used when installing plugins.

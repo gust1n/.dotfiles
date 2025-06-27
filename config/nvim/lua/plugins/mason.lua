@@ -1,26 +1,59 @@
 return {
-  { -- Tools installer
-    "mason-org/mason.nvim",
-    lazy = true,
-    config = function(_, opts)
-      require("mason").setup(opts)
+   {
+      "mason-org/mason.nvim",
+      event = "VeryLazy",
+      config = function()
+         -- Setup PATH for Mason binaries
+         local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
+         local current_path = vim.env.PATH or ""
+         if not string.find(current_path, mason_path, 1, true) then
+            vim.env.PATH = mason_path .. ":" .. current_path
+         end
 
-      -- handle opts.ensure_installed
-      local registry = require("mason-registry")
-      registry.refresh(function()
-        if opts.ensure_installed == nil then
-          return
-        end
+         -- Get tools from language configurations
+         local lang = require("config.lang")
+         local ensure_installed = lang.get_mason_tools()
 
-        for _, pkg_name in ipairs(opts.ensure_installed) do
-          -- print("loading " .. pkg_name)
-          local pkg = registry.get_package(pkg_name)
-          if not pkg:is_installed() then
-            pkg:install()
-          end
-        end
-      end)
-    end,
-    cmd = { "Mason", "MasonInstall", "MasonUpdate", "MasonUninstall" },
-  },
+         -- Remove duplicates
+         local seen = {}
+         local unique_tools = {}
+         for _, tool in ipairs(ensure_installed) do
+            if not seen[tool] then
+               seen[tool] = true
+               table.insert(unique_tools, tool)
+            end
+         end
+
+         require("mason").setup({
+            ensure_installed = unique_tools,
+            ui = {
+               icons = {
+                  package_installed = "✓",
+                  package_pending = "➜",
+                  package_uninstalled = "✗"
+               }
+            }
+         })
+
+         -- Auto-install missing tools after VimEnter
+         vim.api.nvim_create_autocmd("VimEnter", {
+            callback = function()
+               vim.defer_fn(function()
+                  local registry = require("mason-registry")
+                  registry.refresh()
+
+                  for _, tool in ipairs(unique_tools) do
+                     if registry.has_package(tool) then
+                        local pkg = registry.get_package(tool)
+                        if not pkg:is_installed() then
+                           vim.notify("Installing " .. tool .. "...")
+                           pkg:install()
+                        end
+                     end
+                  end
+               end, 100)
+            end,
+         })
+      end,
+   },
 }
