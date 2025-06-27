@@ -35,10 +35,50 @@ return {
       opts = {
          renderer = {
             icons = {
-               show = { folder = false, file = false },
-               glyphs = {
-                  folder = { arrow_closed = ">", arrow_open = "v" },
+               show = {
+                  folder = false,
+                  file = false,
+                  folder_arrow = true,
+                  git = true,
                },
+               glyphs = {
+                  default = "",
+                  symlink = "@",
+                  bookmark = "B",
+                  folder = {
+                     arrow_closed = ">",
+                     arrow_open = "v",
+                     default = "[D]",
+                     open = "[O]",
+                     empty = "[E]",
+                     empty_open = "[EO]",
+                     symlink = "[S]",
+                     symlink_open = "[SO]",
+                  },
+                  git = {
+                     unstaged = "M",
+                     staged = "S",
+                     unmerged = "U",
+                     renamed = "R",
+                     untracked = "?",
+                     deleted = "D",
+                     ignored = "I",
+                  },
+               },
+            },
+         },
+         git = {
+            enable = true,
+            ignore = false,
+         },
+         diagnostics = {
+            enable = true,
+            show_on_dirs = true,
+            icons = {
+               hint = "H",
+               info = "I",
+               warning = "W",
+               error = "E",
             },
          },
       },
@@ -47,7 +87,21 @@ return {
       "lewis6991/gitsigns.nvim",
       event = "VeryLazy",
       opts = {
-         signs = { add = { text = "+" } },
+         signs = {
+            add = { text = "+" },
+            change = { text = "~" },
+            delete = { text = "-" },
+            topdelete = { text = "^" },
+            changedelete = { text = "~" },
+            untracked = { text = "?" },
+         },
+         signcolumn = true,
+         current_line_blame = false,
+         current_line_blame_opts = {
+            virt_text = true,
+            virt_text_pos = "eol",
+            delay = 1000,
+         },
       },
    },
    {

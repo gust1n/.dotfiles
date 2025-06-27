@@ -28,9 +28,9 @@ return {
             ensure_installed = unique_tools,
             ui = {
                icons = {
-                  package_installed = "✓",
-                  package_pending = "➜",
-                  package_uninstalled = "✗"
+                  package_installed = "[+]",
+                  package_pending = "[>]",
+                  package_uninstalled = "[ ]"
                }
             }
          })
@@ -60,9 +60,9 @@ return {
                   local pkg = registry.get_package(tool)
                   pkg:install():once("closed", function()
                      if pkg:is_installed() then
-                        vim.notify("Mason: ✓ " .. tool .. " installed successfully")
+                        vim.notify("Mason: [+] " .. tool .. " installed successfully")
                      else
-                        vim.notify("Mason: ✗ Failed to install " .. tool, vim.log.levels.ERROR)
+                        vim.notify("Mason: [-] Failed to install " .. tool, vim.log.levels.ERROR)
                      end
                   end)
                end

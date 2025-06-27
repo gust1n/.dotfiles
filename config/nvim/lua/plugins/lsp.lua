@@ -16,10 +16,17 @@ return {
    },
    {
       "folke/trouble.nvim",
-      event = "VeryLazy",
+      cmd = "Trouble",
       config = function()
-         require("trouble").setup()
+         require("trouble").setup({
+            signs = {
+               error = "E",
+               warning = "W",
+               hint = "H",
+               information = "I",
+               other = "?"
+            }
+         })
       end,
-
    },
 }

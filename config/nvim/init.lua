@@ -19,6 +19,10 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\" -- I don't use local leader
 
+-- Disable netrw in favor of nvim-tree
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
 -- Ensure Mason's bin directory is in PATH early
 local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
 local current_path = vim.env.PATH or ""

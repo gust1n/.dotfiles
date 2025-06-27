@@ -10,3 +10,15 @@ opt.scrolloff = 7
 opt.signcolumn = "yes"
 opt.laststatus = 3
 opt.updatetime = 200
+
+-- Configure diagnostic signs to use ASCII symbols
+vim.diagnostic.config({
+   signs = {
+      text = {
+         [vim.diagnostic.severity.ERROR] = "E",
+         [vim.diagnostic.severity.WARN] = "W",
+         [vim.diagnostic.severity.INFO] = "I",
+         [vim.diagnostic.severity.HINT] = "H",
+      },
+   },
+})
