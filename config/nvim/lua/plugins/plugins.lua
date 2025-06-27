@@ -1,4 +1,11 @@
 return {
+   -- Colorscheme
+   {
+      "navarasu/onedark.nvim",
+      opts = { style = "dark" },
+   },
+
+   -- Mini.nvim collection
    {
       "echasnovski/mini.nvim",
       config = function()
@@ -9,6 +16,8 @@ return {
          require("mini.starter").setup()
       end,
    },
+
+   -- Navigation between tmux and nvim
    {
       "alexghergh/nvim-tmux-navigation",
       config = function()
@@ -22,6 +31,8 @@ return {
          })
       end,
    },
+
+   -- Fuzzy finder
    {
       "ibhagwan/fzf-lua",
       config = function()
@@ -29,6 +40,8 @@ return {
          require("fzf-lua").register_ui_select()
       end,
    },
+
+   -- File explorer
    {
       "kyazdani42/nvim-tree.lua",
       cmd = "NvimTreeToggle",
@@ -83,6 +96,8 @@ return {
          },
       },
    },
+
+   -- Git integration
    {
       "lewis6991/gitsigns.nvim",
       event = "VeryLazy",
@@ -104,17 +119,54 @@ return {
          },
       },
    },
+
+   -- Register peek
    {
-      "stevearc/conform.nvim",
-      event = "BufWritePre",
-      cmd = "ConformInfo",
-      dependencies = { "mason-org/mason.nvim" },
-      opts = function()
-         local lang = require("config.lang")
-         return {
-            formatters_by_ft = lang.get_formatters(),
-            format_on_save = { timeout_ms = 500, lsp_format = "fallback" },
-         }
+      "junegunn/vim-peekaboo",
+   },
+
+   -- Window resizer
+   {
+      "simeji/winresizer",
+   },
+
+   -- Status line
+   {
+      "nvim-lualine/lualine.nvim",
+      event = "VeryLazy",
+      opts = {
+         options = {
+            icons_enabled = false,
+            theme = "onedark",
+            globalstatus = true,
+            section_separators = "",
+            component_separators = "",
+         },
+         sections = {
+            lualine_a = { "mode" },
+            lualine_b = { "branch", "diff" },
+            lualine_c = { "filename" },
+            lualine_x = { "diagnostics", "encoding", "fileformat", "filetype" },
+            lualine_y = { "progress" },
+            lualine_z = { "location" },
+         },
+      },
+   },
+
+   -- Trouble diagnostics
+   {
+      "folke/trouble.nvim",
+      cmd = "Trouble",
+      config = function()
+         require("trouble").setup({
+            signs = {
+               error = "E",
+               warning = "W",
+               hint = "H",
+               information = "I",
+               other = "?"
+            }
+         })
       end,
    },
 }

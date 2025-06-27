@@ -14,19 +14,4 @@ return {
          end
       end,
    },
-   {
-      "folke/trouble.nvim",
-      cmd = "Trouble",
-      config = function()
-         require("trouble").setup({
-            signs = {
-               error = "E",
-               warning = "W",
-               hint = "H",
-               information = "I",
-               other = "?"
-            }
-         })
-      end,
-   },
 }
