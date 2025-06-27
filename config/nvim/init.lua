@@ -29,6 +29,7 @@ require("lazy").setup({
    spec = {
       -- Load plugins from ./lua/plugins
       { import = "plugins" },
+      { import = "plugins.lang" },
    },
    -- Configure any other settings here. See the documentation for more details.
    -- colorscheme that will be used when installing plugins.

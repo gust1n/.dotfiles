@@ -1,4 +1,31 @@
 return {
+   { -- Tools installer
+      "mason-org/mason.nvim",
+      lazy = true,
+      dependencies = {
+         "mason-org/mason-lspconfig.nvim",
+      },
+      config = function(_, opts)
+         require("mason").setup(opts)
+
+         -- handle opts.ensure_installed
+         local registry = require("mason-registry")
+         registry.refresh(function()
+            if opts.ensure_installed == nil then
+               return
+            end
+
+            for _, pkg_name in ipairs(opts.ensure_installed) do
+               -- print("loading " .. pkg_name)
+               local pkg = registry.get_package(pkg_name)
+               if not pkg:is_installed() then
+                  pkg:install()
+               end
+            end
+         end)
+      end,
+      cmd = { "Mason", "MasonInstall", "MasonUpdate", "MasonUninstall" },
+   },
    { -- collection of mini plugins
       "echasnovski/mini.nvim",
       version = false,
@@ -75,17 +102,28 @@ return {
    },
    { -- formatter
       "stevearc/conform.nvim",
+      lazy = true,
       event = { "BufWritePre" },
       cmd = { "ConformInfo" },
-      opts = {
-         formatters_by_ft = {
-            lua = { "stylua" },
-            go = { "goimports", "gofumpt" },
-         },
-         format_on_save = {
-            timeout_ms = 500,
-            lsp_fallback = true,
-         },
-      },
+      config = function(_, opts)
+         vim.api.nvim_create_autocmd("BufWritePre", {
+            pattern = "*",
+            callback = function(args)
+               if vim.g.auto_format then
+                  require("conform").format({
+                     bufnr = args.buf,
+                     timeout_ms = 5000,
+                     lsp_format = "fallback",
+                  })
+               else
+               end
+            end,
+         })
+
+         -- default to auto-format
+         vim.g.auto_format = true
+
+         require("conform").setup(opts)
+      end,
    },
 }
