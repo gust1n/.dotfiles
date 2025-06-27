@@ -1,7 +1,7 @@
 return {
    {
       "mason-org/mason.nvim",
-      event = "VeryLazy",
+      priority = 1000,
       config = function()
          -- Setup PATH for Mason binaries
          local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
@@ -35,25 +35,39 @@ return {
             }
          })
 
-         -- Auto-install missing tools after VimEnter
-         vim.api.nvim_create_autocmd("VimEnter", {
-            callback = function()
-               vim.defer_fn(function()
-                  local registry = require("mason-registry")
-                  registry.refresh()
+         -- Auto-install missing tools with timer
+         vim.defer_fn(function()
+            local registry = require("mason-registry")
+            registry.refresh()
 
-                  for _, tool in ipairs(unique_tools) do
-                     if registry.has_package(tool) then
-                        local pkg = registry.get_package(tool)
-                        if not pkg:is_installed() then
-                           vim.notify("Installing " .. tool .. "...")
-                           pkg:install()
-                        end
-                     end
+            local missing_tools = {}
+            for _, tool in ipairs(unique_tools) do
+               if registry.has_package(tool) then
+                  local pkg = registry.get_package(tool)
+                  if not pkg:is_installed() then
+                     table.insert(missing_tools, tool)
                   end
-               end, 100)
-            end,
-         })
+               else
+                  vim.notify("Mason: Package '" .. tool .. "' not found in registry", vim.log.levels.WARN)
+               end
+            end
+
+            if #missing_tools > 0 then
+               vim.notify("Mason: Installing " ..
+                  #missing_tools .. " missing tools: " .. table.concat(missing_tools, ", "))
+
+               for _, tool in ipairs(missing_tools) do
+                  local pkg = registry.get_package(tool)
+                  pkg:install():once("closed", function()
+                     if pkg:is_installed() then
+                        vim.notify("Mason: ✓ " .. tool .. " installed successfully")
+                     else
+                        vim.notify("Mason: ✗ Failed to install " .. tool, vim.log.levels.ERROR)
+                     end
+                  end)
+               end
+            end
+         end, 1000)
       end,
    },
 }
