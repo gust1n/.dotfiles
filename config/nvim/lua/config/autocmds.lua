@@ -1,16 +1,23 @@
--- Flash selection on yank
-vim.cmd([[
-  augroup YankHighlight
-    autocmd!
-    autocmd TextYankPost * silent! lua vim.highlight.on_yank()
-  augroup end
-]])
+-- Flash selection on yank (modern autocmd)
+vim.api.nvim_create_autocmd("TextYankPost", {
+   desc = "Highlight when yanking text",
+   group = vim.api.nvim_create_augroup("YankHighlight", { clear = true }),
+   callback = function()
+      vim.highlight.on_yank({ timeout = 200 })
+   end,
+})
 
--- When LSP attaches
+-- When LSP attaches (modern with better error handling)
 vim.api.nvim_create_autocmd("LspAttach", {
+   desc = "Setup LSP keymaps when server attaches",
+   group = vim.api.nvim_create_augroup("LspAttach", { clear = true }),
    callback = function(ev)
       -- Use centralized LSP keymaps
-      local keymaps = require("config.keymaps")
-      keymaps.setup_lsp_mappings(ev.buf)
+      local ok, keymaps = pcall(require, "config.keymaps")
+      if ok then
+         keymaps.setup_lsp_mappings(ev.buf)
+      else
+         vim.notify("Failed to load LSP keymaps", vim.log.levels.WARN)
+      end
    end,
 })

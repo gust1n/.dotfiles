@@ -37,30 +37,53 @@ function M.setup_lsp_mappings(bufnr)
    local opts = { buffer = bufnr }
 
    -- Navigation
-   vim.keymap.set("n", "gd", vim.lsp.buf.definition, vim.tbl_extend("force", opts, { desc = "Go to definition" }))
-   vim.keymap.set("n", "gi", "<cmd>FzfLua lsp_implementations<CR>",
-      vim.tbl_extend("force", opts, { desc = "Go to implementation" }))
-   vim.keymap.set("n", "gr", "<cmd>FzfLua lsp_references<CR>",
-      vim.tbl_extend("force", opts, { desc = "Go to references" }))
+   vim.keymap.set("n", "gd", function()
+      vim.lsp.buf.definition()
+   end, vim.tbl_extend("force", opts, { desc = "Go to definition" }))
+   vim.keymap.set(
+      "n",
+      "gi",
+      "<cmd>FzfLua lsp_implementations<CR>",
+      vim.tbl_extend("force", opts, { desc = "Go to implementation" })
+   )
+   vim.keymap.set(
+      "n",
+      "gr",
+      "<cmd>FzfLua lsp_references<CR>",
+      vim.tbl_extend("force", opts, { desc = "Go to references" })
+   )
 
    -- Documentation and help
-   vim.keymap.set("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", opts, { desc = "Hover documentation" }))
-   vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, vim.tbl_extend("force", opts, { desc = "Signature help" }))
+   vim.keymap.set("n", "K", function()
+      vim.lsp.buf.hover()
+   end, vim.tbl_extend("force", opts, { desc = "Hover documentation" }))
+   vim.keymap.set("n", "<C-k>", function()
+      vim.lsp.buf.signature_help()
+   end, vim.tbl_extend("force", opts, { desc = "Signature help" }))
 
    -- Code actions and refactoring
-   vim.keymap.set("n", "<leader>r", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "Rename symbol" }))
-   vim.keymap.set({ "n", "v" }, "<leader>a", "<cmd>lua require('fzf-lua').lsp_code_actions()<cr>",
-      vim.tbl_extend("force", opts, { desc = "Code actions" }))
+   vim.keymap.set("n", "<leader>r", function()
+      vim.lsp.buf.rename()
+   end, vim.tbl_extend("force", opts, { desc = "Rename symbol" }))
+   vim.keymap.set({ "n", "v" }, "<leader>a", function()
+      require("fzf-lua").lsp_code_actions()
+   end, vim.tbl_extend("force", opts, { desc = "Code actions" }))
 
    -- Diagnostics
-   vim.keymap.set("n", "<d", vim.diagnostic.goto_prev, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
-   vim.keymap.set("n", ">d", vim.diagnostic.goto_next, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
-   vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float,
-      vim.tbl_extend("force", opts, { desc = "Show diagnostic" }))
+   vim.keymap.set("n", "<d", function()
+      vim.diagnostic.jump({ count = -1 })
+   end, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
+   vim.keymap.set("n", ">d", function()
+      vim.diagnostic.jump({ count = 1 })
+   end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
+   vim.keymap.set("n", "<leader>e", function()
+      vim.diagnostic.open_float()
+   end, vim.tbl_extend("force", opts, { desc = "Show diagnostic" }))
 
    -- Workspace symbols
-   vim.keymap.set("n", "<leader>s", "<cmd>lua require('fzf-lua').lsp_live_workspace_symbols()<CR>",
-      vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
+   vim.keymap.set("n", "<leader>s", function()
+      require("fzf-lua").lsp_live_workspace_symbols()
+   end, vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
 end
 
 -- Diagnostic and trouble mappings
@@ -78,12 +101,15 @@ end
 -- Text editing and selection
 local function setup_editing_mappings()
    -- Treesitter text objects
-   vim.keymap.set("n", "<c-space>", "<cmd>lua require('nvim-treesitter.incremental_selection').init_selection()<cr>",
-      { desc = "Start selection" })
-   vim.keymap.set("v", "<c-space>", "<cmd>lua require('nvim-treesitter.incremental_selection').node_incremental()<cr>",
-      { desc = "Expand selection" })
-   vim.keymap.set("v", "<bs>", "<cmd>lua require('nvim-treesitter.incremental_selection').node_decremental()<cr>",
-      { desc = "Shrink selection" })
+   vim.keymap.set("n", "<c-space>", function()
+      require("nvim-treesitter.incremental_selection").init_selection()
+   end, { desc = "Start selection" })
+   vim.keymap.set("v", "<c-space>", function()
+      require("nvim-treesitter.incremental_selection").node_incremental()
+   end, { desc = "Expand selection" })
+   vim.keymap.set("v", "<bs>", function()
+      require("nvim-treesitter.incremental_selection").node_decremental()
+   end, { desc = "Shrink selection" })
 end
 
 -- UI and window management
