@@ -27,7 +27,7 @@ lang.lsp("lua_ls", {
          },
       },
    },
-})
+}, "lua-language-server") -- Mason package name differs from LSP server name (lua_ls)
 
 -- Formatters
 lang.formatters({ "lua" }, { "stylua" }, { "stylua" })

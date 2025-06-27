@@ -1,7 +1,11 @@
--- Simplified language configuration helper
+-- Language configuration helper
+-- Provides utilities for setting up language-specific configurations including
+-- file type settings, LSP servers, and formatters in a centralized way.
 local M = {}
 
--- Setup filetype-specific settings
+-- Setup filetype-specific editor settings
+-- @param filetypes: table - List of filetypes to apply settings to
+-- @param opts: table - Options: { indent = number, expandtab = boolean, colorcolumn = number }
 function M.setup_filetype(filetypes, opts)
    vim.api.nvim_create_autocmd("FileType", {
       pattern = filetypes,
@@ -22,17 +26,25 @@ function M.setup_filetype(filetypes, opts)
 end
 
 -- Register LSP server configuration
-function M.lsp(server, config)
-   -- Store config for later setup
+-- @param server: string - LSP server name (e.g., "lua_ls", "gopls")
+-- @param config: table - LSP server configuration
+-- @param mason_name: string|nil - Mason package name if different from server name
+--                                 (e.g., "lua-language-server" for "lua_ls")
+function M.lsp(server, config, mason_name)
+   -- Store LSP config for later setup
    M._lsp_servers = M._lsp_servers or {}
    M._lsp_servers[server] = config
 
-   -- Add to mason ensure_installed
+   -- Add Mason package to ensure_installed list
+   -- Note: LSP server names != Mason package names (e.g., lua_ls != lua-language-server)
    M._mason_tools = M._mason_tools or {}
-   table.insert(M._mason_tools, server)
+   table.insert(M._mason_tools, mason_name or server)
 end
 
--- Register formatters
+-- Register formatters for filetypes
+-- @param filetypes: table - List of filetypes to apply formatters to
+-- @param formatters: table - List of formatter names in order of preference
+-- @param tools: table|nil - List of Mason packages to install for these formatters
 function M.formatters(filetypes, formatters, tools)
    -- Store formatters for later setup
    M._formatters = M._formatters or {}
