@@ -1,17 +1,17 @@
 -- Install lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.uv.fs_stat(lazypath) then
-   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
-   local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
-   if vim.v.shell_error ~= 0 then
-      vim.api.nvim_echo({
-         { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-         { out,                            "WarningMsg" },
-         { "\nPress any key to exit..." },
-      }, true, {})
-      vim.fn.getchar()
-      os.exit(1)
-   end
+  local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_echo({
+      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
+      { out, "WarningMsg" },
+      { "\nPress any key to exit..." },
+    }, true, {})
+    vim.fn.getchar()
+    os.exit(1)
+  end
 end
 vim.opt.rtp:prepend(lazypath)
 
@@ -27,7 +27,7 @@ vim.g.loaded_netrwPlugin = 1
 local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
 local current_path = vim.env.PATH or ""
 if not string.find(current_path, mason_path, 1, true) then
-   vim.env.PATH = mason_path .. ":" .. current_path
+  vim.env.PATH = mason_path .. ":" .. current_path
 end
 
 -- Load configuration from ./lua/config
@@ -41,16 +41,16 @@ require("plugins/lang/go")
 
 -- Setup lazy.nvim
 require("lazy").setup({
-   spec = {
-      -- Load plugins from ./lua/plugins
-      { import = "plugins" },
-   },
-   -- Configure any other settings here. See the documentation for more details.
-   -- colorscheme that will be used when installing plugins.
-   install = { colorscheme = { "onedark" } },
-   change_detection = {
-      notify = false, -- get a notification when changes are found
-   },
+  spec = {
+    -- Load plugins from ./lua/plugins
+    { import = "plugins" },
+  },
+  -- Configure any other settings here. See the documentation for more details.
+  -- colorscheme that will be used when installing plugins.
+  install = { colorscheme = { "onedark" } },
+  change_detection = {
+    notify = false, -- get a notification when changes are found
+  },
 })
 
 vim.cmd.colorscheme("onedark")

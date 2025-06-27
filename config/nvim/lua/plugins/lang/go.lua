@@ -2,29 +2,29 @@ local lang = require("config.lang")
 
 -- File type settings
 lang.setup_filetype({ "go", "gomod", "gowork" }, {
-   indent = 2,
-   expandtab = false,
-   colorcolumn = 120,
+  indent = 2,
+  expandtab = false,
+  colorcolumn = 120,
 })
 
 -- LSP configuration
 lang.lsp("gopls", {
-   settings = {
-      gopls = {
-         buildFlags = { "-tags=integration" },
-         hints = {
-            parameterNames = true,
-            assignVariableTypes = true,
-            constantValues = true,
-            compositeLiteralTypes = true,
-            compositeLiteralFields = true,
-            functionTypeParameters = true,
-         },
-         staticcheck = true,
-         vulncheck = "imports",
-         semanticTokens = false,
+  settings = {
+    gopls = {
+      buildFlags = { "-tags=integration" },
+      hints = {
+        parameterNames = true,
+        assignVariableTypes = true,
+        constantValues = true,
+        compositeLiteralTypes = true,
+        compositeLiteralFields = true,
+        functionTypeParameters = true,
       },
-   },
+      staticcheck = true,
+      vulncheck = "imports",
+      semanticTokens = false,
+    },
+  },
 })
 
 -- Formatters
