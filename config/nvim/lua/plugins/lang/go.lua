@@ -30,4 +30,9 @@ lang.lsp("gopls", {
 -- Formatters
 lang.formatters({ "go" }, { "goimports", "gofumpt", "golines" }, { "goimports", "gofumpt", "golines" })
 
+-- Neotest configuration
+lang.neotest({ "go" }, {
+  "neotest-golang",
+})
+
 -- Language files don't return anything - they just register configuration

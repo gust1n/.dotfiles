@@ -59,6 +59,24 @@ function M.formatters(filetypes, formatters, tools)
   end
 end
 
+-- Register neotest adapters for filetypes
+-- @param filetypes: table - List of filetypes to apply adapters to
+-- @param adapters: table - List of neotest adapter configurations
+-- @param tools: table|nil - List of Mason packages to install for these adapters
+function M.neotest(filetypes, adapters, tools)
+  -- Store neotest adapters for later setup
+  M._neotest_adapters = M._neotest_adapters or {}
+  for _, ft in ipairs(filetypes) do
+    M._neotest_adapters[ft] = adapters
+  end
+
+  -- Add tools to mason ensure_installed
+  if tools then
+    M._mason_tools = M._mason_tools or {}
+    vim.list_extend(M._mason_tools, tools)
+  end
+end
+
 -- Get all registered LSP servers
 function M.get_lsp_servers()
   return M._lsp_servers or {}
@@ -72,6 +90,11 @@ end
 -- Get all mason tools to install
 function M.get_mason_tools()
   return M._mason_tools or {}
+end
+
+-- Get all registered neotest adapters
+function M.get_neotest_adapters()
+  return M._neotest_adapters or {}
 end
 
 return M

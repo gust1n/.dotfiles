@@ -118,6 +118,34 @@ local function setup_ui_mappings()
   vim.keymap.set("n", "<leader>w", "<cmd>WinResizerStartResize<cr>", { desc = "Resize windows" })
 end
 
+-- Test mappings
+local function setup_test_mappings()
+  -- Neotest mappings
+  vim.keymap.set("n", "<leader>ll", function()
+    require("neotest").run.run()
+  end, { desc = "Run nearest test" })
+
+  vim.keymap.set("n", "<leader>lf", function()
+    require("neotest").run.run(vim.fn.expand("%"))
+  end, { desc = "Run current file tests" })
+
+  -- vim.keymap.set("n", "<leader>ld", function()
+  --   require("neotest").run.run({ strategy = "dap" })
+  -- end, { desc = "Debug nearest test" })
+
+  vim.keymap.set("n", "<leader>ls", function()
+    require("neotest").summary.toggle()
+  end, { desc = "Toggle test summary" })
+
+  vim.keymap.set("n", "<leader>lo", function()
+    require("neotest").output.open({ enter = true })
+  end, { desc = "Open test output" })
+
+  vim.keymap.set("n", "<leader>lw", function()
+    require("neotest").watch.toggle()
+  end, { desc = "Toggle test watch" })
+end
+
 -- Setup all mappings
 local function setup_all_mappings()
   setup_basic_mappings()
@@ -125,6 +153,7 @@ local function setup_all_mappings()
   setup_diagnostic_mappings()
   setup_editing_mappings()
   setup_ui_mappings()
+  setup_test_mappings()
 end
 
 -- Initialize mappings
