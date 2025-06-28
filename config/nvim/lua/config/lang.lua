@@ -77,6 +77,24 @@ function M.neotest(filetypes, adapters, tools)
   end
 end
 
+-- Register linters for filetypes
+-- @param filetypes: table - List of filetypes to apply linters to
+-- @param linters: table - List of linter names in order of preference
+-- @param tools: table|nil - List of Mason packages to install for these linters
+function M.linters(filetypes, linters, tools)
+  -- Store linters for later setup
+  M._linters = M._linters or {}
+  for _, ft in ipairs(filetypes) do
+    M._linters[ft] = linters
+  end
+
+  -- Add tools to mason ensure_installed
+  if tools then
+    M._mason_tools = M._mason_tools or {}
+    vim.list_extend(M._mason_tools, tools)
+  end
+end
+
 -- Get all registered LSP servers
 function M.get_lsp_servers()
   return M._lsp_servers or {}
@@ -95,6 +113,11 @@ end
 -- Get all registered neotest adapters
 function M.get_neotest_adapters()
   return M._neotest_adapters or {}
+end
+
+-- Get all registered linters
+function M.get_linters()
+  return M._linters or {}
 end
 
 return M

@@ -11,11 +11,24 @@ lang.setup_filetype({ "lua" }, {
 lang.lsp("lua_ls", {
   settings = {
     Lua = {
-      diagnostics = { globals = { "vim" } },
-      runtime = { version = "LuaJIT" },
+      diagnostics = {
+        globals = { "vim", "describe", "it", "before_each", "after_each" },
+      },
+      runtime = {
+        version = "LuaJIT",
+        path = vim.list_extend(vim.split(package.path, ";"), {
+          "lua/?.lua",
+          "lua/?/init.lua",
+        }),
+      },
       workspace = {
         checkThirdParty = false,
-        library = { vim.env.VIMRUNTIME },
+        library = {
+          vim.env.VIMRUNTIME,
+          vim.fn.stdpath("config"),
+          vim.fn.stdpath("data") .. "/lazy",
+          "${3rd}/luv/library",
+        },
       },
       completion = { callSnippet = "Replace" },
       hint = {
@@ -25,6 +38,7 @@ lang.lsp("lua_ls", {
         semicolon = "Disable",
         arrayIndex = "Disable",
       },
+      telemetry = { enable = false },
     },
   },
 }, "lua-language-server") -- Mason package name differs from LSP server name (lua_ls)

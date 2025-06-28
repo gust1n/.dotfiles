@@ -35,4 +35,7 @@ lang.neotest({ "go" }, {
   "neotest-golang",
 })
 
+-- Linters
+lang.linters({ "go" }, { "golangcilint" }, { "golangci-lint" })
+
 -- Language files don't return anything - they just register configuration

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+  "Lua.runtime.version": "LuaJIT",
+  "Lua.runtime.path": [
+    "?.lua",
+    "?/init.lua",
+    "lua/?.lua",
+    "lua/?/init.lua"
+  ],
+  "Lua.workspace.library": [
+    "$VIMRUNTIME",
+    "${3rd}/luv/library",
+    "${3rd}/busted/library",
+    "${3rd}/luassert/library"
+  ],
+  "Lua.workspace.checkThirdParty": false,
+  "Lua.completion.callSnippet": "Replace",
+  "Lua.completion.keywordSnippet": "Replace",
+  "Lua.diagnostics.globals": [
+    "vim",
+    "describe",
+    "it",
+    "before_each",
+    "after_each",
+    "setup",
+    "teardown",
+    "pending"
+  ],
+  "Lua.diagnostics.disable": [
+    "missing-fields",
+    "incomplete-signature-doc"
+  ],
+  "Lua.hint.enable": true,
+  "Lua.hint.paramType": true,
+  "Lua.hint.paramName": "Disable",
+  "Lua.hint.semicolon": "Disable",
+  "Lua.hint.arrayIndex": "Disable",
+  "Lua.format.enable": false,
+  "Lua.telemetry.enable": false
+}

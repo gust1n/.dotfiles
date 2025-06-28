@@ -76,9 +76,9 @@ function M.setup_lsp_mappings(bufnr)
   vim.keymap.set("n", ">d", function()
     vim.diagnostic.jump({ count = 1 })
   end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
-  vim.keymap.set("n", "<leader>e", function()
-    vim.diagnostic.open_float()
-  end, vim.tbl_extend("force", opts, { desc = "Show diagnostic" }))
+  vim.keymap.set("n", "<leader>di", function()
+    vim.diagnostic.open_float({ border = "rounded", source = "always" })
+  end, vim.tbl_extend("force", opts, { desc = "Show diagnostic details" }))
 
   -- Workspace symbols
   vim.keymap.set("n", "<leader>s", function()
@@ -96,6 +96,20 @@ local function setup_diagnostic_mappings()
   vim.keymap.set("n", "<leader>dq", "<cmd>Trouble quickfix toggle<cr>", { desc = "Quickfix list" })
   vim.keymap.set("n", "dn", "<cmd>Trouble diagnostics next<cr>", { desc = "Next diagnostic" })
   vim.keymap.set("n", "dp", "<cmd>Trouble diagnostics prev<cr>", { desc = "Previous diagnostic" })
+
+  -- Enhanced trouble mappings
+  vim.keymap.set(
+    "n",
+    "<leader>de",
+    "<cmd>Trouble diagnostics toggle filter={severity=vim.diagnostic.severity.ERROR}<cr>",
+    { desc = "Toggle errors only" }
+  )
+  vim.keymap.set(
+    "n",
+    "<leader>dw",
+    "<cmd>Trouble diagnostics toggle filter={severity=vim.diagnostic.severity.WARN}<cr>",
+    { desc = "Toggle warnings only" }
+  )
 end
 
 -- Text editing and selection
@@ -121,29 +135,49 @@ end
 -- Test mappings
 local function setup_test_mappings()
   -- Neotest mappings
-  vim.keymap.set("n", "<leader>ll", function()
+  vim.keymap.set("n", "<leader>tt", function()
     require("neotest").run.run()
   end, { desc = "Run nearest test" })
 
-  vim.keymap.set("n", "<leader>lf", function()
+  vim.keymap.set("n", "<leader>tf", function()
     require("neotest").run.run(vim.fn.expand("%"))
   end, { desc = "Run current file tests" })
 
-  -- vim.keymap.set("n", "<leader>ld", function()
-  --   require("neotest").run.run({ strategy = "dap" })
-  -- end, { desc = "Debug nearest test" })
+  vim.keymap.set("n", "<leader>td", function()
+    require("neotest").run.run({ strategy = "dap" })
+  end, { desc = "Debug nearest test" })
 
-  vim.keymap.set("n", "<leader>ls", function()
+  vim.keymap.set("n", "<leader>ts", function()
     require("neotest").summary.toggle()
   end, { desc = "Toggle test summary" })
 
-  vim.keymap.set("n", "<leader>lo", function()
+  vim.keymap.set("n", "<leader>to", function()
     require("neotest").output.open({ enter = true })
   end, { desc = "Open test output" })
 
-  vim.keymap.set("n", "<leader>lw", function()
+  vim.keymap.set("n", "<leader>tw", function()
     require("neotest").watch.toggle()
   end, { desc = "Toggle test watch" })
+end
+
+-- Linting mappings
+local function setup_lint_mappings()
+  -- Manual linting
+  vim.keymap.set("n", "<leader>l", function()
+    require("lint").try_lint()
+  end, { desc = "Lint current file" })
+
+  -- Lint all open buffers
+  vim.keymap.set("n", "<leader>L", function()
+    local lint = require("lint")
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(buf) and vim.api.nvim_buf_get_option(buf, "buflisted") then
+        vim.api.nvim_buf_call(buf, function()
+          lint.try_lint()
+        end)
+      end
+    end
+  end, { desc = "Lint all buffers" })
 end
 
 -- Setup all mappings
@@ -154,6 +188,7 @@ local function setup_all_mappings()
   setup_editing_mappings()
   setup_ui_mappings()
   setup_test_mappings()
+  setup_lint_mappings()
 end
 
 -- Initialize mappings
