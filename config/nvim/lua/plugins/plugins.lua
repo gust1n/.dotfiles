@@ -166,6 +166,23 @@ return {
           information = "I",
           other = "?",
         },
+        icons = {
+          indent = {
+            fold_open = "v ",
+            fold_closed = "> ",
+          },
+          folder_closed = "> ",
+          folder_open = "v ",
+        },
+        -- Custom formatters to remove file and kind icons
+        formatters = {
+          file_icon = function(ctx)
+            return ""
+          end,
+          kind_icon = function(ctx)
+            return ""
+          end,
+        },
       })
     end,
   },
