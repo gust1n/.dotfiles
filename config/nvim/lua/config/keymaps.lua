@@ -26,7 +26,6 @@ local function setup_navigation_mappings()
   vim.keymap.set("n", "<leader>b", "<cmd>FzfLua buffers<cr>", { desc = "Find buffers" })
   vim.keymap.set("n", "<leader>f", "<cmd>FzfLua grep_project<cr>", { desc = "Grep project" })
   vim.keymap.set("v", "<leader>f", "<cmd>FzfLua grep_visual<cr>", { desc = "Grep selection" })
-  vim.keymap.set("n", "<leader>p", "<cmd>FzfLua builtin<CR>", { desc = "FzfLua builtin" })
 
   -- File tree
   vim.keymap.set("n", "<leader>kb", "<cmd>NvimTreeToggle<cr>", { desc = "Toggle file tree" })
@@ -62,26 +61,26 @@ function M.setup_lsp_mappings(bufnr)
   end, vim.tbl_extend("force", opts, { desc = "Signature help" }))
 
   -- Code actions and refactoring
-  vim.keymap.set("n", "<leader>r", function()
+  vim.keymap.set("n", "<leader>lr", function()
     vim.lsp.buf.rename()
   end, vim.tbl_extend("force", opts, { desc = "Rename symbol" }))
-  vim.keymap.set({ "n", "v" }, "<leader>a", function()
+  vim.keymap.set({ "n", "v" }, "<leader>la", function()
     require("fzf-lua").lsp_code_actions()
   end, vim.tbl_extend("force", opts, { desc = "Code actions" }))
 
   -- Diagnostics
-  vim.keymap.set("n", "<d", function()
+  vim.keymap.set("n", "dn", function()
     vim.diagnostic.jump({ count = -1 })
   end, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
-  vim.keymap.set("n", ">d", function()
+  vim.keymap.set("n", "dp", function()
     vim.diagnostic.jump({ count = 1 })
   end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
-  vim.keymap.set("n", "<leader>di", function()
+  vim.keymap.set("n", "<leader>ds", function()
     vim.diagnostic.open_float({ border = "rounded", source = "always" })
   end, vim.tbl_extend("force", opts, { desc = "Show diagnostic details" }))
 
   -- Workspace symbols
-  vim.keymap.set("n", "<leader>s", function()
+  vim.keymap.set("n", "<leader>ls", function()
     require("fzf-lua").lsp_live_workspace_symbols()
   end, vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
 end
@@ -90,12 +89,9 @@ end
 local function setup_diagnostic_mappings()
   -- Trouble
   vim.keymap.set("n", "<leader>dd", "<cmd>Trouble diagnostics toggle<cr>", { desc = "Toggle diagnostics" })
-  vim.keymap.set("n", "<leader>db", "<cmd>Trouble diagnostics toggle filter.buf=0<cr>", { desc = "Buffer diagnostics" })
-  vim.keymap.set("n", "<leader>ds", "<cmd>Trouble symbols toggle focus=false<cr>", { desc = "Document symbols" })
+  -- vim.keymap.set("n", "<leader>ds", "<cmd>Trouble symbols toggle focus=false<cr>", { desc = "Document symbols" })
   vim.keymap.set("n", "<leader>dr", "<cmd>Trouble lsp_references toggle focus=false<cr>", { desc = "LSP references" })
   vim.keymap.set("n", "<leader>dq", "<cmd>Trouble quickfix toggle<cr>", { desc = "Quickfix list" })
-  vim.keymap.set("n", "dn", "<cmd>Trouble diagnostics next<cr>", { desc = "Next diagnostic" })
-  vim.keymap.set("n", "dp", "<cmd>Trouble diagnostics prev<cr>", { desc = "Previous diagnostic" })
 
   -- Enhanced trouble mappings
   vim.keymap.set(
@@ -166,18 +162,6 @@ local function setup_lint_mappings()
   vim.keymap.set("n", "<leader>l", function()
     require("lint").try_lint()
   end, { desc = "Lint current file" })
-
-  -- Lint all open buffers
-  vim.keymap.set("n", "<leader>L", function()
-    local lint = require("lint")
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_loaded(buf) and vim.api.nvim_buf_get_option(buf, "buflisted") then
-        vim.api.nvim_buf_call(buf, function()
-          lint.try_lint()
-        end)
-      end
-    end
-  end, { desc = "Lint all buffers" })
 end
 
 -- Setup all mappings
