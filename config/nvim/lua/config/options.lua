@@ -32,7 +32,7 @@ vim.diagnostic.config({
   },
   float = {
     border = "rounded",
-    source = "always",
+    source = true,
     format = function(diagnostic)
       local source = diagnostic.source and ("[%s] "):format(diagnostic.source) or ""
       local code = diagnostic.code and ("[%s] "):format(diagnostic.code) or ""
