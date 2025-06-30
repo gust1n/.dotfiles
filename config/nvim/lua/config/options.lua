@@ -4,12 +4,19 @@ local opt = vim.opt
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
-opt.colorcolumn = "120"
-opt.mouse = ""
-opt.scrolloff = 7
-opt.signcolumn = "yes"
-opt.laststatus = 3
-opt.updatetime = 200
+opt.breakindent = true -- Enable break indent
+opt.textwidth = 80
+opt.hlsearch = true -- Set highlight on search
+opt.ignorecase = true -- Ignore case sensitive match in search
+opt.mouse = "" -- Disable mouse
+opt.number = true -- Show line numbers
+opt.scrolloff = 7 -- Scroll offset
+opt.signcolumn = "yes" -- Always show the signcolumn
+opt.smartcase = true -- Match case in search if using uppercase
+opt.laststatus = 3 -- Global statusline
+opt.undofile = true -- Save undo history
+opt.updatetime = 200 -- Decrease update time
+opt.termguicolors = true -- True color support
 
 -- Configure diagnostic signs to use ASCII symbols
 vim.diagnostic.config({
