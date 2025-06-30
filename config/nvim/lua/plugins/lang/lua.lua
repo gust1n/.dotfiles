@@ -1,14 +1,14 @@
-local lang = require("config.lang")
+-- Lua language configuration
 
 -- File type settings
-lang.setup_filetype({ "lua" }, {
+setup_filetype({ "lua" }, {
   indent = 2,
   expandtab = true,
   colorcolumn = 120,
 })
 
--- LSP configuration
-lang.lsp("lua_ls", {
+-- LSP server configuration
+_G.LSP_SERVERS.lua_ls = {
   settings = {
     Lua = {
       diagnostics = {
@@ -41,9 +41,10 @@ lang.lsp("lua_ls", {
       telemetry = { enable = false },
     },
   },
-}, "lua-language-server") -- Mason package name differs from LSP server name (lua_ls)
+}
 
 -- Formatters
-lang.formatters({ "lua" }, { "stylua" }, { "stylua" })
+_G.FORMATTERS.lua = { "stylua" }
 
--- Language files don't return anything - they just register configuration
+-- Mason tools needed
+add_mason_tools({ "lua-language-server", "stylua" })

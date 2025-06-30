@@ -1,56 +1,43 @@
 return {
-   {
-      "nvim-neotest/neotest",
-      dependencies = {
-         "nvim-neotest/nvim-nio",
-         "nvim-lua/plenary.nvim",
-         "antoinemadec/FixCursorHold.nvim",
-         "nvim-treesitter/nvim-treesitter",
-         -- Go adapter
-         "fredrikaverpil/neotest-golang",
-      },
-      config = function()
-         local neotest = require("neotest")
-
-         -- Get adapters from language configurations
-         local lang = require("config.lang")
-         local adapters = {}
-
-         -- Collect all adapters from language configs
-         local neotest_configs = lang.get_neotest_adapters()
-         for _, adapter_list in pairs(neotest_configs) do
-            for _, adapter in ipairs(adapter_list) do
-               if type(adapter) == "string" then
-                  table.insert(adapters, require(adapter))
-               else
-                  table.insert(adapters, adapter)
-               end
-            end
-         end
-
-         neotest.setup({
-            adapters = adapters,
-            icons = {
-               running = "R",
-               passed = "P",
-               failed = "F",
-               skipped = "S",
-               unknown = "U",
-            },
-            quickfix = {
-               enabled = true,
-               open = false,
-            },
-            output = {
-               enabled = true,
-               open_on_run = "short",
-            },
-            status = {
-               enabled = true,
-               signs = true,
-               virtual_text = false,
-            },
-         })
-      end,
-   },
+  {
+    "nvim-neotest/neotest",
+    dependencies = (function()
+      local base_deps = {
+        "nvim-neotest/nvim-nio",
+        "nvim-lua/plenary.nvim",
+        "antoinemadec/FixCursorHold.nvim",
+        "nvim-treesitter/nvim-treesitter",
+      }
+      -- Add language-specific neotest dependencies
+      vim.list_extend(base_deps, _G.NEOTEST_DEPENDENCIES or {})
+      return base_deps
+    end)(),
+    config = function()
+      require("neotest").setup({
+        adapters = vim.tbl_map(function(name)
+          return require(name)
+        end, _G.NEOTEST_ADAPTERS or {}),
+        icons = {
+          running = "R",
+          passed = "P",
+          failed = "F",
+          skipped = "S",
+          unknown = "U",
+        },
+        quickfix = {
+          enabled = true,
+          open = false,
+        },
+        output = {
+          enabled = true,
+          open_on_run = "short",
+        },
+        status = {
+          enabled = true,
+          signs = true,
+          virtual_text = false,
+        },
+      })
+    end,
+  },
 }

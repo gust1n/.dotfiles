@@ -1,14 +1,14 @@
-local lang = require("config.lang")
+-- Go language configuration
 
 -- File type settings
-lang.setup_filetype({ "go", "gomod", "gowork" }, {
+setup_filetype({ "go", "gomod", "gowork" }, {
   indent = 2,
   expandtab = false,
   colorcolumn = 120,
 })
 
--- LSP configuration
-lang.lsp("gopls", {
+-- LSP server configuration
+_G.LSP_SERVERS.gopls = {
   settings = {
     gopls = {
       buildFlags = { "-tags=integration" },
@@ -25,17 +25,16 @@ lang.lsp("gopls", {
       semanticTokens = false,
     },
   },
-})
+}
 
 -- Formatters
-lang.formatters({ "go" }, { "goimports", "gofumpt", "golines" }, { "goimports", "gofumpt", "golines" })
-
--- Neotest configuration
-lang.neotest({ "go" }, {
-  "neotest-golang",
-})
+_G.FORMATTERS.go = { "goimports", "gofumpt", "golines" }
 
 -- Linters
-lang.linters({ "go" }, { "golangcilint" }, { "golangci-lint" })
+_G.LINTERS.go = { "golangcilint" }
 
--- Language files don't return anything - they just register configuration
+-- Neotest adapters
+add_neotest_adapter("neotest-golang", "fredrikaverpil/neotest-golang")
+
+-- Mason tools needed
+add_mason_tools({ "gopls", "goimports", "gofumpt", "golines", "golangci-lint" })

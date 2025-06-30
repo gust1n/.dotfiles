@@ -35,7 +35,8 @@ require("config/options")
 require("config/keymaps")
 require("config/autocmds")
 
--- Load language configurations (registers LSP and formatter configs)
+-- Load simplified language system
+require("config/lang")
 require("plugins/lang/lua")
 require("plugins/lang/go")
 
