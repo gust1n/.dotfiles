@@ -79,7 +79,7 @@ function M.setup_lsp_mappings(bufnr)
     vim.diagnostic.jump({ count = 1 })
   end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
   vim.keymap.set("n", "<leader>ds", function()
-    vim.diagnostic.open_float({ border = "rounded", source = "always" })
+    vim.diagnostic.open_float({ border = "rounded", source = true })
   end, vim.tbl_extend("force", opts, { desc = "Show diagnostic details" }))
 
   -- Workspace symbols
