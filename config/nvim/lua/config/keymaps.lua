@@ -59,6 +59,9 @@ function M.setup_lsp_mappings(bufnr)
   vim.keymap.set("n", "<C-k>", function()
     vim.lsp.buf.signature_help()
   end, vim.tbl_extend("force", opts, { desc = "Signature help" }))
+  vim.keymap.set("i", "<C-k>", function()
+    vim.lsp.buf.signature_help()
+  end, vim.tbl_extend("force", opts, { desc = "Signature help" }))
 
   -- Code actions and refactoring
   vim.keymap.set("n", "<leader>lr", function()
