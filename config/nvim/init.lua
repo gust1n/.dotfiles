@@ -37,8 +37,14 @@ require("config/autocmds")
 
 -- Load simplified language system
 require("config/lang")
-require("plugins/lang/lua")
-require("plugins/lang/go")
+
+-- Auto-load all language configurations
+local lang_path = vim.fn.stdpath("config") .. "/lua/plugins/lang"
+local lang_files = vim.fn.glob(lang_path .. "/*.lua", false, true)
+for _, file in ipairs(lang_files) do
+  local lang_name = vim.fn.fnamemodify(file, ":t:r")
+  require("plugins.lang." .. lang_name)
+end
 
 -- Setup lazy.nvim
 require("lazy").setup({
