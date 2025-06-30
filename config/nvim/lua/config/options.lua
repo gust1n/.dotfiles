@@ -18,6 +18,11 @@ opt.undofile = true -- Save undo history
 opt.updatetime = 200 -- Decrease update time
 opt.termguicolors = true -- True color support
 
+-- Folding options
+opt.foldlevel = 99 -- Start with all folds open
+opt.foldlevelstart = 99 -- Start with all folds open when opening files
+opt.foldenable = true -- Enable folding
+
 -- Configure diagnostic signs to use ASCII symbols
 vim.diagnostic.config({
   underline = true,

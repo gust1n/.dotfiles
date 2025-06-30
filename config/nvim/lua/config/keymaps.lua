@@ -167,6 +167,13 @@ local function setup_lint_mappings()
   end, { desc = "Lint current file" })
 end
 
+-- Folding mappings
+local function setup_fold_mappings()
+  -- Basic fold operations (za, zo, zc are built-in)
+  vim.keymap.set("n", "zO", "zR", { desc = "Open all folds" })
+  vim.keymap.set("n", "zC", "zM", { desc = "Close all folds" })
+end
+
 -- Setup all mappings
 local function setup_all_mappings()
   setup_basic_mappings()
@@ -176,6 +183,7 @@ local function setup_all_mappings()
   setup_ui_mappings()
   setup_test_mappings()
   setup_lint_mappings()
+  setup_fold_mappings()
 end
 
 -- Initialize mappings
