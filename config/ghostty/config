@@ -1,2 +1,8 @@
+# Font configuration
 font-family = "Source Code Pro"
+font-size = 14
+font-style = normal
 theme = "Tomorrow Night"
+
+# macOS specific
+macos-option-as-alt = left
