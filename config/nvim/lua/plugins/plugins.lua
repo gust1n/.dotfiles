@@ -186,4 +186,39 @@ return {
       })
     end,
   },
+
+  -- Completion
+  {
+    "saghen/blink.cmp",
+    lazy = false,
+    version = "1.*",
+    dependencies = "rafamadriz/friendly-snippets",
+    opts = {
+      completion = {
+        menu = {
+          auto_show = false, -- Don't show automatically
+          draw = {
+            components = {
+              kind_icon = {
+                ellipsis = false,
+                text = function()
+                  return ""
+                end,
+              },
+            },
+          },
+        },
+        trigger = {
+          show_on_insert_on_trigger_character = false, -- Don't show on trigger characters
+        },
+      },
+      keymap = {
+        preset = "default", -- Uses <C-Space> to show completion
+        ["<Tab>"] = { "accept", "fallback" },
+      },
+      signature = {
+        enabled = true, -- Enable experimental signature help
+      },
+    },
+  },
 }
