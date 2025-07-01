@@ -182,10 +182,10 @@ return {
         },
         -- Custom formatters to remove file and kind icons
         formatters = {
-          file_icon = function(ctx)
+          file_icon = function(_)
             return ""
           end,
-          kind_icon = function(ctx)
+          kind_icon = function(_)
             return ""
           end,
         },

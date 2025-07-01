@@ -18,7 +18,7 @@ return {
       }
 
       -- Setup folding when LSP attaches
-      local function on_attach(client, bufnr)
+      local function on_attach(client, _)
         if client.server_capabilities.foldingRangeProvider then
           vim.opt_local.foldmethod = "expr"
           vim.opt_local.foldexpr = "v:lua.vim.lsp.foldexpr()"
