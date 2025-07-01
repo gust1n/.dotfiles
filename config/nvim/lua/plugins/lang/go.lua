@@ -22,7 +22,7 @@ _G.LSP_SERVERS.gopls = {
       },
       staticcheck = true,
       vulncheck = "imports",
-      semanticTokens = false,
+      semanticTokens = true,
     },
   },
 }
