@@ -36,7 +36,13 @@ return {
   {
     "ibhagwan/fzf-lua",
     config = function()
-      require("fzf-lua").setup()
+      require("fzf-lua").setup({
+        lsp = {
+          symbols = {
+            symbol_style = false, -- disable LSP symbol icons
+          },
+        },
+      })
       require("fzf-lua").register_ui_select()
     end,
   },
