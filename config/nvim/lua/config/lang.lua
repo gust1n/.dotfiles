@@ -49,4 +49,5 @@ end
 -- Expose helper functions globally for language files
 _G.add_mason_tools = add_mason_tools
 _G.add_neotest_adapter = add_neotest_adapter
+
 _G.setup_filetype = setup_filetype

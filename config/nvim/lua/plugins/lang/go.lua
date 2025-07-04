@@ -30,6 +30,21 @@ _G.LSP_SERVERS.gopls = {
 -- Formatters
 _G.FORMATTERS.go = { "goimports", "gofumpt", "golines" }
 
+-- Simple golangci-lint configuration that ignores exit codes
+local function setup_golangci_lint()
+  local ok, lint = pcall(require, "lint")
+  if ok and lint.linters.golangcilint then
+    -- Override the default linter to ignore exit codes
+    lint.linters.golangcilint.ignore_exitcode = true
+  end
+end
+
+-- Setup golangci-lint when nvim-lint is loaded
+vim.api.nvim_create_autocmd("User", {
+  pattern = "VeryLazy",
+  callback = setup_golangci_lint,
+})
+
 -- Linters
 _G.LINTERS.go = { "golangcilint" }
 
