@@ -11,6 +11,9 @@ setup_filetype({ "go", "gomod", "gowork" }, {
 _G.LSP_SERVERS.gopls = {
   settings = {
     gopls = {
+      analyses = {
+        ST1000 = false, --  at least one file in a package should have a package comment
+      },
       buildFlags = { "-tags=integration" },
       hints = {
         parameterNames = true,
