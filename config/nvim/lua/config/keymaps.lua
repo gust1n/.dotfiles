@@ -22,7 +22,7 @@ end
 -- File and project navigation
 local function setup_navigation_mappings()
   -- FzfLua mappings
-  vim.keymap.set("n", "<leader>p", "<cmd>FzfLua files<cr>", { desc = "Find files" })
+  vim.keymap.set("n", "<leader>t", "<cmd>FzfLua files<cr>", { desc = "Find files" })
   vim.keymap.set("n", "<leader>b", "<cmd>FzfLua buffers<cr>", { desc = "Find buffers" })
   vim.keymap.set("n", "<leader>f", "<cmd>FzfLua grep_project<cr>", { desc = "Grep project" })
   vim.keymap.set("v", "<leader>f", "<cmd>FzfLua grep_visual<cr>", { desc = "Grep selection" })
@@ -175,7 +175,7 @@ local function setup_all_mappings()
   setup_diagnostic_mappings()
   setup_editing_mappings()
   setup_ui_mappings()
-  setup_test_mappings()
+  -- setup_test_mappings()
   setup_lint_mappings()
   setup_fold_mappings()
 end
