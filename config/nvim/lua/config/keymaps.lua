@@ -24,7 +24,7 @@ local function setup_navigation_mappings()
   -- FzfLua mappings
   vim.keymap.set("n", "<leader>t", "<cmd>FzfLua files<cr>", { desc = "Find files" })
   vim.keymap.set("n", "<leader>b", "<cmd>FzfLua buffers<cr>", { desc = "Find buffers" })
-  vim.keymap.set("n", "<leader>f", "<cmd>FzfLua grep_project<cr>", { desc = "Grep project" })
+  vim.keymap.set("n", "<leader>f", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep project" })
   vim.keymap.set("v", "<leader>f", "<cmd>FzfLua grep_visual<cr>", { desc = "Grep selection" })
 
   -- File tree
@@ -86,7 +86,12 @@ end
 local function setup_diagnostic_mappings()
   -- Trouble
   vim.keymap.set("n", "<leader>dd", "<cmd>Trouble diagnostics toggle<cr>", { desc = "Toggle diagnostics" })
-  vim.keymap.set("n", "<leader>db", "<cmd>Trouble diagnostics toggle filter.buf=0<cr>", { desc = "Toggle diagnostics (current buffer)" })
+  vim.keymap.set(
+    "n",
+    "<leader>db",
+    "<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
+    { desc = "Toggle diagnostics (current buffer)" }
+  )
   -- vim.keymap.set("n", "<leader>ds", "<cmd>Trouble symbols toggle focus=false<cr>", { desc = "Document symbols" })
   vim.keymap.set("n", "<leader>dr", "<cmd>Trouble lsp_references toggle focus=false<cr>", { desc = "LSP references" })
   vim.keymap.set("n", "<leader>dq", "<cmd>Trouble quickfix toggle<cr>", { desc = "Quickfix list" })
