@@ -31,7 +31,7 @@ _G.LSP_SERVERS.gopls = {
 }
 
 -- Formatters
-_G.FORMATTERS.go = { "goimports", "gofumpt", "golines" }
+_G.FORMATTERS.go = { "golangci-lint" }
 
 -- Simple golangci-lint configuration that ignores exit codes
 local function setup_golangci_lint()
@@ -55,7 +55,7 @@ _G.LINTERS.go = { "golangcilint" }
 add_neotest_adapter("neotest-golang", "fredrikaverpil/neotest-golang")
 
 -- Mason tools needed
-add_mason_tools({ "gopls", "goimports", "gofumpt", "golines", "golangci-lint" })
+add_mason_tools({ "gopls", "golangci-lint" })
 
 -- Update: Currently disabling semantic tokens in favor of treesitter injections.
 -- Fix Go import string colors while preserving namespace colors in code
