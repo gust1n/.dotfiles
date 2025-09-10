@@ -69,10 +69,10 @@ function M.setup_lsp_mappings(bufnr)
   end, vim.tbl_extend("force", opts, { desc = "Code actions" }))
 
   -- Diagnostics
-  vim.keymap.set("n", "dn", function()
+  vim.keymap.set("n", "dp", function()
     vim.diagnostic.jump({ count = -1 })
   end, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
-  vim.keymap.set("n", "dp", function()
+  vim.keymap.set("n", "dn", function()
     vim.diagnostic.jump({ count = 1 })
   end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
   vim.keymap.set("n", "<leader>ds", function()
