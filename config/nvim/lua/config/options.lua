@@ -17,6 +17,7 @@ opt.laststatus = 3 -- Global statusline
 opt.undofile = true -- Save undo history
 opt.updatetime = 200 -- Decrease update time
 opt.termguicolors = true -- True color support
+opt.swapfile = false -- disable annoying swap files
 
 -- Folding options
 opt.foldlevel = 99 -- Start with all folds open
