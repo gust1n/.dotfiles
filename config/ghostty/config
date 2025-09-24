@@ -1,7 +1,7 @@
 # Font configuration
 font-family = "Source Code Pro"
 font-size = 14
-font-style = normal
+font-style = "Bold"
 theme = "Tomorrow Night"
 
 # macOS specific
