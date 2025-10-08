@@ -42,6 +42,9 @@ local function setup_filetype(filetypes, opts)
       if opts.colorcolumn then
         vim.opt_local.colorcolumn = tostring(opts.colorcolumn)
       end
+      if opts.textwidth then
+        vim.opt_local.textwidth = opts.textwidth
+      end
     end,
   })
 end

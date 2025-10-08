@@ -5,7 +5,7 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
 opt.breakindent = true -- Enable break indent
-opt.textwidth = 80
+opt.textwidth = 0 -- Disable auto line breaks (configure per filetype instead)
 opt.hlsearch = true -- Set highlight on search
 opt.ignorecase = true -- Ignore case sensitive match in search
 opt.mouse = "" -- Disable mouse

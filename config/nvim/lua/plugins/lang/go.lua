@@ -5,6 +5,7 @@ setup_filetype({ "go", "gomod", "gowork" }, {
   indent = 2,
   expandtab = false,
   colorcolumn = 120,
+  textwidth = 120,
 })
 
 -- LSP server configuration
