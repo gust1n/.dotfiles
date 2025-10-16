@@ -4,8 +4,6 @@ return {
     event = { "BufReadPre", "BufNewFile" },
     dependencies = { "mason-org/mason.nvim" },
     config = function()
-      local lspconfig = require("lspconfig")
-
       -- Basic capabilities
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities.textDocument.completion.completionItem.resolveSupport = {
@@ -34,7 +32,7 @@ return {
           on_attach = on_attach,
         }, config)
 
-        lspconfig[server].setup(server_config)
+        vim.lsp.config(server, server_config)
       end
     end,
   },
