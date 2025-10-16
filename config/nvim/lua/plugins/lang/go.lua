@@ -25,8 +25,12 @@ _G.LSP_SERVERS.gopls = {
         functionTypeParameters = true,
       },
       staticcheck = true,
-      vulncheck = "imports",
+      vulncheck = "Off",
       semanticTokens = false,
+      -- Disable link target resolution to prevent fetching remote docs
+      linkTarget = "",
+      -- Disable documentation links to pkg.go.dev
+      linksInHover = false,
     },
   },
 }
