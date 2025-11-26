@@ -27,6 +27,36 @@ else
 	hostStyle="${yellow}";
 fi;
 
+### jj/git prompt function
+# Detect if we're in a jj or git repo (jj takes priority)
+__jjgit_prompt() {
+    local D="/$PWD"
+    # Walk up directory tree to find .jj or .git
+    while test -n "$D"; do
+        if test -e "$D/.jj"; then
+            # jj repo: use jj log to get status
+            # --ignore-working-copy: avoid snapshotting which could create divergent commits
+            jj --ignore-working-copy --no-pager log --no-graph --color=always -r @ -T \
+                'separate(" ", format_short_change_id_with_hidden_and_divergent_info(self), format_short_commit_id(commit_id), bookmarks, if(conflict, label("conflict", "conflict")))' 2>/dev/null
+            return
+        fi
+        if test -e "$D/.git"; then
+            # git repo: use existing __git_ps1 if available
+            if type __git_ps1 &>/dev/null; then
+                __git_ps1 "%s"
+            fi
+            return
+        fi
+        D="${D%/*}"
+    done
+}
+
+# Source git-prompt.sh if available (for __git_ps1 function)
+if [ -e ~/.bin/git-prompt.sh ]; then
+    source ~/.bin/git-prompt.sh
+    export GIT_PS1_SHOWDIRTYSTATE=1
+fi
+
 ### Actual prompt
 # Set the terminal title to the current working directory.
 PS1="\[\033]0;\w\007\]";
@@ -36,11 +66,7 @@ PS1+="\[${white}\] at ";
 PS1+="\[${hostStyle}\]\h"; # host
 PS1+="\[${white}\] in ";
 PS1+="\[${green}\]\w"; # working directory
-if [ -e ~/.bin/git-prompt.sh ]; then
-	source ~/.bin/git-prompt.sh
-	export GIT_PS1_SHOWDIRTYSTATE=1
-	PS1+='$(__git_ps1 "${white} on ${violet}(%s)")'; # Git repository details
-fi
+PS1+="\[${white}\] on \[${violet}\](\$(__jjgit_prompt))"; # jj/git repository details
 PS1+="\n";
 PS1+="\\[${white}\]\$(date +%H:%M) $ \[${reset}\]"; # `$` (and reset color)
 export PS1;
