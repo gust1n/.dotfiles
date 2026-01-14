@@ -1,0 +1,36 @@
+#:schema https://jj-vcs.github.io/jj/latest/config-schema.json
+
+[user]
+name = "Joakim Gustin"
+email = "joakim.gustin@cerve.com"
+
+[ui]
+default-command = ["status"]
+diff-formatter = ["difft", "--color=always", "$left", "$right"]
+
+[aliases]
+# tug: bring nearest bookmark up to recent commit
+tug = ['bookmark', 'move', '--from', 'heads(::@ & bookmarks())', '--to', 'closest_pushable(@)']
+pr = ["util", "exec", "--", "bash", "-c", """
+gh pr create --head $(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph | cut -d ' ' -f 1)
+"""]
+ll = ["log", "-T", "log_with_files"]
+
+# start: start a new revision base on the latest trunk
+start = ["new", "-r", "trunk()"]
+
+# retrunk:
+# `jj rebase -d 'trunk()'` is shorthand for `jj rebase -b @ -d 'trunk()'`
+#
+# What that does:
+#
+# `-b @` rebases the entire branch that the current @ is on relative to the destination. (Default),
+# `-d trunk()` sets the destination. trunk() finds the most recent `main | master | trunk` branch thats on a remote. trunk() is builtin.
+retrunk = ["rebase", "-d", "trunk()"]
+
+[revset-aliases]
+"closest_bookmark(to)" = "heads(::to & bookmarks())"
+'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
+
+[templates]
+git_push_bookmark = 'concat("gust1n/push-", change_id.short())'
