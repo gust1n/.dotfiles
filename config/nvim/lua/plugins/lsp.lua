@@ -32,7 +32,11 @@ return {
           on_attach = on_attach,
         }, config)
 
+        -- Register the LSP configuration
         vim.lsp.config(server, server_config)
+
+        -- Enable the server to auto-start
+        vim.lsp.enable(server)
       end
     end,
   },
