@@ -37,7 +37,7 @@ __jjgit_prompt() {
             # jj repo: use jj log to get status
             # --ignore-working-copy: avoid snapshotting which could create divergent commits
             jj --ignore-working-copy --no-pager log --no-graph --color=always -r @ -T \
-                'separate(" ", format_short_change_id_with_hidden_and_divergent_info(self), format_short_commit_id(commit_id), bookmarks, if(conflict, label("conflict", "conflict")))' 2>/dev/null
+                'separate(" ", format_short_change_id_with_change_offset(self), format_short_commit_id(commit_id), bookmarks, if(conflict, label("conflict", "conflict")))' 2>/dev/null
             return
         fi
         if test -e "$D/.git"; then

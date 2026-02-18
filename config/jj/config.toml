@@ -19,6 +19,25 @@ ll = ["log", "-T", "log_with_files"]
 # start: start a new revision base on the latest trunk
 start = ["new", "-r", "trunk()"]
 
+# float: rebase local/wip commits on top of current @
+float = ["rebase", "-s", "roots(local())", "-d", "@"]
+
+# safe-push: push but error if local commits would be included
+push = ["util", "exec", "--", "bash", "-c", """
+if jj log -r 'local() & ::@' --no-graph -T 'description.first_line() ++ "\n"' 2>/dev/null | grep -q .; then
+  echo 'Error: refusing to push - local commits in ancestry:' >&2
+  jj log -r 'local() & ::@' --no-graph -T 'description.first_line() ++ "\n"' >&2
+  exit 1
+fi
+jj git push "$@"
+"""]
+
+# new-under: create new commit under local commits (inserts before them)
+new-under = ["new", "--before", "roots(local())"]
+
+# tidy: abandon empty, non-described commits (except @ and merges)
+tidy = ["abandon", "empty() & description(exact:\"\") & mutable() & ~@ & ~merges()"]
+
 # retrunk:
 # `jj rebase -d 'trunk()'` is shorthand for `jj rebase -b @ -d 'trunk()'`
 #
@@ -26,11 +45,20 @@ start = ["new", "-r", "trunk()"]
 #
 # `-b @` rebases the entire branch that the current @ is on relative to the destination. (Default),
 # `-d trunk()` sets the destination. trunk() finds the most recent `main | master | trunk` branch thats on a remote. trunk() is builtin.
-retrunk = ["rebase", "-d", "trunk()"]
+# Also floats local/wip commits back on top.
+retrunk = ["util", "exec", "--", "bash", "-c", """
+jj rebase -d 'trunk()' && { jj log -r 'local()' --no-graph -T 'change_id' 2>/dev/null | grep -q . && jj rebase -s 'roots(local())' -d @ || true; }
+"""]
 
 [revset-aliases]
 "closest_bookmark(to)" = "heads(::to & bookmarks())"
 'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
+
+# Local/WIP commits that should never be pushed
+'local()' = 'description(glob:"local:*") | description(glob:"wip:*")'
+
+# Empty, non-described commits that can be cleaned up
+'junk()' = 'empty() & description(exact:"") & mutable() & ~@ & ~merges()'
 
 [templates]
 git_push_bookmark = 'concat("gust1n/push-", change_id.short())'
