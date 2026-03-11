@@ -55,7 +55,7 @@ jj rebase -d 'trunk()' && { jj log -r 'local()' --no-graph -T 'change_id' 2>/dev
 'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
 
 # Local/WIP commits that should never be pushed
-'local()' = 'description(glob:"local:*") | description(glob:"wip:*")'
+'local()' = '(description(glob:"local:*") | description(glob:"wip:*")) & mutable()'
 
 # Empty, non-described commits that can be cleaned up
 'junk()' = 'empty() & description(exact:"") & mutable() & ~@ & ~merges()'
