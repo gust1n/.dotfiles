@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Called by Claude Code hooks to update agent status in tmux window name.
+# Usage: agent-status working|waiting|done|clear
+set -euo pipefail
+
+PANE_ID="${TMUX_PANE:-}"
+[[ -z "$PANE_ID" ]] && exit 0
+
+action="${1:-}"
+case "$action" in
+  working) icon=$(printf '\xef\x80\x93') ;;  # nf-fa-cog U+F013
+  waiting) icon=$(printf '\xef\x83\xa5') ;;  # nf-fa-comment U+F0E5
+  done)    icon=$(printf '\xef\x80\x8c') ;;  # nf-fa-check U+F00C
+  clear)   icon="" ;;
+  *)       exit 1 ;;
+esac
+
+tmux set-option -w -t "$PANE_ID" @agent_status "$icon" 2>/dev/null || true
+
+# Track last activity time for interrupt detection
+if [[ "$action" == "working" ]]; then
+  tmux set-option -w -t "$PANE_ID" @agent_last_active "$(date +%s)" 2>/dev/null || true
+fi
+
+# Set up auto-clear hook when status is done or waiting
+if [[ "$action" == "done" || "$action" == "waiting" ]]; then
+  tmux set-hook -w -t "$PANE_ID" pane-focus-in \
+    "set-option -w @agent_status ''; set-hook -uw pane-focus-in" 2>/dev/null || true
+fi

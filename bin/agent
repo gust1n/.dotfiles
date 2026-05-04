@@ -1,0 +1,443 @@
+#!/usr/bin/env bash
+# Unified tmux window manager for Claude Code agents in jj workspaces.
+# Each agent runs in a tmux window (in the current session) with its own jj workspace.
+# Status icons (🤖💬✅) appear in the window bar via Claude Code hooks + agent-status.
+
+set -uo pipefail
+
+AGENT_PREFIX="ag:"
+CODE_DIR="$HOME/Code"
+
+# --- Helpers ---
+
+_fzf_pick() {
+  local prompt="$1"
+  fzf --prompt="$prompt> " --height=40% --reverse --bind='j:down,k:up'
+}
+
+_fzf_pick_full() {
+  local prompt="$1"
+  fzf --prompt="$prompt> " --height=100% --reverse
+}
+
+_fzf_pick_or_create() {
+  local prompt="$1"
+  local output
+  # --print-query prints typed query on first line, match on second.
+  # We want: if user selected something, use that; otherwise use what they typed.
+  output=$(fzf --prompt="$prompt> " --height=100% --reverse \
+    --print-query 2>/dev/null) || true
+  local query match
+  query=$(echo "$output" | sed -n '1p')
+  match=$(echo "$output" | sed -n '2p')
+  if [[ -n "$match" ]]; then
+    printf '%s\n' "$match"
+  elif [[ -n "$query" ]]; then
+    printf '%s\n' "$query"
+  else
+    return 1
+  fi
+}
+
+_sanitize_name() {
+  echo "${1//\//-}"
+}
+
+_discover_repos() {
+  if command -v fd >/dev/null; then
+    fd --hidden --follow --glob '.git' --search-path "$CODE_DIR" \
+      --exclude '.jj-workspaces' 2>/dev/null \
+      | while IFS= read -r git_path; do
+          local repo_dir="${git_path%/.git}"
+          local rel="${repo_dir#$CODE_DIR/}"
+          printf '%s\n' "$rel"
+        done | sort -u
+  else
+    find "$CODE_DIR" -maxdepth 4 -name .git -type d \
+      -not -path '*/.jj-workspaces/*' 2>/dev/null \
+      | while IFS= read -r git_path; do
+          local repo_dir="${git_path%/.git}"
+          local rel="${repo_dir#$CODE_DIR/}"
+          printf '%s\n' "$rel"
+        done | sort -u
+  fi
+}
+
+_ensure_jj_ready() {
+  local repo_path="$1"
+  if [[ ! -d "$repo_path/.jj" ]]; then
+    jj git init --colocate "$repo_path" >/dev/null 2>&1 || true
+  fi
+  jj --ignore-working-copy -R "$repo_path" git import >/dev/null 2>&1 || true
+}
+
+_pick_agent() {
+  local agent
+  agent=$(printf '%s\n' claude codex gemini | _fzf_pick "Agent") || return 1
+  [[ -z "$agent" ]] && return 1
+  if ! command -v "$agent" >/dev/null; then
+    echo "Command not found: $agent" >&2
+    return 1
+  fi
+  printf '%s\n' "$agent"
+}
+
+_agent_windows() {
+  tmux list-windows -F '#{window_index}|#{window_name}|#{@agent_status}' 2>/dev/null \
+    | grep "|${AGENT_PREFIX}" || true
+}
+
+_find_window_index() {
+  local name="$1"
+  tmux list-windows -F '#{window_index} #{window_name}' 2>/dev/null \
+    | grep " ${AGENT_PREFIX}${name}$" | awk '{print $1}' | head -1
+}
+
+_create_workspace() {
+  local repo_path="$1"
+  local fs_name="$2"
+  local workspace_path="${repo_path}/.jj-workspaces/${fs_name}"
+
+  if [[ -d "$workspace_path" ]]; then
+    printf '%s\n' "$workspace_path"
+    return
+  fi
+
+  mkdir -p "$(dirname "$workspace_path")"
+
+  local base_rev=""
+  if jj --ignore-working-copy -R "$repo_path" log -r "${fs_name}@origin" --no-graph --limit 1 >/dev/null 2>&1; then
+    base_rev="${fs_name}@origin"
+  elif jj --ignore-working-copy -R "$repo_path" log -r "$fs_name" --no-graph --limit 1 >/dev/null 2>&1; then
+    base_rev="$fs_name"
+  elif jj --ignore-working-copy -R "$repo_path" log -r 'main@origin' --no-graph --limit 1 >/dev/null 2>&1; then
+    base_rev="main@origin"
+  elif jj --ignore-working-copy -R "$repo_path" log -r 'trunk()' --no-graph --limit 1 >/dev/null 2>&1; then
+    base_rev="trunk()"
+  else
+    base_rev="@"
+  fi
+
+  jj --ignore-working-copy -R "$repo_path" workspace forget "$fs_name" >/dev/null 2>&1 || true
+  jj -R "$repo_path" workspace update-stale >/dev/null 2>&1 || true
+
+  jj -R "$repo_path" workspace add --name "$fs_name" -r "$base_rev" "$workspace_path" >/dev/null 2>&1 \
+    || { echo "Failed to create workspace" >&2; return 1; }
+
+  printf '%s\n' "$workspace_path"
+}
+
+_cleanup_workspace() {
+  local workspace_path="$1"
+  local fs_name="$2"
+
+  if [[ -d "$workspace_path" && "$workspace_path" == */.jj-workspaces/* ]]; then
+    local repo_path="${workspace_path%%/.jj-workspaces/*}"
+    jj --ignore-working-copy -R "$repo_path" workspace forget "$fs_name" 2>/dev/null || true
+    rm -rf "$workspace_path"
+  fi
+}
+
+# --- Commands ---
+
+cmd_new() {
+  local repo="" name="" agent_cmd="" prompt_text=""
+
+  # Parse flags for non-interactive mode
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)   repo="$2"; shift 2 ;;
+      --name)   name="$2"; shift 2 ;;
+      --agent)  agent_cmd="$2"; shift 2 ;;
+      --prompt) prompt_text="$2"; shift 2 ;;
+      *)        shift ;;
+    esac
+  done
+
+  # Non-interactive mode (all required args provided)
+  if [[ -n "$repo" && -n "$name" ]]; then
+    agent_cmd="${agent_cmd:-claude}"
+    local fs_name
+    fs_name=$(_sanitize_name "$name")
+    local window_name="${AGENT_PREFIX}${fs_name}"
+
+    # If window exists, switch to it
+    local existing
+    existing=$(_find_window_index "$fs_name")
+    if [[ -n "$existing" ]]; then
+      tmux select-window -t ":$existing"
+      return
+    fi
+
+    _ensure_jj_ready "$repo"
+    local workspace_path
+    workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
+
+    tmux new-window -n "$window_name" -c "$workspace_path"
+
+    if [[ -n "$prompt_text" ]]; then
+      tmux send-keys "$agent_cmd --print \"$prompt_text\"" Enter
+    else
+      tmux send-keys "$agent_cmd" Enter
+    fi
+    return
+  fi
+
+  # Interactive mode
+  local repo_rel
+  repo_rel=$(_discover_repos | _fzf_pick_full "Repository") || return
+  [[ -z "$repo_rel" ]] && return
+
+  repo="$CODE_DIR/$repo_rel"
+  _ensure_jj_ready "$repo"
+
+  # Pick or create a task name / bookmark
+  local bookmarks
+  bookmarks=$(jj --ignore-working-copy -R "$repo" bookmark list -T 'self.name() ++ "\n"' 2>/dev/null | sed '/^$/d' | sort -u)
+
+  local remote_bookmarks
+  remote_bookmarks=$(jj --ignore-working-copy -R "$repo" bookmark list --all-remotes \
+    -T 'if(self.remote(), self.name() ++ "@" ++ self.remote(), "") ++ "\n"' 2>/dev/null \
+    | sed '/^$/d' | sort -u)
+
+  local all_bookmarks
+  all_bookmarks=$(printf '%s\n%s\n' "$bookmarks" "$remote_bookmarks" | sed '/^$/d' | sort -u)
+
+  local chosen
+  chosen=$(printf '%s\n' "$all_bookmarks" | _fzf_pick_or_create "Task name (or pick bookmark)")
+  [[ -z "$chosen" ]] && return
+
+  local workspace_name="${chosen%%@origin}"
+  local fs_name
+  fs_name=$(_sanitize_name "$workspace_name")
+  local window_name="${AGENT_PREFIX}${fs_name}"
+
+  # If window exists, switch to it
+  local existing
+  existing=$(_find_window_index "$fs_name")
+  if [[ -n "$existing" ]]; then
+    tmux select-window -t ":$existing"
+    return
+  fi
+
+  agent_cmd=$(_pick_agent) || return
+
+  local workspace_path
+  workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
+
+  tmux new-window -n "$window_name" -c "$workspace_path"
+  tmux send-keys "$agent_cmd" Enter
+}
+
+cmd_ls() {
+  local windows
+  windows=$(_agent_windows)
+  if [[ -z "$windows" ]]; then
+    echo "No agent windows."
+    return
+  fi
+  printf "%-4s %-30s %s\n" "IDX" "NAME" "STATUS"
+  while IFS='|' read -r idx wname status; do
+    local display_name="${wname#$AGENT_PREFIX}"
+    printf "%-4s %-30s %s\n" "$idx" "$display_name" "${status:--}"
+  done <<< "$windows"
+}
+
+cmd_switch() {
+  local name="${1:-}"
+  if [[ -n "$name" ]]; then
+    local idx
+    idx=$(_find_window_index "$name")
+    if [[ -n "$idx" ]]; then
+      tmux select-window -t ":$idx"
+    else
+      echo "Agent window not found: $name" >&2
+      return 1
+    fi
+    return
+  fi
+
+  # Interactive pick
+  local windows
+  windows=$(_agent_windows)
+  if [[ -z "$windows" ]]; then
+    echo "No agent windows." >&2
+    return 1
+  fi
+  local picked
+  picked=$(echo "$windows" | while IFS='|' read -r idx wname status; do
+    printf '%s %s\n' "${wname#$AGENT_PREFIX}" "${status:--}"
+  done | _fzf_pick "Switch to agent") || return
+  picked="${picked%% *}"
+  [[ -n "$picked" ]] && cmd_switch "$picked"
+}
+
+cmd_kill() {
+  local name="${1:-}"
+  if [[ -z "$name" ]]; then
+    local windows
+    windows=$(_agent_windows)
+    if [[ -z "$windows" ]]; then
+      echo "No agent windows." >&2
+      return 1
+    fi
+    name=$(echo "$windows" | while IFS='|' read -r idx wname status; do
+      printf '%s %s\n' "${wname#$AGENT_PREFIX}" "${status:--}"
+    done | _fzf_pick "Kill agent") || return
+    name="${name%% *}"
+    [[ -z "$name" ]] && return
+  fi
+
+  local idx
+  idx=$(_find_window_index "$name")
+  if [[ -z "$idx" ]]; then
+    echo "Agent window not found: $name" >&2
+    return 1
+  fi
+
+  # Get workspace path before killing
+  local pane_path
+  pane_path=$(tmux display-message -t ":${idx}" -p '#{pane_current_path}' 2>/dev/null || true)
+
+  tmux kill-window -t ":$idx"
+
+  # Clean up jj workspace
+  if [[ -n "$pane_path" && "$pane_path" == */.jj-workspaces/* ]]; then
+    _cleanup_workspace "$pane_path" "$name"
+    echo "Killed agent '$name' and cleaned up workspace."
+  else
+    echo "Killed agent '$name'."
+  fi
+}
+
+cmd_send() {
+  local name="${1:?Usage: agent send <name> <message>}"
+  shift
+  local msg="$*"
+  local idx
+  idx=$(_find_window_index "$name")
+  if [[ -z "$idx" ]]; then
+    echo "Agent window not found: $name" >&2
+    return 1
+  fi
+  tmux send-keys -t ":$idx" "$msg" Enter
+}
+
+cmd_capture() {
+  local name="${1:?Usage: agent capture <name>}"
+  local lines="${2:-200}"
+  local idx
+  idx=$(_find_window_index "$name")
+  if [[ -z "$idx" ]]; then
+    echo "Agent window not found: $name" >&2
+    return 1
+  fi
+  tmux capture-pane -t ":$idx" -p -S "-$lines"
+}
+
+cmd_jump_next() {
+  local done_icon waiting_icon stale_icon
+  done_icon=$(printf '\xef\x80\x8c')     # nf-fa-check U+F00C
+  waiting_icon=$(printf '\xef\x83\xa5')   # nf-fa-comment U+F0E5
+  stale_icon=$(printf '\xef\x81\xb1')     # nf-fa-warning U+F071
+  local target
+  target=$(_agent_windows | grep -E "${done_icon}|${waiting_icon}|${stale_icon}" | head -1 | cut -d'|' -f1)
+  if [[ -n "$target" ]]; then
+    tmux select-window -t ":$target"
+  else
+    tmux display-message "No agents waiting or done."
+  fi
+}
+
+cmd_menu() {
+  local current_window
+  current_window=$(tmux display-message -p '#{window_index}' 2>/dev/null || true)
+
+  # Build list: all windows in session, agents get their status shown
+  local options="+ New agent"
+  local windows
+  windows=$(tmux list-windows -F '#{window_index}|#{window_name}|#{@agent_status}' 2>/dev/null || true)
+
+  local entries=""
+  while IFS='|' read -r idx wname status; do
+    [[ "$idx" == "$current_window" ]] && continue
+    if [[ "$wname" == ${AGENT_PREFIX}* ]]; then
+      local display="${wname#$AGENT_PREFIX}"
+      entries+="$(printf '%s %s\n' "$display" "${status:-}")"$'\n'
+    else
+      entries+="$wname"$'\n'
+    fi
+  done <<< "$windows"
+
+  local all_options
+  all_options=$(printf '%s\n%s' "$options" "$entries" | sed '/^$/d')
+
+  # Add kill option if agents exist
+  if _agent_windows | grep -q .; then
+    all_options=$(printf '%s\n%s' "$all_options" "× Kill agent")
+  fi
+
+  local choice
+  choice=$(printf '%s\n' "$all_options" | _fzf_pick "Session") || return
+  [[ -z "$choice" ]] && return
+
+  case "$choice" in
+    "+ New agent")
+      cmd_new
+      ;;
+    "× Kill agent"*)
+      cmd_kill
+      ;;
+    *)
+      # Could be an agent name (with status suffix) or a regular window name
+      local clean="${choice%% *}"
+      local idx
+      idx=$(_find_window_index "$clean")
+      if [[ -n "$idx" ]]; then
+        tmux select-window -t ":$idx"
+      else
+        # Regular window — find by name
+        idx=$(tmux list-windows -F '#{window_index} #{window_name}' 2>/dev/null \
+          | grep " ${clean}$" | awk '{print $1}' | head -1)
+        [[ -n "$idx" ]] && tmux select-window -t ":$idx"
+      fi
+      ;;
+  esac
+}
+
+# --- Dispatch ---
+
+case "${1:-}" in
+  new)       shift; cmd_new "$@" ;;
+  ls|list)   cmd_ls ;;
+  switch|sw) shift; cmd_switch "$@" ;;
+  kill)      shift; cmd_kill "$@" ;;
+  send)      shift; cmd_send "$@" ;;
+  capture)   shift; cmd_capture "$@" ;;
+  jump-next) cmd_jump_next ;;
+  -h|--help|help)
+    cat <<EOF
+Usage: agent [command] [args...]
+
+Commands:
+  (none)                    Interactive fzf menu (all windows + new/kill)
+  new [--repo R --name N]   Create new agent (interactive or scripted)
+  ls                        List agent windows with status
+  switch [name]             Switch to agent window
+  kill [name]               Kill agent and clean up workspace
+  send <name> <msg>         Send input to an agent
+  capture <name> [lines]    Capture agent pane output
+  jump-next                 Jump to first done/waiting agent
+
+Tmux bindings:
+  C-a A     Open this menu as a popup
+  C-a l     Jump to next done/waiting agent
+
+Status icons (set via Claude Code hooks):
+  🤖 working   💬 waiting for input   ✅ done
+EOF
+    ;;
+  *)
+    cmd_menu
+    ;;
+esac

@@ -1,5 +1,6 @@
 # Font configuration
 font-family = "Source Code Pro"
+font-family = "Symbols Nerd Font Mono"
 font-size = 14
 font-style = "Bold"
 theme = "Tomorrow Night"

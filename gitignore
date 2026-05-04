@@ -15,3 +15,6 @@ log/
 *.log
 
 .env
+
+# Agent workspaces (jj)
+.jj-workspaces/

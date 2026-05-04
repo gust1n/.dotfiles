@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Checks for agent windows stuck in "working" state with no recent hook activity.
+# Run periodically by tmux (via status-interval).
+set -uo pipefail
+
+STALE_THRESHOLD=30  # seconds
+WORKING_ICON=$(printf '\xef\x80\x93')  # nf-fa-cog U+F013
+STALE_ICON=$(printf '\xef\x81\xb1')    # nf-fa-warning U+F071
+
+now=$(date +%s)
+
+tmux list-windows -F '#{window_index}|#{window_name}|#{@agent_status}|#{@agent_last_active}' 2>/dev/null \
+  | grep '|ag:' | while IFS='|' read -r idx wname status last_active; do
+    [[ "$status" != "$WORKING_ICON" ]] && continue
+    [[ -z "$last_active" ]] && continue
+    elapsed=$((now - last_active))
+    if [[ $elapsed -ge $STALE_THRESHOLD ]]; then
+      tmux set-option -w -t ":$idx" @agent_status "$STALE_ICON" 2>/dev/null || true
+    fi
+  done
