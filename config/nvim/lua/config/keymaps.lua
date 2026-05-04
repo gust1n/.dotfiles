@@ -115,18 +115,7 @@ local function setup_diagnostic_mappings()
 end
 
 -- Text editing and selection
-local function setup_editing_mappings()
-  -- Treesitter text objects
-  vim.keymap.set("n", "<c-space>", function()
-    require("nvim-treesitter.incremental_selection").init_selection()
-  end, { desc = "Start selection" })
-  vim.keymap.set("v", "<c-space>", function()
-    require("nvim-treesitter.incremental_selection").node_incremental()
-  end, { desc = "Expand selection" })
-  vim.keymap.set("v", "<bs>", function()
-    require("nvim-treesitter.incremental_selection").node_decremental()
-  end, { desc = "Shrink selection" })
-end
+local function setup_editing_mappings() end
 
 -- UI and window management
 local function setup_ui_mappings()

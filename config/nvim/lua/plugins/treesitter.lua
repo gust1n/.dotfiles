@@ -1,46 +1,13 @@
 return {
-  -- Treesitter for better syntax highlighting and text objects
   {
     "nvim-treesitter/nvim-treesitter",
-    branch = "master",
+    branch = "main",
     build = ":TSUpdate",
-    event = { "BufReadPost", "BufNewFile" },
-    dependencies = {
-      "nvim-treesitter/nvim-treesitter-textobjects",
-    },
+    lazy = false,
     config = function()
-      require("nvim-treesitter.configs").setup({
-        highlight = { enable = true },
-        indent = { enable = true },
-        fold = { enable = true },
-
-        -- Automatic parser installation - installs parsers as you open files
+      require("nvim-treesitter").setup({
         auto_install = true,
-
-        -- Incremental selection (mapped to Ctrl-Space in keymaps)
-        incremental_selection = {
-          enable = true,
-          keymaps = {
-            init_selection = "<C-space>",
-            node_incremental = "<C-space>",
-            scope_incremental = false,
-            node_decremental = "<bs>",
-          },
-        },
-
-        -- Basic text objects for functions and classes
-        textobjects = {
-          select = {
-            enable = true,
-            lookahead = true, -- Automatically jump forward to textobj
-            keymaps = {
-              ["af"] = "@function.outer",
-              ["if"] = "@function.inner",
-              ["ac"] = "@class.outer",
-              ["ic"] = "@class.inner",
-            },
-          },
-        },
+        install_dir = vim.fn.stdpath("data") .. "/site",
       })
     end,
   },
