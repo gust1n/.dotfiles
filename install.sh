@@ -4,23 +4,18 @@ BASE=$(pwd)
 
 mkdir -pv bak
 
-# Symlink all .config files and directories (and backup existing)
-shopt -s dotglob
-config_dir=$BASE/config
-for entry in "$config_dir"/*
+# Symlink .config directories (and backup existing)
+mkdir -p ~/.config
+for entry in "$BASE"/config/*/
 do
 	dir_name=$(basename "$entry")
 	dir_path=~/.config/$dir_name
-	mkdir -p $dir_path
-
-	for fileentry in "$entry"/*
-	do
-		file_name=$(basename "$fileentry")
-		file_path=$dir_path/$file_name
-		[ -e $file_path ] && echo "backing up existing $file_path" && mv -v $file_path bak
-		echo "symlinking $file_path -> $fileentry"
-		ln -sfv $fileentry $file_path
-	done
+	if [ -e "$dir_path" ] && [ ! -L "$dir_path" ]; then
+		echo "backing up existing $dir_path"
+		mv -v "$dir_path" bak/
+	fi
+	echo "symlinking $dir_path -> $BASE/config/$dir_name"
+	ln -sfn "$BASE/config/$dir_name" "$dir_path"
 done
 
 
