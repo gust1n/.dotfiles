@@ -2,7 +2,12 @@
 
 [user]
 name = "Joakim Gustin"
-email = "joakim.gustin@cerve.com"
+email = "jocke.gustin@gmail.com"
+
+[[--scope]]
+--when.repositories = ["~/Code/Way"]
+[--scope.user]
+email = "joakim@way.cloud"
 
 [ui]
 default-command = ["status"]
