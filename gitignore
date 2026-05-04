@@ -16,5 +16,8 @@ log/
 
 .env
 
+# Machine-specific mise config
+config/mise/config.local.toml
+
 # Agent workspaces (jj)
 .jj-workspaces/
