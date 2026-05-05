@@ -59,8 +59,6 @@ _G.LINTERS.go = { "golangcilint" }
 -- Neotest adapters
 add_neotest_adapter("neotest-golang", "fredrikaverpil/neotest-golang")
 
--- Mason tools needed
-add_mason_tools({ "gopls", "golangci-lint" })
 
 -- Update: Currently disabling semantic tokens in favor of treesitter injections.
 -- Fix Go import string colors while preserving namespace colors in code

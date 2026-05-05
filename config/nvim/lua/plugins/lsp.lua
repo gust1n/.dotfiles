@@ -2,7 +2,6 @@ return {
   {
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
-    dependencies = { "mason-org/mason.nvim" },
     config = function()
       -- Basic capabilities
       local capabilities = vim.lsp.protocol.make_client_capabilities()

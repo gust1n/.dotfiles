@@ -23,13 +23,6 @@ vim.g.maplocalleader = "\\" -- I don't use local leader
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
--- Ensure Mason's bin directory is in PATH early
-local mason_path = vim.fn.stdpath("data") .. "/mason/bin"
-local current_path = vim.env.PATH or ""
-if not string.find(current_path, mason_path, 1, true) then
-  vim.env.PATH = mason_path .. ":" .. current_path
-end
-
 -- Load configuration from ./lua/config
 require("config/options")
 require("config/keymaps")

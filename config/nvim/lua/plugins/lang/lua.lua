@@ -46,5 +46,3 @@ _G.LSP_SERVERS.lua_ls = {
 -- Formatters
 _G.FORMATTERS.lua = { "stylua" }
 
--- Mason tools needed
-add_mason_tools({ "lua-language-server", "stylua" })

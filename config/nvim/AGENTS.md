@@ -11,7 +11,8 @@
 - lazy.nvim for plugin management
 - Minimal plugin surface, prefer built-ins when equivalent
 - Split by concern: core config, plugins, per-language settings
-- Global tables (`_G.LSP_SERVERS`, `_G.FORMATTERS`, etc.) wire language configs to plugins
+- Global tables (`_G.LSP_SERVERS`, `_G.FORMATTERS`, `_G.LINTERS`) wire language configs to plugins
+- Tools (LSP servers, formatters, linters) are installed externally via mise, not managed by neovim
 
 ## Symlink
 
@@ -39,8 +40,6 @@
   - format-on-save via conform.nvim, uses `_G.FORMATTERS`
 - `lua/plugins/nvim-lint.lua`
   - linting via nvim-lint, uses `_G.LINTERS`
-- `lua/plugins/mason.lua`
-  - Mason tool installer, auto-installs from `_G.MASON_TOOLS`
 - `lua/plugins/treesitter.lua`
   - treesitter config (highlight, indent, incremental selection, textobjects)
 - `lua/plugins/neotest.lua`
@@ -61,8 +60,9 @@ Each `lua/plugins/lang/<lang>.lua` file:
 1. Calls `setup_filetype()` for indent/colorcolumn settings
 2. Populates `_G.LSP_SERVERS.<server>` with config
 3. Sets `_G.FORMATTERS.<ft>` and `_G.LINTERS.<ft>`
-4. Calls `add_mason_tools()` for auto-install
-5. Optionally calls `add_neotest_adapter()` for test support
+4. Optionally calls `add_neotest_adapter()` for test support
+
+Tools (LSP servers, formatters, linters) must be installed on PATH via mise — see `config/mise/config.toml`.
 
 Language files are auto-loaded by `init.lua` before lazy.nvim setup.
 

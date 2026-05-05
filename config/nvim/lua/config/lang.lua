@@ -7,16 +7,6 @@ _G.FORMATTERS = _G.FORMATTERS or {}
 _G.LINTERS = _G.LINTERS or {}
 _G.NEOTEST_ADAPTERS = _G.NEOTEST_ADAPTERS or {}
 _G.NEOTEST_DEPENDENCIES = _G.NEOTEST_DEPENDENCIES or {}
-_G.MASON_TOOLS = _G.MASON_TOOLS or {}
-
--- Helper function to add Mason tools
-local function add_mason_tools(tools)
-  for _, tool in ipairs(tools) do
-    if not vim.tbl_contains(_G.MASON_TOOLS, tool) then
-      table.insert(_G.MASON_TOOLS, tool)
-    end
-  end
-end
 
 -- Helper function to add neotest adapter (handles both require and dependency)
 local function add_neotest_adapter(adapter_name, dependency_name)
@@ -50,7 +40,5 @@ local function setup_filetype(filetypes, opts)
 end
 
 -- Expose helper functions globally for language files
-_G.add_mason_tools = add_mason_tools
 _G.add_neotest_adapter = add_neotest_adapter
-
 _G.setup_filetype = setup_filetype

@@ -16,5 +16,3 @@ _G.FORMATTERS.proto = { "buf" }
 -- Linters
 _G.LINTERS.proto = { "protolint" }
 
--- Mason tools needed
-add_mason_tools({ "buf", "protolint" })
