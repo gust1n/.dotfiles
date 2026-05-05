@@ -114,46 +114,13 @@ local function setup_diagnostic_mappings()
   )
 end
 
--- Text editing and selection
-local function setup_editing_mappings() end
-
 -- UI and window management
 local function setup_ui_mappings()
-  -- Window resizing
   vim.keymap.set("n", "<leader>w", "<cmd>WinResizerStartResize<cr>", { desc = "Resize windows" })
-end
-
--- Test mappings
-local function setup_test_mappings()
-  -- Neotest mappings
-  vim.keymap.set("n", "<leader>tt", function()
-    require("neotest").run.run()
-  end, { desc = "Run nearest test" })
-
-  vim.keymap.set("n", "<leader>tf", function()
-    require("neotest").run.run(vim.fn.expand("%"))
-  end, { desc = "Run current file tests" })
-
-  vim.keymap.set("n", "<leader>td", function()
-    require("neotest").run.run({ strategy = "dap" })
-  end, { desc = "Debug nearest test" })
-
-  vim.keymap.set("n", "<leader>ts", function()
-    require("neotest").summary.toggle()
-  end, { desc = "Toggle test summary" })
-
-  vim.keymap.set("n", "<leader>to", function()
-    require("neotest").output.open({ enter = true })
-  end, { desc = "Open test output" })
-
-  vim.keymap.set("n", "<leader>tw", function()
-    require("neotest").watch.toggle()
-  end, { desc = "Toggle test watch" })
 end
 
 -- Linting mappings
 local function setup_lint_mappings()
-  -- Manual linting
   vim.keymap.set("n", "<leader>l", function()
     require("lint").try_lint()
   end, { desc = "Lint current file" })
@@ -161,25 +128,17 @@ end
 
 -- Folding mappings
 local function setup_fold_mappings()
-  -- Basic fold operations (za, zo, zc are built-in)
   vim.keymap.set("n", "zO", "zR", { desc = "Open all folds" })
   vim.keymap.set("n", "zC", "zM", { desc = "Close all folds" })
 end
 
--- Setup all mappings
-local function setup_all_mappings()
-  setup_basic_mappings()
-  setup_navigation_mappings()
-  setup_diagnostic_mappings()
-  setup_editing_mappings()
-  setup_ui_mappings()
-  -- setup_test_mappings()
-  setup_lint_mappings()
-  setup_fold_mappings()
-end
-
--- Initialize mappings
-setup_all_mappings()
+-- Initialize all mappings
+setup_basic_mappings()
+setup_navigation_mappings()
+setup_diagnostic_mappings()
+setup_ui_mappings()
+setup_lint_mappings()
+setup_fold_mappings()
 
 -- Export for use in autocmds
 return M

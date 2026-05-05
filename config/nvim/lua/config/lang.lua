@@ -1,23 +1,10 @@
--- Simple language configuration system
--- Language files directly populate these global tables
+-- Language configuration helpers
+-- Language files in lua/plugins/lang/ use these to register settings
 
--- Initialize global configuration tables
-_G.LSP_SERVERS = _G.LSP_SERVERS or {}
 _G.FORMATTERS = _G.FORMATTERS or {}
 _G.LINTERS = _G.LINTERS or {}
-_G.NEOTEST_ADAPTERS = _G.NEOTEST_ADAPTERS or {}
-_G.NEOTEST_DEPENDENCIES = _G.NEOTEST_DEPENDENCIES or {}
 
--- Helper function to add neotest adapter (handles both require and dependency)
-local function add_neotest_adapter(adapter_name, dependency_name)
-  table.insert(_G.NEOTEST_ADAPTERS, adapter_name)
-  if not vim.tbl_contains(_G.NEOTEST_DEPENDENCIES, dependency_name) then
-    table.insert(_G.NEOTEST_DEPENDENCIES, dependency_name)
-  end
-end
-
--- Helper function to set up filetype settings
-local function setup_filetype(filetypes, opts)
+function _G.setup_filetype(filetypes, opts)
   vim.api.nvim_create_autocmd("FileType", {
     pattern = filetypes,
     callback = function()
@@ -38,7 +25,3 @@ local function setup_filetype(filetypes, opts)
     end,
   })
 end
-
--- Expose helper functions globally for language files
-_G.add_neotest_adapter = add_neotest_adapter
-_G.setup_filetype = setup_filetype

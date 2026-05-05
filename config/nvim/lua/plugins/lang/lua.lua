@@ -1,14 +1,13 @@
 -- Lua language configuration
 
--- File type settings
 setup_filetype({ "lua" }, {
   indent = 2,
   expandtab = true,
   colorcolumn = 120,
 })
 
--- LSP server configuration
-_G.LSP_SERVERS.lua_ls = {
+-- LSP
+vim.lsp.config("lua_ls", {
   settings = {
     Lua = {
       diagnostics = {
@@ -41,8 +40,8 @@ _G.LSP_SERVERS.lua_ls = {
       telemetry = { enable = false },
     },
   },
-}
+})
+vim.lsp.enable("lua_ls")
 
 -- Formatters
 _G.FORMATTERS.lua = { "stylua" }
-

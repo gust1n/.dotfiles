@@ -7,18 +7,34 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   end,
 })
 
--- When LSP attaches (modern with better error handling)
+-- LSP defaults
+vim.lsp.config("*", {
+  capabilities = {
+    textDocument = {
+      completion = {
+        completionItem = {
+          resolveSupport = { properties = { "documentation", "detail", "additionalTextEdits" } },
+        },
+      },
+      foldingRange = { dynamicRegistration = false, lineFoldingOnly = true },
+    },
+  },
+})
+
+-- When LSP attaches
 vim.api.nvim_create_autocmd("LspAttach", {
-  desc = "Setup LSP keymaps when server attaches",
+  desc = "Setup LSP keymaps and folding",
   group = vim.api.nvim_create_augroup("LspAttach", { clear = true }),
   callback = function(ev)
-    -- Use centralized LSP keymaps
-    local ok, keymaps = pcall(require, "config.keymaps")
-    if ok then
-      keymaps.setup_lsp_mappings(ev.buf)
-    else
-      vim.notify("Failed to load LSP keymaps", vim.log.levels.WARN)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.server_capabilities.foldingRangeProvider then
+      vim.opt_local.foldmethod = "expr"
+      vim.opt_local.foldexpr = "v:lua.vim.lsp.foldexpr()"
+      vim.opt_local.foldtext = "v:lua.vim.lsp.foldtext()"
+      vim.opt_local.foldenable = true
+      vim.opt_local.foldlevel = 99
     end
+    require("config.keymaps").setup_lsp_mappings(ev.buf)
   end,
 })
 
