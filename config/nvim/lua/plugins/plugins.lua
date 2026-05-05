@@ -1,4 +1,7 @@
 return {
+  -- LSP server definitions (provides cmd, filetypes, root_markers for vim.lsp.config)
+  { "neovim/nvim-lspconfig", lazy = false },
+
   -- Colorscheme
   {
     "navarasu/onedark.nvim",
