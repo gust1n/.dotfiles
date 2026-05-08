@@ -19,7 +19,7 @@ do
 done
 
 
-# Symlink ~/.claude/settings.json
+# Symlink ~/.claude/settings.json and CLAUDE.md
 mkdir -p ~/.claude
 if [ -e ~/.claude/settings.json ] && [ ! -L ~/.claude/settings.json ]; then
 	echo "backing up existing ~/.claude/settings.json"
@@ -27,6 +27,13 @@ if [ -e ~/.claude/settings.json ] && [ ! -L ~/.claude/settings.json ]; then
 fi
 echo "symlinking ~/.claude/settings.json -> $BASE/claude/settings.json"
 ln -sfn "$BASE/claude/settings.json" ~/.claude/settings.json
+
+if [ -e ~/.claude/CLAUDE.md ] && [ ! -L ~/.claude/CLAUDE.md ]; then
+	echo "backing up existing ~/.claude/CLAUDE.md"
+	mv -v ~/.claude/CLAUDE.md bak/
+fi
+echo "symlinking ~/.claude/CLAUDE.md -> $BASE/agents/AGENTS.md"
+ln -sfn "$BASE/agents/AGENTS.md" ~/.claude/CLAUDE.md
 
 # Symlink all files folders (and backup existing)
 for rc in *rc *profile *ignore; do
