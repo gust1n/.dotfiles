@@ -20,7 +20,19 @@ This environment uses the [squash workflow](https://steveklabnik.github.io/jujut
 - DO NOT automatically `jj describe` the current commit
 - DO NOT try to split, clean up, or "fix" the working copy
 - Just edit files — changes accumulate in `@`
-- Only `jj squash` or `jj describe` when explicitly instructed
+
+**Creating commits**:
+- You CAN create commits naturally as work completes (use `jj split` for multiple logical commits)
+- Organize changes into clear, logical commits with good messages
+- **NEVER push or create PRs unless explicitly instructed**
+
+**Organizing accumulated changes into multiple commits**:
+```bash
+# Use jj split to carve out logical commits
+jj split file1 file2 -m "first commit message"
+jj split file3 file4 -m "second commit message"
+jj describe -m "final commit for remaining files"
+```
 
 If unsure about commit structure, ask before modifying.
 

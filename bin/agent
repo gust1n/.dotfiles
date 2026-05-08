@@ -128,6 +128,9 @@ _create_workspace() {
   jj -R "$repo_path" workspace add --name "$fs_name" -r "$base_rev" "$workspace_path" >/dev/null 2>&1 \
     || { echo "Failed to create workspace" >&2; return 1; }
 
+  # Set up squash workflow: create empty working commit on top
+  (cd "$workspace_path" && jj new >/dev/null 2>&1) || true
+
   printf '%s\n' "$workspace_path"
 }
 

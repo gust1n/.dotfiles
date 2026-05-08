@@ -2,6 +2,8 @@
 
 This dotfiles repo contains a tmux-based system for running parallel Claude Code agents in isolated jj workspaces.
 
+**See [PERSONAL.md](PERSONAL.md) for general workflow instructions (version control, tools, code style).**
+
 ## Architecture
 
 ```
