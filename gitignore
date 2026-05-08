@@ -21,3 +21,6 @@ config/mise/config.local.toml
 
 # Agent workspaces (jj)
 .jj-workspaces/
+
+# Claude Code local settings
+.claude/settings.local.json
