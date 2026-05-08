@@ -1,4 +1,6 @@
 {
+  "respectGitignore": false,
+  "skipDangerousModePermissionPrompt": true,
   "env": {
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0[1m]",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "eu.anthropic.claude-opus-4-6-v1[1m]",
@@ -68,6 +70,10 @@
             "type": "command",
             "command": "~/Code/dotfiles/bin/agent-status done",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "test -d .jj && jj st > /dev/null 2>&1 || true"
           }
         ]
       }

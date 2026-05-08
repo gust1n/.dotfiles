@@ -65,5 +65,8 @@ jj rebase -d 'trunk()' && { jj log -r 'local()' --no-graph -T 'change_id' 2>/dev
 # Empty, non-described commits that can be cleaned up
 'junk()' = 'empty() & description(exact:"") & mutable() & ~@ & ~merges()'
 
+[snapshot]
+auto-update-stale = true
+
 [templates]
 git_push_bookmark = 'concat("gust1n/push-", change_id.short())'
