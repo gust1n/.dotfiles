@@ -1,7 +1,9 @@
 [tools]
+bat = "latest"
 buf = "latest"
 claude = "latest"
 difftastic = "latest"
+fd = "latest"
 fzf = "latest"
 gh = "latest"
 go = "latest"
