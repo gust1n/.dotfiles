@@ -79,7 +79,11 @@ _pick_agent() {
     echo "Command not found: $agent" >&2
     return 1
   fi
-  printf '%s\n' "$agent"
+  if [[ "$agent" == "claude" ]]; then
+    printf '%s\n' "claude --permission-mode auto"
+  else
+    printf '%s\n' "$agent"
+  fi
 }
 
 _agent_windows() {
@@ -156,7 +160,7 @@ cmd_new() {
 
   # Non-interactive mode (all required args provided)
   if [[ -n "$repo" && -n "$name" ]]; then
-    agent_cmd="${agent_cmd:-claude}"
+    agent_cmd="${agent_cmd:-claude --permission-mode auto}"
     local fs_name
     fs_name=$(_sanitize_name "$name")
     local window_name="${AGENT_PREFIX}${fs_name}"
