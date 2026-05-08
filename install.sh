@@ -19,6 +19,15 @@ do
 done
 
 
+# Symlink ~/.claude/settings.json
+mkdir -p ~/.claude
+if [ -e ~/.claude/settings.json ] && [ ! -L ~/.claude/settings.json ]; then
+	echo "backing up existing ~/.claude/settings.json"
+	mv -v ~/.claude/settings.json bak/
+fi
+echo "symlinking ~/.claude/settings.json -> $BASE/claude/settings.json"
+ln -sfn "$BASE/claude/settings.json" ~/.claude/settings.json
+
 # Symlink all files folders (and backup existing)
 for rc in *rc *profile *ignore; do
 	target_location=~/.$rc
