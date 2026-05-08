@@ -44,17 +44,9 @@ new-under = ["new", "--before", "roots(local())"]
 # tidy: abandon empty, non-described commits (except @ and merges)
 tidy = ["abandon", "empty() & description(exact:\"\") & mutable() & ~@ & ~merges()"]
 
-# retrunk:
-# `jj rebase -d 'trunk()'` is shorthand for `jj rebase -b @ -d 'trunk()'`
-#
-# What that does:
-#
-# `-b @` rebases the entire branch that the current @ is on relative to the destination. (Default),
-# `-d trunk()` sets the destination. trunk() finds the most recent `main | master | trunk` branch thats on a remote. trunk() is builtin.
-# Also floats local/wip commits back on top.
-retrunk = ["util", "exec", "--", "bash", "-c", """
-jj rebase -d 'trunk()' && { jj log -r 'local()' --no-graph -T 'change_id' 2>/dev/null | grep -q . && jj rebase -s 'roots(local())' -d @ || true; }
-"""]
+# retrunk: rebase current branch onto trunk
+# Simplified to avoid floating local() commits which can mess up workspaces.
+retrunk = ["rebase", "-d", "trunk()"]
 
 [revset-aliases]
 "closest_bookmark(to)" = "heads(::to & bookmarks())"
