@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+# JJ workflow commands - based on odsod/machine jj/workflow.fish
+set -euo pipefail
+
+fail() {
+    echo "$1" >&2
+    exit 1
+}
+
+fetch_origin() {
+    jj git fetch --remote origin >/dev/null 2>&1 || fail "Failed to fetch from origin."
+}
+
+try_update_stale_workspace() {
+    jj workspace update-stale >/dev/null 2>&1 || true
+}
+
+has_origin_main() {
+    jj log -r 'present(main@origin)' --no-graph -T 'commit_id.short()' 2>/dev/null | grep -q .
+}
+
+require_origin_main() {
+    local action="$1"
+    if has_origin_main; then
+        return 0
+    fi
+
+    echo "origin/main doesn't exist yet." >&2
+    echo "Bootstrap the repo first, then retry: $action" >&2
+    echo "Suggested bootstrap:" >&2
+    echo "  jj bookmark set main -r @-" >&2
+    echo "  jj git push --remote origin --bookmark main" >&2
+    exit 1
+}
+
+ensure_pr_preflight() {
+    fetch_origin
+    require_origin_main "jj pr"
+
+    local at_empty
+    at_empty=$(jj log -r @ --no-graph -T 'if(empty, "1", "0")' 2>/dev/null)
+    if [[ "$at_empty" != "1" ]]; then
+        local has_description
+        has_description=$(jj log -r @ --no-graph -T 'if(description != "", "1", "0")' 2>/dev/null)
+        if [[ "$has_description" != "1" ]]; then
+            echo "FAIL: current non-empty commit has no description."
+            echo "Run: jj describe -m \"<summary>\""
+            exit 1
+        fi
+    fi
+
+    local divergent
+    divergent=$(jj log -r 'mutable() & divergent() & ::@' --no-graph 2>/dev/null || true)
+    if [[ -n "$divergent" ]]; then
+        echo "FAIL: mutable divergent change IDs detected."
+        echo "$divergent"
+        exit 1
+    fi
+
+    local rebased
+    rebased=$(jj log -r '@ & descendants(main@origin)' --no-graph 2>/dev/null || true)
+    if [[ -z "$rebased" ]]; then
+        echo "Rebasing onto latest main@origin..."
+        jj rebase -d main@origin >/dev/null || fail "Failed to rebase onto main@origin."
+    fi
+}
+
+github_repo_from_origin() {
+    local remote_url
+    remote_url=$(jj git remote list 2>/dev/null | awk '$1=="origin"{print $2; exit}')
+    [[ -n "$remote_url" ]] || return 1
+
+    local repo
+    repo=$(echo "$remote_url" | sed -E 's#^git@github.com:##; s#^https://github.com/##; s#\.git$##')
+    if [[ "$repo" =~ ^[^/]+/[^/]+$ ]]; then
+        echo "$repo"
+        return 0
+    fi
+    return 1
+}
+
+current_head_bookmark() {
+    local ws
+    ws=$(jj workspace list -T 'if(self.target().current_working_copy(), self.name(), "") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1)
+    if [[ -n "$ws" && "$ws" != "default" ]]; then
+        local at_ws
+        at_ws=$(jj log -r "bookmarks(\"$ws\") & @" --no-graph 2>/dev/null || true)
+        if [[ -n "$at_ws" ]]; then
+            echo "$ws"
+            return 0
+        fi
+    fi
+
+    local change_id
+    change_id=$(jj log --no-graph -r @ -T 'change_id.short()' 2>/dev/null)
+    echo "gust1n/push-${change_id}"
+}
+
+commit_is_empty() {
+    local rev="$1"
+    local empty_flag
+    empty_flag=$(jj log -r "$rev" --no-graph -T 'if(empty, "1", "0")' 2>/dev/null)
+    [[ "$empty_flag" == "1" ]]
+}
+
+effective_publish_rev() {
+    require_origin_main "jj pr"
+
+    local rev="@"
+    while true; do
+        local in_main_lineage
+        in_main_lineage=$(jj log -r "$rev & descendants(main@origin)" --no-graph 2>/dev/null || true)
+        if [[ -z "$in_main_lineage" ]]; then
+            fail "Could not determine publish target from current lineage."
+        fi
+
+        if ! commit_is_empty "$rev"; then
+            echo "$rev"
+            return 0
+        fi
+
+        local at_main
+        at_main=$(jj log -r "$rev & main@origin" --no-graph 2>/dev/null || true)
+        if [[ -n "$at_main" ]]; then
+            fail "No non-empty commits to publish between @ and main@origin. Add changes first or run: jj start"
+        fi
+
+        rev="${rev}-"
+    done
+}
+
+pr_title_for_rev() {
+    local rev="$1"
+    local default_title="$2"
+    local description
+    description=$(jj log -r "$rev" --no-graph -T 'description' 2>/dev/null)
+    local title
+    title=$(echo "$description" | head -n1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    if [[ -n "$title" ]]; then
+        echo "$title"
+    else
+        echo "$default_title"
+    fi
+}
+
+pr_body_for_rev() {
+    local rev="$1"
+    local description
+    description=$(jj log -r "$rev" --no-graph -T 'description' 2>/dev/null)
+    echo "$description" | tail -n +2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+post_publish_new_working_commit() {
+    if commit_is_empty "@"; then
+        echo "Already on an empty working commit."
+        return 0
+    fi
+
+    jj new @ >/dev/null || fail "Failed to create follow-up working commit after publish."
+    echo "Started new working commit on top of published change."
+}
+
+# --- Subcommands ---
+
+cmd_sync() {
+    try_update_stale_workspace
+    fetch_origin
+    echo "Synced refs from origin."
+}
+
+cmd_start() {
+    fetch_origin
+    require_origin_main "jj start"
+    jj new main@origin >/dev/null || fail "Failed to create new commit from main@origin."
+    echo "Now working on a new commit on top of latest main@origin."
+}
+
+cmd_pr() {
+    ensure_pr_preflight
+
+    local repo
+    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
+
+    local target
+    target=$(effective_publish_rev) || fail "Could not determine publish target revision."
+
+    local head
+    head=$(current_head_bookmark) || fail "Could not determine PR head bookmark."
+
+    # Push
+    local pr_exists
+    pr_exists=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
+    if [[ -n "$pr_exists" && "$pr_exists" != "null" ]]; then
+        # Updating existing PR
+        jj bookmark track "$head" --remote=origin >/dev/null 2>&1 || true
+        jj bookmark set "$head" -r "$target" >/dev/null || fail "Failed to move $head to publish target."
+        jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
+    else
+        # New PR
+        jj git push -c "$target" || fail "Failed to push publish target."
+    fi
+
+    # Create or find existing PR
+    local pr_url
+    pr_url=$(gh pr list --repo "$repo" --state open --head "$head" --json url --jq '.[0].url' 2>/dev/null || echo "")
+    if [[ -z "$pr_url" || "$pr_url" == "null" ]]; then
+        local pr_title
+        pr_title=$(pr_title_for_rev "$target" "chore: update $head")
+        local pr_body_file
+        pr_body_file=$(mktemp)
+        pr_body_for_rev "$target" > "$pr_body_file"
+        pr_url=$(gh pr create --repo "$repo" --head "$head" --title "$pr_title" --body-file "$pr_body_file" 2>/dev/null) || fail "Failed to create PR for $head."
+        rm -f "$pr_body_file"
+    fi
+
+    # Open in browser (macOS)
+    command -v open >/dev/null && open "$pr_url" 2>/dev/null || true
+    echo "$pr_url"
+    post_publish_new_working_commit
+}
+
+# --- Main ---
+
+case "${1:-}" in
+    sync)
+        cmd_sync
+        ;;
+    start)
+        cmd_start
+        ;;
+    pr)
+        cmd_pr
+        ;;
+    *)
+        echo "Usage: jj-workflow {sync|start|pr}" >&2
+        exit 1
+        ;;
+esac
