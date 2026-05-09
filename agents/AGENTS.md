@@ -32,9 +32,12 @@ This environment uses the [squash workflow](https://steveklabnik.github.io/jujut
 jj split file1 file2 -m "first commit message"
 jj split file3 file4 -m "second commit message"
 jj describe -m "final commit for remaining files"
+
+# Re-establish empty working commit on top
+jj new
 ```
 
-If unsure about commit structure, ask before modifying.
+After creating commits, always run `jj new` to maintain the squash workflow pattern.
 
 ## Snapshot Discipline
 
