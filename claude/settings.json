@@ -1,7 +1,9 @@
 {
-  "respectGitignore": false,
-  "skipDangerousModePermissionPrompt": true,
+  "awsAuthRefresh": "aws sso login --profile bedrock",
   "env": {
+    "CLAUDE_CODE_USE_BEDROCK": "1",
+    "AWS_PROFILE": "bedrock",
+    "AWS_REGION": "eu-north-1",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0[1m]",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "eu.anthropic.claude-opus-4-6-v1[1m]",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -27,8 +29,19 @@
       "Bash(mise *)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/Code/dotfiles/bin/agent-guard",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -70,17 +83,14 @@
             "type": "command",
             "command": "~/Code/dotfiles/bin/agent-status done",
             "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "test -d .jj && jj st > /dev/null 2>&1 || true"
           }
         ]
       }
     ]
   },
   "enabledPlugins": {
-    "gopls-lsp@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
   },
   "theme": "dark",
   "skipAutoPermissionPrompt": true

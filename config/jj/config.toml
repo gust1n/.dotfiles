@@ -26,7 +26,7 @@ tug = ['bookmark', 'move', '--from', 'heads(::@ & bookmarks())', '--to', 'closes
 ll = ["log", "-T", "log_with_files"]
 
 # float: rebase local/wip commits on top of current @
-float = ["rebase", "-s", "roots(local())", "-d", "@"]
+float = ["util", "exec", "--", "jj-float"]
 
 # safe-push: push but error if local commits would be included
 push = ["util", "exec", "--", "bash", "-c", """

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Float local/wip commits to the top of @ so they can be kept out of pushes
+set -euo pipefail
+
+# Check if there are any local commits
+local_commits=$(jj log -r 'local()' --no-graph -T 'commit_id.short()' 2>/dev/null || echo "")
+if [[ -z "$local_commits" ]]; then
+    echo "No local() commits to float."
+    exit 0
+fi
+
+# Find the root of local commits
+local_root=$(jj log -r 'roots(local())' --no-graph -T 'change_id.short()' 2>/dev/null | head -1)
+if [[ -z "$local_root" ]]; then
+    echo "Could not determine root of local commits."
+    exit 1
+fi
+
+# Check if local commits are ancestors of @
+is_ancestor=$(jj log -r "roots(local()) & ::@-" --no-graph 2>/dev/null || echo "")
+
+if [[ -n "$is_ancestor" ]]; then
+    # Local commits are in the ancestry of @, need to extract them
+    echo "Extracting local commits from ancestry..."
+
+    # Find parent of the local root
+    local_parent=$(jj log -r "roots(local())-" --no-graph -T 'change_id.short()' 2>/dev/null | head -1)
+
+    # Find commits between local root and @ (exclusive of local commits)
+    # These are commits we want to keep, so rebase them onto local_parent
+    commits_to_keep=$(jj log -r "(roots(local())::@-) & ~local()" --no-graph -T 'change_id.short()' 2>/dev/null | tail -1)
+
+    if [[ -n "$commits_to_keep" ]]; then
+        echo "Rebasing work to skip over local commits..."
+        jj rebase -s "$commits_to_keep" -d "$local_parent" >/dev/null 2>&1 || {
+            echo "Failed to rebase work around local commits."
+            exit 1
+        }
+    fi
+fi
+
+# Now rebase local commits on top of @
+echo "Floating local commits to top of @..."
+jj rebase -s "$local_root" -d @ >/dev/null 2>&1 || {
+    echo "Failed to float local commits."
+    exit 1
+}
+
+echo "✓ Local commits floated to top."
