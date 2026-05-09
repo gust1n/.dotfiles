@@ -2,6 +2,17 @@
 
 **CRITICAL**: Use jj (Jujutsu) for version control, NOT git.
 
+## Work Process
+
+**For non-trivial features (especially in agent sessions)**:
+1. **Plan** - Draft thorough implementation plan, confirm with user before coding
+2. **Implement** - Complete the feature, test everything you can without human assistance
+3. **Self-review** - Review all changes with staff engineer scrutiny, fix obvious flaws
+4. **Present** - Only then report work as complete
+
+Discuss "nice to haves" or unclear improvements rather than implementing them.
+For simple requests, skip the ceremony and just execute.
+
 ## Version Control
 
 **Do NOT include co-authoring attribution in commits.**
