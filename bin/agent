@@ -45,9 +45,12 @@ _sanitize_name() {
 
 _discover_repos() {
   if command -v fd >/dev/null; then
-    fd --hidden --follow --glob '.git' --search-path "$CODE_DIR" \
-      --exclude '.jj-workspaces' 2>/dev/null \
+    fd --no-ignore --hidden --follow --type d '.git' "$CODE_DIR" \
+      --exclude '.jj-workspaces' --max-depth 5 2>/dev/null \
+      | grep -E '/\.git/?$' \
       | while IFS= read -r git_path; do
+          # Remove trailing slash and .git
+          git_path="${git_path%/}"
           local repo_dir="${git_path%/.git}"
           local rel="${repo_dir#$CODE_DIR/}"
           printf '%s\n' "$rel"
@@ -127,9 +130,6 @@ _create_workspace() {
 
   jj -R "$repo_path" workspace add --name "$fs_name" -r "$base_rev" "$workspace_path" >/dev/null 2>&1 \
     || { echo "Failed to create workspace" >&2; return 1; }
-
-  # Set up squash workflow: create empty working commit on top
-  (cd "$workspace_path" && jj new >/dev/null 2>&1) || true
 
   printf '%s\n' "$workspace_path"
 }
