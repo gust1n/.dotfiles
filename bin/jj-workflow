@@ -103,6 +103,13 @@ commit_is_empty() {
     [[ "$empty_flag" == "1" ]]
 }
 
+commit_has_description() {
+    local rev="$1"
+    local desc
+    desc=$(jj log -r "$rev" --no-graph -T 'description' 2>/dev/null)
+    [[ -n "$desc" ]]
+}
+
 effective_publish_rev() {
     require_origin_main "jj pr"
 
@@ -114,7 +121,8 @@ effective_publish_rev() {
             fail "Could not determine publish target from current lineage."
         fi
 
-        if ! commit_is_empty "$rev"; then
+        # Skip empty commits with no description (squash workflow working commits)
+        if ! commit_is_empty "$rev" || commit_has_description "$rev"; then
             echo "$rev"
             return 0
         fi
