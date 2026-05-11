@@ -6,9 +6,10 @@
 
 **For non-trivial features (especially in agent sessions)**:
 1. **Plan** - Draft thorough implementation plan, confirm with user before coding
-2. **Implement** - Complete the feature, test everything you can without human assistance
-3. **Self-review** - Review all changes with staff engineer scrutiny, fix obvious flaws
-4. **Present** - Only then report work as complete
+2. **Implement to completion** - Finish the entire feature, all edge cases, all files. Do NOT stop at 50% and ask for approval. Test everything you can without human assistance
+3. **Verify** - Run tests and lint. Fix all failures. If tests/lint don't exist or can't run, document why
+4. **Self-review** - Review all changes with staff engineer scrutiny, fix obvious flaws
+5. **Present** - Only then report work as complete
 
 Discuss "nice to haves" or unclear improvements rather than implementing them.
 For simple requests, skip the ceremony and just execute.
