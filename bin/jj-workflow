@@ -80,11 +80,13 @@ github_repo_from_origin() {
 }
 
 current_head_bookmark() {
+    local rev="${1:-@}"
+
     local ws
     ws=$(jj workspace list -T 'if(self.target().current_working_copy(), self.name(), "") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1)
     if [[ -n "$ws" && "$ws" != "default" ]]; then
         local at_ws
-        at_ws=$(jj log -r "bookmarks(\"$ws\") & @" --no-graph 2>/dev/null || true)
+        at_ws=$(jj log -r "bookmarks(\"$ws\") & $rev" --no-graph 2>/dev/null || true)
         if [[ -n "$at_ws" ]]; then
             echo "$ws"
             return 0
@@ -92,7 +94,7 @@ current_head_bookmark() {
     fi
 
     local change_id
-    change_id=$(jj log --no-graph -r @ -T 'change_id.short()' 2>/dev/null)
+    change_id=$(jj log --no-graph -r "$rev" -T 'change_id.short()' 2>/dev/null)
     echo "gust1n/push-${change_id}"
 }
 
@@ -193,7 +195,7 @@ cmd_pr() {
     target=$(effective_publish_rev) || fail "Could not determine publish target revision."
 
     local head
-    head=$(current_head_bookmark) || fail "Could not determine PR head bookmark."
+    head=$(current_head_bookmark "$target") || fail "Could not determine PR head bookmark."
 
     # Push
     local pr_exists
