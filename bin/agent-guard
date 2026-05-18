@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# PreToolUse hook: blocks externally destructive commands for agents in workspaces.
+# Agents run with --permission-mode dangerous; this hook is the safety net.
+#
+# Logic:
+#   - If not in a .jj-workspaces/ dir → pass through (normal permissions apply)
+#   - If tool is Bash → check command against deny patterns
+#   - Everything else (Read, Edit, Write, etc.) → allow
+
+set -uo pipefail
+
+INPUT=$(cat)
+
+# Only guard agents in workspaces
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+if [[ "$CWD" != */.jj-workspaces/* ]]; then
+  exit 0
+fi
+
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+
+deny() {
+  local reason="$1"
+  jq -n --arg reason "$reason" '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "ask",
+      permissionDecisionReason: $reason
+    }
+  }'
+  exit 0
+}
+
+# File-editing tools: only allow within the workspace
+if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
+  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+  # Resolve to absolute and check it's within CWD
+  if [[ -n "$FILE_PATH" && "$FILE_PATH" != "$CWD"* ]]; then
+    deny "File edit outside workspace blocked — only modify files within $CWD"
+  fi
+  exit 0
+fi
+
+# Non-Bash, non-file tools (Read, etc.) are always safe
+if [[ "$TOOL_NAME" != "Bash" ]]; then
+  exit 0
+fi
+
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+[[ -z "$COMMAND" ]] && exit 0
+
+# --- Deny patterns: externally destructive commands ---
+
+# Git/jj push operations
+if echo "$COMMAND" | grep -qE '(git|jj)\s+(git\s+)?push'; then
+  deny "Push blocked — ask the user to push or use 'jj pr' when instructed."
+fi
+
+# PR creation
+if echo "$COMMAND" | grep -qE 'gh\s+pr\s+(create|merge|close)'; then
+  deny "PR mutation blocked — use 'jj pr' when explicitly instructed by the user."
+fi
+
+# GitHub issue/PR destructive actions
+if echo "$COMMAND" | grep -qE 'gh\s+(issue|pr)\s+(delete|close|edit|comment)'; then
+  deny "GitHub mutation blocked — requires explicit user instruction."
+fi
+
+# GitHub API write methods
+if echo "$COMMAND" | grep -qE 'gh\s+api\s+.*-X\s+(POST|PUT|PATCH|DELETE)'; then
+  deny "GitHub API write blocked — requires explicit user instruction."
+fi
+
+# Cloud provider destructive operations
+if echo "$COMMAND" | grep -qE '(gcloud|aws)\s+.*\b(delete|destroy|terminate|remove|purge)\b'; then
+  deny "Cloud destructive operation blocked — requires explicit user instruction."
+fi
+if echo "$COMMAND" | grep -qE 'aws\s+s3\s+(rm|rb)'; then
+  deny "AWS S3 deletion blocked — requires explicit user instruction."
+fi
+
+# Broad filesystem destruction outside workspace
+if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+|.*--recursive)'; then
+  # Allow rm -rf within the workspace
+  if ! echo "$COMMAND" | grep -qF "$CWD"; then
+    deny "Recursive delete outside workspace blocked — only delete files within your workspace."
+  fi
+fi
+
+# Docker push
+if echo "$COMMAND" | grep -qE 'docker\s+push'; then
+  deny "Docker push blocked — requires explicit user instruction."
+fi
+
+# Database mutations (common CLIs)
+if echo "$COMMAND" | grep -qiE '(psql|mysql|mongo)\s.*\b(DROP|DELETE|TRUNCATE|ALTER)\b'; then
+  deny "Database mutation blocked — requires explicit user instruction."
+fi
+
+# Everything else is allowed
+exit 0
