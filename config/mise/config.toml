@@ -1,4 +1,5 @@
 [tools]
+awscli = "latest"
 bat = "latest"
 buf = "latest"
 claude = "latest"
