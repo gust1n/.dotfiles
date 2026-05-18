@@ -83,7 +83,7 @@ _pick_agent() {
     return 1
   fi
   if [[ "$agent" == "claude" ]]; then
-    printf '%s\n' "claude --permission-mode auto"
+    printf '%s\n' "claude --permission-mode dangerous"
   else
     printf '%s\n' "$agent"
   fi
@@ -163,7 +163,7 @@ cmd_new() {
 
   # Non-interactive mode (all required args provided)
   if [[ -n "$repo" && -n "$name" ]]; then
-    agent_cmd="${agent_cmd:-claude --permission-mode auto}"
+    agent_cmd="${agent_cmd:-claude --permission-mode dangerous}"
     local fs_name
     fs_name=$(_sanitize_name "$name")
     local window_name="${AGENT_PREFIX}${fs_name}"
@@ -181,6 +181,7 @@ cmd_new() {
     workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
 
     tmux new-window -n "$window_name" -c "$workspace_path"
+    sleep 0.2
 
     if [[ -n "$prompt_text" ]]; then
       tmux send-keys "$agent_cmd --print \"$prompt_text\"" Enter
@@ -233,6 +234,7 @@ cmd_new() {
   workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
 
   tmux new-window -n "$window_name" -c "$workspace_path"
+  sleep 0.2
   tmux send-keys "$agent_cmd" Enter
 }
 
@@ -342,6 +344,106 @@ cmd_capture() {
   tmux capture-pane -t ":$idx" -p -S "-$lines"
 }
 
+cmd_tidy() {
+  local repo="${1:-$(pwd)}"
+
+  # Find the jj repo root
+  if ! jj -R "$repo" root >/dev/null 2>&1; then
+    echo "Not a jj repo: $repo" >&2
+    return 1
+  fi
+  repo=$(jj -R "$repo" root 2>/dev/null)
+
+  # Get list of live agent workspace names (have a tmux window)
+  local live_workspaces=""
+  while IFS='|' read -r _ wname _; do
+    [[ -z "$wname" ]] && continue
+    local ws_name="${wname#$AGENT_PREFIX}"
+    live_workspaces+="$ws_name"$'\n'
+  done <<< "$(_agent_windows)"
+
+  # 1. Find dead workspaces (no corresponding tmux window)
+  local dead_workspaces=()
+  while IFS= read -r ws; do
+    [[ -z "$ws" || "$ws" == "default" ]] && continue
+    if ! echo "$live_workspaces" | grep -qxF "$ws"; then
+      dead_workspaces+=("$ws")
+    fi
+  done < <(jj --ignore-working-copy -R "$repo" workspace list \
+    -T 'self.name() ++ "\n"' 2>/dev/null | sed '/^$/d')
+
+  # 2. Find divergent commits to abandon (keep the one tracked by remote)
+  local divergent
+  divergent=$(jj --ignore-working-copy -R "$repo" log \
+    -r 'divergent() & mutable() & ~remote_bookmarks(remote=origin) & ~working_copies()' \
+    --no-graph -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"' 2>/dev/null | sed '/^$/d')
+
+  # 3. Find conflicted bookmarks
+  local conflicted
+  conflicted=$(jj --ignore-working-copy -R "$repo" bookmark list --conflicted 2>/dev/null || true)
+
+  # Preview
+  local has_work=false
+  if [[ ${#dead_workspaces[@]} -gt 0 ]]; then
+    has_work=true
+    echo "Dead workspaces to forget:"
+    for ws in "${dead_workspaces[@]}"; do
+      echo "  $ws"
+    done
+    echo ""
+  fi
+
+  if [[ -n "$divergent" ]]; then
+    has_work=true
+    echo "Divergent commits to abandon:"
+    while IFS= read -r line; do
+      echo "  $line"
+    done <<< "$divergent"
+    echo ""
+  fi
+
+  if [[ -n "$conflicted" ]]; then
+    echo "Conflicted bookmarks (manual fix needed):"
+    echo "$conflicted"
+    echo "  Fix with: jj bookmark delete <name>  OR  jj bookmark track <name>@origin"
+    echo ""
+  fi
+
+  if [[ "$has_work" != true ]]; then
+    echo "Nothing to tidy."
+    return 0
+  fi
+
+  # Confirm
+  printf "Proceed? [y/N] "
+  read -r answer
+  if [[ "$answer" != [yY] ]]; then
+    echo "Aborted."
+    return 0
+  fi
+
+  # Execute
+  local dead_count=0
+  for ws in "${dead_workspaces[@]}"; do
+    jj --ignore-working-copy -R "$repo" workspace forget "$ws" 2>/dev/null || true
+    local ws_dir="$repo/.jj-workspaces/$ws"
+    [[ -d "$ws_dir" ]] && rm -rf "$ws_dir"
+    ((dead_count++)) || true
+  done
+
+  local divergent_count=0
+  if [[ -n "$divergent" ]]; then
+    local divergent_ids
+    divergent_ids=$(echo "$divergent" | awk '{print $1}' | sort -u)
+    while IFS= read -r change_id; do
+      jj --ignore-working-copy -R "$repo" abandon "$change_id" 2>/dev/null || true
+      ((divergent_count++)) || true
+    done <<< "$divergent_ids"
+  fi
+
+  echo "Done: forgot ${dead_count} workspaces, abandoned ${divergent_count} divergent commits."
+}
+
 cmd_jump_next() {
   local done_icon waiting_icon stale_icon
   done_icon=$(printf '\xef\x80\x8c')     # nf-fa-check U+F00C
@@ -421,6 +523,7 @@ case "${1:-}" in
   kill)      shift; cmd_kill "$@" ;;
   send)      shift; cmd_send "$@" ;;
   capture)   shift; cmd_capture "$@" ;;
+  tidy)      shift; cmd_tidy "$@" ;;
   jump-next) cmd_jump_next ;;
   -h|--help|help)
     cat <<EOF
@@ -434,6 +537,7 @@ Commands:
   kill [name]               Kill agent and clean up workspace
   send <name> <msg>         Send input to an agent
   capture <name> [lines]    Capture agent pane output
+  tidy [repo]               Clean up dead workspaces & divergent commits
   jump-next                 Jump to first done/waiting agent
 
 Tmux bindings:
