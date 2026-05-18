@@ -19,9 +19,11 @@ For simple requests, skip the ceremony and just execute.
 **Do NOT include co-authoring attribution in commits.**
 
 Custom jj commands available:
-- `jj pr` - Create pull request
+- `jj pr` - Create or update a pull request (handles bookmark, push, and gh pr create)
 - `jj sync` - Sync with remote and rebase  
 - `jj start <name>` - Start new feature
+
+**Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create` — `jj pr` does all of this. It finds the correct commit to publish (skipping empty working commits), creates/moves the bookmark, pushes, and opens the PR.
 
 ### The Squash Workflow
 
@@ -37,6 +39,7 @@ This environment uses the [squash workflow](https://steveklabnik.github.io/jujut
 - You CAN create commits naturally as work completes (use `jj split` for multiple logical commits)
 - Organize changes into clear, logical commits with good messages
 - **NEVER push or create PRs unless explicitly instructed**
+- When `@-` is immutable (e.g. `main@origin`), you cannot `jj squash` — use `jj describe` on `@` instead
 
 **Organizing accumulated changes into multiple commits**:
 ```bash
@@ -50,6 +53,26 @@ jj new
 ```
 
 After creating commits, always run `jj new` to maintain the squash workflow pattern.
+
+## Workspace Isolation
+
+You are likely running inside a **jj workspace** (a subdirectory like `<repo>/.jj-workspaces/<name>/`). Detect with:
+```bash
+jj workspace list   # Shows all workspaces; your name is the current one
+pwd                 # If path contains .jj-workspaces/ you're in one
+```
+
+**Rules when inside a workspace:**
+- Only modify files within your working copy — never `cd` to the parent repo or other workspaces
+- Do NOT rebase onto, modify, or interact with commits from other workspaces
+- Do NOT run `jj workspace forget` — lifecycle is managed externally
+- Your scope is `@` and its ancestors back to your fork point — nothing else
+- Use `jj log -r 'ancestors(@, 10)'` to orient yourself, not broad queries across all branches
+
+If you need something from another branch (e.g. a type definition landed on main), rebase your work:
+```bash
+jj rebase -d main@origin
+```
 
 ## Snapshot Discipline
 
