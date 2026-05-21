@@ -186,13 +186,27 @@ cmd_start() {
 }
 
 cmd_pr() {
+    local opt_rev="" opt_body="" opt_draft=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -r|--revision) opt_rev="$2"; shift 2 ;;
+            --body)        opt_body="$2"; shift 2 ;;
+            --draft)       opt_draft=true; shift ;;
+            *)             shift ;;
+        esac
+    done
+
     ensure_pr_preflight
 
     local repo
     repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
 
     local target
-    target=$(effective_publish_rev) || fail "Could not determine publish target revision."
+    if [[ -n "$opt_rev" ]]; then
+        target="$opt_rev"
+    else
+        target=$(effective_publish_rev) || fail "Could not determine publish target revision."
+    fi
 
     local head
     head=$(current_head_bookmark "$target") || fail "Could not determine PR head bookmark."
@@ -216,10 +230,21 @@ cmd_pr() {
     if [[ -z "$pr_url" || "$pr_url" == "null" ]]; then
         local pr_title
         pr_title=$(pr_title_for_rev "$target" "chore: update $head")
+
         local pr_body_file
         pr_body_file=$(mktemp)
-        pr_body_for_rev "$target" > "$pr_body_file"
-        pr_url=$(gh pr create --repo "$repo" --head "$head" --title "$pr_title" --body-file "$pr_body_file" 2>/dev/null) || fail "Failed to create PR for $head."
+        if [[ -n "$opt_body" ]]; then
+            echo "$opt_body" > "$pr_body_file"
+        else
+            pr_body_for_rev "$target" > "$pr_body_file"
+        fi
+
+        local gh_args=(--repo "$repo" --head "$head" --title "$pr_title" --body-file "$pr_body_file")
+        if [[ "$opt_draft" == true ]]; then
+            gh_args+=(--draft)
+        fi
+
+        pr_url=$(gh pr create "${gh_args[@]}" 2>/dev/null) || fail "Failed to create PR for $head."
         rm -f "$pr_body_file"
     fi
 
@@ -239,7 +264,7 @@ case "${1:-}" in
         cmd_start
         ;;
     pr)
-        cmd_pr
+        shift; cmd_pr "$@"
         ;;
     *)
         echo "Usage: jj-workflow {sync|start|pr}" >&2
