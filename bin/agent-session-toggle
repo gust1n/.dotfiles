@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Toggle top session bar (pane-border-status) based on session count.
+# Called by tmux hooks on session-created / session-closed.
+set -uo pipefail
+
+count=$(tmux list-sessions 2>/dev/null | wc -l | tr -d ' ')
+if [[ $count -le 1 ]]; then
+  tmux set -g pane-border-status off
+else
+  tmux set -g pane-border-status top
+fi

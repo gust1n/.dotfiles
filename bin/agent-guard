@@ -7,20 +7,43 @@
 #   - If tool is Bash → check command against deny patterns
 #   - Everything else (Read, Edit, Write, etc.) → allow
 
-set -uo pipefail
+set -o pipefail
+
+LOG="/tmp/agent-guard.log"
+
+log() {
+  echo "$(date +%H:%M:%S) $*" >> "$LOG"
+}
 
 INPUT=$(cat)
+log "--- tool_name=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) cwd=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null | sed "s|$HOME|~|")"
 
 # Only guard agents in workspaces
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-if [[ "$CWD" != */.jj-workspaces/* ]]; then
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
+if [[ -z "$CWD" || "$CWD" != */.jj-workspaces/* ]]; then
   exit 0
 fi
 
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+# Extract workspace root: /path/to/repo/.jj-workspaces/<name>/
+# CWD might be deeper (e.g. .../workspace-name/backend/pkg/)
+WORKSPACE_ROOT=$(echo "$CWD" | sed -E 's|(.*/.jj-workspaces/[^/]+).*|\1|')
+
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
+
+allow() {
+  log "  -> ALLOW"
+  jq -n '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow"
+    }
+  }'
+  exit 0
+}
 
 deny() {
   local reason="$1"
+  log "  -> ASK: $reason"
   jq -n --arg reason "$reason" '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -33,21 +56,22 @@ deny() {
 
 # File-editing tools: only allow within the workspace
 if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
-  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-  # Resolve to absolute and check it's within CWD
-  if [[ -n "$FILE_PATH" && "$FILE_PATH" != "$CWD"* ]]; then
-    deny "File edit outside workspace blocked — only modify files within $CWD"
+  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || { allow; }
+  # Expand ~ and resolve to absolute
+  FILE_PATH="${FILE_PATH/#\~/$HOME}"
+  if [[ -n "$FILE_PATH" && "$FILE_PATH" != "$WORKSPACE_ROOT"* ]]; then
+    deny "File edit outside workspace blocked — only modify files within $WORKSPACE_ROOT"
   fi
-  exit 0
+  allow
 fi
 
 # Non-Bash, non-file tools (Read, etc.) are always safe
 if [[ "$TOOL_NAME" != "Bash" ]]; then
-  exit 0
+  allow
 fi
 
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-[[ -z "$COMMAND" ]] && exit 0
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || { allow; }
+[[ -z "$COMMAND" ]] && allow
 
 # --- Deny patterns: externally destructive commands ---
 
@@ -98,4 +122,4 @@ if echo "$COMMAND" | grep -qiE '(psql|mysql|mongo)\s.*\b(DROP|DELETE|TRUNCATE|AL
 fi
 
 # Everything else is allowed
-exit 0
+allow

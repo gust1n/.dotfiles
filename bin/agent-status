@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Called by Claude Code hooks to update agent status in tmux window name.
+# Called by Claude Code hooks to update agent status icon on the tmux session.
 # Usage: agent-status working|waiting|done|clear
 set -euo pipefail
 
-PANE_ID="${TMUX_PANE:-}"
-[[ -z "$PANE_ID" ]] && exit 0
+[[ -z "${TMUX:-}" ]] && exit 0
 
 action="${1:-}"
 case "$action" in
@@ -15,15 +14,19 @@ case "$action" in
   *)       exit 1 ;;
 esac
 
-tmux set-option -w -t "$PANE_ID" @agent_status "$icon" 2>/dev/null || true
+session=$(tmux list-panes -t "${TMUX_PANE:-}" -F '#{session_name}' 2>/dev/null | head -1)
+[[ -z "$session" ]] && exit 0
 
-# Track last activity time for interrupt detection
+tmux set-option -t "$session" @agent_status "$icon" 2>/dev/null || true
+
 if [[ "$action" == "working" ]]; then
-  tmux set-option -w -t "$PANE_ID" @agent_last_active "$(date +%s)" 2>/dev/null || true
+  tmux set-option -t "$session" @agent_last_active "$(date +%s)" 2>/dev/null || true
 fi
 
-# Set up auto-clear hook when status is done or waiting
 if [[ "$action" == "done" || "$action" == "waiting" ]]; then
-  tmux set-hook -w -t "$PANE_ID" pane-focus-in \
-    "set-option -w @agent_status ''; set-hook -uw pane-focus-in" 2>/dev/null || true
+  tmux set-hook -t "$session" client-session-changed \
+    "set-option @agent_status ''; set-hook -u client-session-changed" 2>/dev/null || true
 fi
+
+# Force status refresh so session bar updates immediately
+tmux refresh-client -S 2>/dev/null || true

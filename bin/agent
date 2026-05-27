@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Unified tmux window manager for Claude Code agents in jj workspaces.
-# Each agent runs in a tmux window (in the current session) with its own jj workspace.
-# Status icons (🤖💬✅) appear in the window bar via Claude Code hooks + agent-status.
+# Unified tmux session manager for Claude Code agents in jj workspaces.
+# Each agent runs in its own tmux session with its own jj workspace.
+# Status icons appear in the session bar via Claude Code hooks + agent-status.
 
 set -uo pipefail
 
-AGENT_PREFIX="ag:"
+AGENT_PREFIX="ag_"
 CODE_DIR="$HOME/Code"
 
 # --- Helpers ---
@@ -23,8 +23,6 @@ _fzf_pick_full() {
 _fzf_pick_or_create() {
   local prompt="$1"
   local output
-  # --print-query prints typed query on first line, match on second.
-  # We want: if user selected something, use that; otherwise use what they typed.
   output=$(fzf --prompt="$prompt> " --height=100% --reverse \
     --print-query 2>/dev/null) || true
   local query match
@@ -49,7 +47,6 @@ _discover_repos() {
       --exclude '.jj-workspaces' --max-depth 5 2>/dev/null \
       | grep -E '/\.git/?$' \
       | while IFS= read -r git_path; do
-          # Remove trailing slash and .git
           git_path="${git_path%/}"
           local repo_dir="${git_path%/.git}"
           local rel="${repo_dir#$CODE_DIR/}"
@@ -83,21 +80,18 @@ _pick_agent() {
     return 1
   fi
   if [[ "$agent" == "claude" ]]; then
-    printf '%s\n' "claude --permission-mode dangerous"
+    printf '%s\n' "claude --dangerously-skip-permissions"
   else
     printf '%s\n' "$agent"
   fi
 }
 
-_agent_windows() {
-  tmux list-windows -F '#{window_index}|#{window_name}|#{@agent_status}' 2>/dev/null \
-    | grep "|${AGENT_PREFIX}" || true
+_agent_sessions() {
+  tmux list-sessions -F '#{session_name}' 2>/dev/null | grep "^${AGENT_PREFIX}" || true
 }
 
-_find_window_index() {
-  local name="$1"
-  tmux list-windows -F '#{window_index} #{window_name}' 2>/dev/null \
-    | grep " ${AGENT_PREFIX}${name}$" | awk '{print $1}' | head -1
+_session_exists() {
+  tmux has-session -t "=${1}" 2>/dev/null
 }
 
 _create_workspace() {
@@ -150,7 +144,6 @@ _cleanup_workspace() {
 cmd_new() {
   local repo="" name="" agent_cmd="" prompt_text=""
 
-  # Parse flags for non-interactive mode
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)   repo="$2"; shift 2 ;;
@@ -161,18 +154,15 @@ cmd_new() {
     esac
   done
 
-  # Non-interactive mode (all required args provided)
+  # Non-interactive mode
   if [[ -n "$repo" && -n "$name" ]]; then
-    agent_cmd="${agent_cmd:-claude --permission-mode dangerous}"
+    agent_cmd="${agent_cmd:-claude --dangerously-skip-permissions}"
     local fs_name
     fs_name=$(_sanitize_name "$name")
-    local window_name="${AGENT_PREFIX}${fs_name}"
+    local session_name="${AGENT_PREFIX}${fs_name}"
 
-    # If window exists, switch to it
-    local existing
-    existing=$(_find_window_index "$fs_name")
-    if [[ -n "$existing" ]]; then
-      tmux select-window -t ":$existing"
+    if _session_exists "$session_name"; then
+      tmux switch-client -t "=$session_name"
       return
     fi
 
@@ -180,14 +170,12 @@ cmd_new() {
     local workspace_path
     workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
 
-    tmux new-window -n "$window_name" -c "$workspace_path"
-    sleep 0.2
-
     if [[ -n "$prompt_text" ]]; then
-      tmux send-keys "$agent_cmd --print \"$prompt_text\"" Enter
+      tmux new-session -d -s "$session_name" -c "$workspace_path" "$agent_cmd --print \"$prompt_text\""
     else
-      tmux send-keys "$agent_cmd" Enter
+      tmux new-session -d -s "$session_name" -c "$workspace_path" "$agent_cmd"
     fi
+    tmux switch-client -t "=$session_name"
     return
   fi
 
@@ -199,7 +187,6 @@ cmd_new() {
   repo="$CODE_DIR/$repo_rel"
   _ensure_jj_ready "$repo"
 
-  # Pick or create a task name / bookmark
   local bookmarks
   bookmarks=$(jj --ignore-working-copy -R "$repo" bookmark list -T 'self.name() ++ "\n"' 2>/dev/null | sed '/^$/d' | sort -u)
 
@@ -218,13 +205,10 @@ cmd_new() {
   local workspace_name="${chosen%%@origin}"
   local fs_name
   fs_name=$(_sanitize_name "$workspace_name")
-  local window_name="${AGENT_PREFIX}${fs_name}"
+  local session_name="${AGENT_PREFIX}${fs_name}"
 
-  # If window exists, switch to it
-  local existing
-  existing=$(_find_window_index "$fs_name")
-  if [[ -n "$existing" ]]; then
-    tmux select-window -t ":$existing"
+  if _session_exists "$session_name"; then
+    tmux switch-client -t "=$session_name"
     return
   fi
 
@@ -233,49 +217,52 @@ cmd_new() {
   local workspace_path
   workspace_path=$(_create_workspace "$repo" "$fs_name") || return 1
 
-  tmux new-window -n "$window_name" -c "$workspace_path"
-  sleep 0.2
-  tmux send-keys "$agent_cmd" Enter
+  tmux new-session -d -s "$session_name" -c "$workspace_path" "$agent_cmd"
+  tmux switch-client -t "=$session_name"
 }
 
 cmd_ls() {
-  local windows
-  windows=$(_agent_windows)
-  if [[ -z "$windows" ]]; then
-    echo "No agent windows."
+  local sessions
+  sessions=$(_agent_sessions)
+  if [[ -z "$sessions" ]]; then
+    echo "No agent sessions."
     return
   fi
-  printf "%-4s %-30s %s\n" "IDX" "NAME" "STATUS"
-  while IFS='|' read -r idx wname status; do
-    local display_name="${wname#$AGENT_PREFIX}"
-    printf "%-4s %-30s %s\n" "$idx" "$display_name" "${status:--}"
-  done <<< "$windows"
+  printf "%-4s %-30s %s\n" "#" "NAME" "STATUS"
+  local idx=0
+  while IFS= read -r name; do
+    idx=$((idx + 1))
+    local display="${name#$AGENT_PREFIX}"
+    local status
+    status=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
+    printf "%-4s %-30s %s\n" "$idx" "$display" "${status:--}"
+  done <<< "$sessions"
 }
 
 cmd_switch() {
   local name="${1:-}"
   if [[ -n "$name" ]]; then
-    local idx
-    idx=$(_find_window_index "$name")
-    if [[ -n "$idx" ]]; then
-      tmux select-window -t ":$idx"
+    local session_name="${AGENT_PREFIX}${name}"
+    if _session_exists "$session_name"; then
+      tmux switch-client -t "=$session_name"
     else
-      echo "Agent window not found: $name" >&2
+      echo "Agent session not found: $name" >&2
       return 1
     fi
     return
   fi
 
-  # Interactive pick
-  local windows
-  windows=$(_agent_windows)
-  if [[ -z "$windows" ]]; then
-    echo "No agent windows." >&2
+  local sessions
+  sessions=$(_agent_sessions)
+  if [[ -z "$sessions" ]]; then
+    echo "No agent sessions." >&2
     return 1
   fi
   local picked
-  picked=$(echo "$windows" | while IFS='|' read -r idx wname status; do
-    printf '%s %s\n' "${wname#$AGENT_PREFIX}" "${status:--}"
+  picked=$(echo "$sessions" | while IFS= read -r name; do
+    local status
+    status=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
+    printf '%s %s\n' "${name#$AGENT_PREFIX}" "${status:--}"
   done | _fzf_pick "Switch to agent") || return
   picked="${picked%% *}"
   [[ -n "$picked" ]] && cmd_switch "$picked"
@@ -284,33 +271,40 @@ cmd_switch() {
 cmd_kill() {
   local name="${1:-}"
   if [[ -z "$name" ]]; then
-    local windows
-    windows=$(_agent_windows)
-    if [[ -z "$windows" ]]; then
-      echo "No agent windows." >&2
+    local sessions
+    sessions=$(_agent_sessions)
+    if [[ -z "$sessions" ]]; then
+      echo "No agent sessions." >&2
       return 1
     fi
-    name=$(echo "$windows" | while IFS='|' read -r idx wname status; do
-      printf '%s %s\n' "${wname#$AGENT_PREFIX}" "${status:--}"
+    name=$(echo "$sessions" | while IFS= read -r sname; do
+      local status
+      status=$(tmux show-options -t "$sname" -v @agent_status 2>/dev/null || true)
+      printf '%s %s\n' "${sname#$AGENT_PREFIX}" "${status:--}"
     done | _fzf_pick "Kill agent") || return
     name="${name%% *}"
     [[ -z "$name" ]] && return
   fi
 
-  local idx
-  idx=$(_find_window_index "$name")
-  if [[ -z "$idx" ]]; then
-    echo "Agent window not found: $name" >&2
+  local session_name="${AGENT_PREFIX}${name}"
+  if ! _session_exists "$session_name"; then
+    echo "Agent session not found: $name" >&2
     return 1
   fi
 
   # Get workspace path before killing
   local pane_path
-  pane_path=$(tmux display-message -t ":${idx}" -p '#{pane_current_path}' 2>/dev/null || true)
+  pane_path=$(tmux display-message -t "=$session_name" -p '#{pane_current_path}' 2>/dev/null || true)
 
-  tmux kill-window -t ":$idx"
+  # Switch away if we're in the session being killed
+  local current_session
+  current_session=$(tmux display-message -p '#{session_name}' 2>/dev/null || true)
+  if [[ "$current_session" == "$session_name" ]]; then
+    tmux switch-client -l 2>/dev/null || tmux switch-client -n 2>/dev/null || true
+  fi
 
-  # Clean up jj workspace
+  tmux kill-session -t "=$session_name"
+
   if [[ -n "$pane_path" && "$pane_path" == */.jj-workspaces/* ]]; then
     _cleanup_workspace "$pane_path" "$name"
     echo "Killed agent '$name' and cleaned up workspace."
@@ -323,46 +317,42 @@ cmd_send() {
   local name="${1:?Usage: agent send <name> <message>}"
   shift
   local msg="$*"
-  local idx
-  idx=$(_find_window_index "$name")
-  if [[ -z "$idx" ]]; then
-    echo "Agent window not found: $name" >&2
+  local session_name="${AGENT_PREFIX}${name}"
+  if ! _session_exists "$session_name"; then
+    echo "Agent session not found: $name" >&2
     return 1
   fi
-  tmux send-keys -t ":$idx" "$msg" Enter
+  tmux send-keys -t "=$session_name" "$msg" Enter
 }
 
 cmd_capture() {
   local name="${1:?Usage: agent capture <name>}"
   local lines="${2:-200}"
-  local idx
-  idx=$(_find_window_index "$name")
-  if [[ -z "$idx" ]]; then
-    echo "Agent window not found: $name" >&2
+  local session_name="${AGENT_PREFIX}${name}"
+  if ! _session_exists "$session_name"; then
+    echo "Agent session not found: $name" >&2
     return 1
   fi
-  tmux capture-pane -t ":$idx" -p -S "-$lines"
+  tmux capture-pane -t "=$session_name" -p -S "-$lines"
 }
 
 cmd_tidy() {
   local repo="${1:-$(pwd)}"
 
-  # Find the jj repo root
   if ! jj -R "$repo" root >/dev/null 2>&1; then
     echo "Not a jj repo: $repo" >&2
     return 1
   fi
   repo=$(jj -R "$repo" root 2>/dev/null)
 
-  # Get list of live agent workspace names (have a tmux window)
+  # Get list of live agent session names
   local live_workspaces=""
-  while IFS='|' read -r _ wname _; do
-    [[ -z "$wname" ]] && continue
-    local ws_name="${wname#$AGENT_PREFIX}"
-    live_workspaces+="$ws_name"$'\n'
-  done <<< "$(_agent_windows)"
+  while IFS= read -r sname; do
+    [[ -z "$sname" ]] && continue
+    live_workspaces+="${sname#$AGENT_PREFIX}"$'\n'
+  done <<< "$(_agent_sessions)"
 
-  # 1. Find dead workspaces (no corresponding tmux window)
+  # Find dead workspaces (no corresponding tmux session)
   local dead_workspaces=()
   while IFS= read -r ws; do
     [[ -z "$ws" || "$ws" == "default" ]] && continue
@@ -372,17 +362,16 @@ cmd_tidy() {
   done < <(jj --ignore-working-copy -R "$repo" workspace list \
     -T 'self.name() ++ "\n"' 2>/dev/null | sed '/^$/d')
 
-  # 2. Find divergent commits to abandon (keep the one tracked by remote)
+  # Find divergent commits to abandon
   local divergent
   divergent=$(jj --ignore-working-copy -R "$repo" log \
     -r 'divergent() & mutable() & ~remote_bookmarks(remote=origin) & ~working_copies()' \
     --no-graph -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"' 2>/dev/null | sed '/^$/d')
 
-  # 3. Find conflicted bookmarks
+  # Find conflicted bookmarks
   local conflicted
   conflicted=$(jj --ignore-working-copy -R "$repo" bookmark list --conflicted 2>/dev/null || true)
 
-  # Preview
   local has_work=false
   if [[ ${#dead_workspaces[@]} -gt 0 ]]; then
     has_work=true
@@ -414,7 +403,6 @@ cmd_tidy() {
     return 0
   fi
 
-  # Confirm
   printf "Proceed? [y/N] "
   read -r answer
   if [[ "$answer" != [yY] ]]; then
@@ -422,7 +410,6 @@ cmd_tidy() {
     return 0
   fi
 
-  # Execute
   local dead_count=0
   for ws in "${dead_workspaces[@]}"; do
     jj --ignore-working-copy -R "$repo" workspace forget "$ws" 2>/dev/null || true
@@ -433,12 +420,23 @@ cmd_tidy() {
 
   local divergent_count=0
   if [[ -n "$divergent" ]]; then
-    local divergent_ids
-    divergent_ids=$(echo "$divergent" | awk '{print $1}' | sort -u)
-    while IFS= read -r change_id; do
-      jj --ignore-working-copy -R "$repo" abandon "$change_id" 2>/dev/null || true
-      ((divergent_count++)) || true
-    done <<< "$divergent_ids"
+    divergent_count=$(echo "$divergent" | wc -l | tr -d ' ')
+    jj --ignore-working-copy -R "$repo" abandon \
+      'divergent() & mutable() & ~remote_bookmarks(remote=origin) & ~working_copies()' \
+      2>/dev/null || true
+  fi
+
+  local orphaned
+  orphaned=$(jj --ignore-working-copy -R "$repo" log \
+    -r 'conflict() & mutable() & ~bookmarks() & ~working_copies() & ~descendants(working_copies())' \
+    --no-graph -T 'change_id.short() ++ "\n"' 2>/dev/null | sed '/^$/d')
+  if [[ -n "$orphaned" ]]; then
+    jj --ignore-working-copy -R "$repo" abandon \
+      'conflict() & mutable() & ~bookmarks() & ~working_copies() & ~descendants(working_copies())' \
+      2>/dev/null || true
+    local orphan_count
+    orphan_count=$(echo "$orphaned" | wc -l | tr -d ' ')
+    divergent_count=$((divergent_count + orphan_count))
   fi
 
   echo "Done: forgot ${dead_count} workspaces, abandoned ${divergent_count} divergent commits."
@@ -446,43 +444,69 @@ cmd_tidy() {
 
 cmd_jump_next() {
   local done_icon waiting_icon stale_icon
-  done_icon=$(printf '\xef\x80\x8c')     # nf-fa-check U+F00C
-  waiting_icon=$(printf '\xef\x83\xa5')   # nf-fa-comment U+F0E5
-  stale_icon=$(printf '\xef\x81\xb1')     # nf-fa-warning U+F071
-  local target
-  target=$(_agent_windows | grep -E "${done_icon}|${waiting_icon}|${stale_icon}" | head -1 | cut -d'|' -f1)
+  done_icon=$(printf '\xef\x80\x8c')
+  waiting_icon=$(printf '\xef\x83\xa5')
+  stale_icon=$(printf '\xef\x81\xb1')
+
+  local target=""
+  while IFS= read -r name; do
+    local status
+    status=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
+    if [[ "$status" == "$done_icon" || "$status" == "$waiting_icon" || "$status" == "$stale_icon" ]]; then
+      target="$name"
+      break
+    fi
+  done <<< "$(_agent_sessions)"
+
   if [[ -n "$target" ]]; then
-    tmux select-window -t ":$target"
+    tmux switch-client -t "=$target"
   else
     tmux display-message "No agents waiting or done."
   fi
 }
 
+cmd_code() {
+  local repo_rel
+  repo_rel=$(_discover_repos | _fzf_pick_full "Repository") || return
+  [[ -z "$repo_rel" ]] && return
+
+  local repo="$CODE_DIR/$repo_rel"
+  local session_name="${repo_rel//\//-}"
+
+  if _session_exists "$session_name"; then
+    tmux switch-client -t "=$session_name"
+    return
+  fi
+
+  tmux new-session -d -s "$session_name" -c "$repo"
+  tmux switch-client -t "=$session_name"
+}
+
 cmd_menu() {
-  local current_window
-  current_window=$(tmux display-message -p '#{window_index}' 2>/dev/null || true)
+  local current_session
+  current_session=$(tmux display-message -p '#{session_name}' 2>/dev/null || true)
 
-  # Build list: all windows in session, agents get their status shown
-  local options="+ New agent"
-  local windows
-  windows=$(tmux list-windows -F '#{window_index}|#{window_name}|#{@agent_status}' 2>/dev/null || true)
-
+  local options
+  options=$(printf '%s\n%s\n' "+ New agent" "+ Code session")
   local entries=""
-  while IFS='|' read -r idx wname status; do
-    [[ "$idx" == "$current_window" ]] && continue
-    if [[ "$wname" == ${AGENT_PREFIX}* ]]; then
-      local display="${wname#$AGENT_PREFIX}"
+
+  # List all sessions
+  while IFS= read -r name; do
+    [[ "$name" == "$current_session" ]] && continue
+    if [[ "$name" == ${AGENT_PREFIX}* ]]; then
+      local display="${name#$AGENT_PREFIX}"
+      local status
+      status=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
       entries+="$(printf '%s %s\n' "$display" "${status:-}")"$'\n'
     else
-      entries+="$wname"$'\n'
+      entries+="$name"$'\n'
     fi
-  done <<< "$windows"
+  done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null)
 
   local all_options
   all_options=$(printf '%s\n%s' "$options" "$entries" | sed '/^$/d')
 
-  # Add kill option if agents exist
-  if _agent_windows | grep -q .; then
+  if _agent_sessions | grep -q .; then
     all_options=$(printf '%s\n%s' "$all_options" "× Kill agent")
   fi
 
@@ -494,21 +518,19 @@ cmd_menu() {
     "+ New agent")
       cmd_new
       ;;
+    "+ Code session")
+      cmd_code
+      ;;
     "× Kill agent"*)
       cmd_kill
       ;;
     *)
-      # Could be an agent name (with status suffix) or a regular window name
       local clean="${choice%% *}"
-      local idx
-      idx=$(_find_window_index "$clean")
-      if [[ -n "$idx" ]]; then
-        tmux select-window -t ":$idx"
-      else
-        # Regular window — find by name
-        idx=$(tmux list-windows -F '#{window_index} #{window_name}' 2>/dev/null \
-          | grep " ${clean}$" | awk '{print $1}' | head -1)
-        [[ -n "$idx" ]] && tmux select-window -t ":$idx"
+      local session_name="${AGENT_PREFIX}${clean}"
+      if _session_exists "$session_name"; then
+        tmux switch-client -t "=$session_name"
+      elif _session_exists "$clean"; then
+        tmux switch-client -t "=$clean"
       fi
       ;;
   esac
@@ -530,10 +552,10 @@ case "${1:-}" in
 Usage: agent [command] [args...]
 
 Commands:
-  (none)                    Interactive fzf menu (all windows + new/kill)
-  new [--repo R --name N]   Create new agent (interactive or scripted)
-  ls                        List agent windows with status
-  switch [name]             Switch to agent window
+  (none)                    Interactive fzf menu (all sessions + new/kill)
+  new [--repo R --name N]   Create new agent session (interactive or scripted)
+  ls                        List agent sessions with status
+  switch [name]             Switch to agent session
   kill [name]               Kill agent and clean up workspace
   send <name> <msg>         Send input to an agent
   capture <name> [lines]    Capture agent pane output
@@ -543,9 +565,10 @@ Commands:
 Tmux bindings:
   C-a A     Open this menu as a popup
   C-a l     Jump to next done/waiting agent
+  M-1..9    Switch to Nth session
 
 Status icons (set via Claude Code hooks):
-  🤖 working   💬 waiting for input   ✅ done
+  working   waiting for input   done
 EOF
     ;;
   *)

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Switch to the Nth session using the same sort order as the session bar.
+# Non-agent sessions first, then agent sessions.
+# Usage: agent-switch-session <number>
+set -uo pipefail
+
+target_idx="${1:-1}"
+sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+sorted=$(printf '%s\n' "$sessions" | grep -v '^ag_'; printf '%s\n' "$sessions" | grep '^ag_')
+session=$(echo "$sorted" | sed -n "${target_idx}p")
+if [[ -n "$session" ]]; then
+  tmux switch-client -t "=$session"
+  tmux refresh-client -S
+fi

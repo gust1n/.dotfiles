@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Renders session tabs for the top pane-border bar.
+# Also checks for stale agents (piggybacks on status-interval refresh).
+set -uo pipefail
+
+# --- Stale check (inline, avoids extra process) ---
+STALE_THRESHOLD=30
+WORKING_ICON=$(printf '\xef\x80\x93')
+STALE_ICON=$(printf '\xef\x81\xb1')
+now=$(date +%s)
+
+while IFS= read -r name; do
+  status=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
+  [[ "$status" != "$WORKING_ICON" ]] && continue
+  last_active=$(tmux show-options -t "$name" -v @agent_last_active 2>/dev/null || true)
+  [[ -z "$last_active" ]] && continue
+  elapsed=$((now - last_active))
+  if [[ $elapsed -ge $STALE_THRESHOLD ]]; then
+    tmux set-option -t "=$name" @agent_status "$STALE_ICON" 2>/dev/null || true
+  fi
+done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^ag_')
+
+# --- Render session tabs ---
+# Start with bg=colour238 to fill the line and cover the border character
+printf '#[bg=colour238,fill=colour238]'
+
+current=$(tmux display-message -p '#{client_session}' 2>/dev/null)
+
+# Sort: non-agent sessions first, then agent sessions
+sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+sorted=$(printf '%s\n' "$sessions" | grep -v '^ag_'; printf '%s\n' "$sessions" | grep '^ag_')
+
+idx=0
+while IFS= read -r name; do
+  [[ -z "$name" ]] && continue
+  idx=$((idx + 1))
+  is_agent=false
+  if [[ "$name" == ag_* ]]; then
+    display="${name#ag_}"
+    is_agent=true
+  else
+    display="$name"
+  fi
+  icon=$(tmux show-options -t "$name" -v @agent_status 2>/dev/null || true)
+
+  if [[ "$name" == "$current" ]]; then
+    printf '#[bg=colour235,fg=green] %d ' "$idx"
+  else
+    printf '#[bg=colour240,fg=colour255] %d ' "$idx"
+  fi
+  # nf-fa-android U+F17B
+  [[ "$is_agent" == true ]] && printf '#[fg=cyan]\xef\x85\xbb '
+  printf '%s' "$display"
+  [[ -n "$icon" ]] && printf ' %s' "$icon"
+  printf ' #[bg=colour238]'
+done <<< "$sorted"
