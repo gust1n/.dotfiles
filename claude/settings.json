@@ -93,5 +93,6 @@
     "typescript-lsp@claude-plugins-official": true
   },
   "theme": "dark",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "skipDangerousModePermissionPrompt": true
 }
