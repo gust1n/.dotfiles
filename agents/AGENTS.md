@@ -25,6 +25,27 @@ Custom jj commands available:
 
 **Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create` — `jj pr` does all of this. It finds the correct commit to publish (skipping empty working commits), creates/moves the bookmark, pushes, and opens the PR.
 
+```bash
+# Basic — title comes from commit description's first line, body from the rest
+jj pr
+
+# With explicit body (use for detailed PR descriptions)
+jj pr --body "## Summary
+- Added foo
+- Fixed bar
+
+## Test plan
+- Ran unit tests"
+
+# Target a specific revision
+jj pr -r @-
+
+# Draft PR
+jj pr --draft
+```
+
+The PR title is always the first line of the commit description. To set a good PR body, either write a multi-line commit description (lines after the first become the body) or pass `--body`.
+
 ### The Squash Workflow
 
 This environment uses the [squash workflow](https://steveklabnik.github.io/jujutsu-tutorial/real-world-workflows/the-squash-workflow.html): an undescribed, empty commit floats at `@` as a working area. Changes accumulate there and are squashed into parent commits with `jj squash`.

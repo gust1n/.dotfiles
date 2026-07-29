@@ -6,4 +6,4 @@ font-style = "Bold"
 theme = "Tomorrow Night"
 
 # macOS specific
-macos-option-as-alt = true
+macos-option-as-alt = "left"
