@@ -77,18 +77,27 @@ After creating commits, always run `jj new` to maintain the squash workflow patt
 
 ## Workspace Isolation
 
-You are likely running inside a **jj workspace** (a subdirectory like `<repo>/.jj-workspaces/<name>/`). Detect with:
+You may be running inside a **jj workspace** — a second working copy of the repo,
+typically at `~/.herdr/workspaces/<repo>/<name>/`. Detect it reliably:
 ```bash
-jj workspace list   # Shows all workspaces; your name is the current one
-pwd                 # If path contains .jj-workspaces/ you're in one
+jj workspace root   # Your working copy root, from any subdirectory
+jj workspace list   # All workspaces; yours is the one marked @
+
+# A secondary (agent) workspace stores .jj/repo as a FILE; the main checkout
+# stores it as a directory:
+[ -f "$(jj workspace root)/.jj/repo" ] && echo "agent workspace" || echo "main checkout"
 ```
 
 **Rules when inside a workspace:**
 - Only modify files within your working copy — never `cd` to the parent repo or other workspaces
 - Do NOT rebase onto, modify, or interact with commits from other workspaces
-- Do NOT run `jj workspace forget` — lifecycle is managed externally
+- Do NOT run `jj workspace forget` — lifecycle is managed externally (`herdr-jj rm`)
 - Your scope is `@` and its ancestors back to your fork point — nothing else
 - Use `jj log -r 'ancestors(@, 10)'` to orient yourself, not broad queries across all branches
+
+A `PreToolUse` guard enforces most of this: edits outside your workspace, pushes,
+PR mutations and outward-facing destructive commands are blocked. If something is
+denied, that is the guard doing its job — do not work around it, tell the user.
 
 If you need something from another branch (e.g. a type definition landed on main), rebase your work:
 ```bash

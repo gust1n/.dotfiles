@@ -76,11 +76,15 @@ prefix = "ctrl+a"
 # remove_worktree = ""  # optional, unset by default; opens confirmation
 # rename_workspace = "prefix+shift+w"
 # close_workspace = "prefix+shift+d"
+# NOTE: prefix+shift+a/r/d/y are bound to herdr-jj under [[keys.command]] below,
+# so leave new_worktree/remove_worktree/close_workspace unset. Closing a
+# workspace without removing its jj checkout is `herdr-jj rm`'s job.
 # previous_workspace = "" # optional, unset by default
 # next_workspace = ""     # optional, unset by default
 # previous_agent = ""     # optional, unset by default
 # next_agent = ""         # optional, unset by default
-# focus_agent = ""        # optional indexed binding, e.g. "prefix+alt+1..9"
+# Jump straight to the Nth agent — replaces the old tmux M-1..9 session switch.
+focus_agent = "prefix+alt+1..9"
 # remote_image_paste = "ctrl+v" # only active in herdr --remote; empty disables raw-key image paste
 # new_tab = "prefix+c"
 # rename_tab = "prefix+shift+t"
@@ -134,8 +138,43 @@ prefix = "ctrl+a"
 # workspaces = "" # e.g. "ctrl+shift" makes ctrl+shift+1..9 switch workspaces directly
 # agents = ""     # e.g. "alt" makes alt+1..9 focus agent rows directly
 
-# [worktrees]
-# directory = "~/.herdr/worktrees"
+# --- jj-workspace agents (bin/herdr-jj) ------------------------------------
+# herdr's own worktree support is git-only, which a jj repo won't track, so
+# these popups drive `herdr-jj` instead of new_worktree/remove_worktree above.
+# Deliberately using the same prefix+shift+a / prefix+shift+d shape.
+
+# New or attach: pick a repo, then one ranked list — running agents, idle
+# workspaces, your local bookmarks by recency, then everyone else's. Selecting a
+# workspace attaches to it; a bookmark branches a new one off it; typing a fresh
+# name starts new work.
+[[keys.command]]
+key = "prefix+shift+a"
+type = "popup"
+command = "herdr-jj new"
+width = "80%"
+height = "70%"
+
+# Remove the focused workspace: jj workspace forget + delete + close in herdr.
+# Prompts if it holds unpushed commits.
+[[keys.command]]
+key = "prefix+shift+d"
+type = "popup"
+command = "herdr-jj rm"
+width = "70%"
+height = "40%"
+
+# Sweep dead workspaces and divergent commits left by finished agents.
+[[keys.command]]
+key = "prefix+shift+y"
+type = "popup"
+command = "herdr-jj tidy"
+width = "70%"
+height = "60%"
+
+[worktrees]
+# Only used by herdr's built-in git worktree flow. jj workspaces live under
+# ~/.herdr/workspaces (HERDR_JJ_ROOT in bin/herdr-jj).
+directory = "~/.herdr/worktrees"
 
 [ui]
 # Sidebar width (auto-scaled based on workspace names, this sets the default)
@@ -235,8 +274,22 @@ prefix = "ctrl+a"
 # Accepts: hex (#89b4fa), named colors (cyan, blue, magenta), or rgb(r,g,b)
 # accent = "cyan"
 
+# "priority" puts agents that need you (blocked, then done) at the top of the
+# agent panel — the attention queue that replaces the old `C-a l` jump-next.
+# Switch back to "spaces" to group by workspace instead.
+agent_panel_sort = "priority"
+
+# Agent rows: state icon + which workspace, then what the agent is doing (its
+# terminal title, which for Claude Code is the current task summary).
+[ui.sidebar.agents]
+rows = [["state_icon", "workspace"], ["terminal_title_stripped"]]
+
+# Space rows: name, then the bookmark and dirty state of that checkout. `branch`
+# and `git_status` read the colocated git view, so they track jj too.
+[ui.sidebar.spaces]
+rows = [["state_icon", "workspace"], ["branch", "git_status"]]
+
 # Background notification popup delivery
-agent_panel_sort = "spaces"
 [ui.toast]
 # off = disable pop-up notifications
 # herdr = show in-app toasts

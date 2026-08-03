@@ -41,51 +41,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/Code/dotfiles/bin/agent-status working",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "permission_prompt|elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/Code/dotfiles/bin/agent-status waiting",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/Code/dotfiles/bin/agent-status working",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/Code/dotfiles/bin/agent-status done",
-            "timeout": 5000
-          }
-        ]
-      }
     ]
   },
   "enabledPlugins": {

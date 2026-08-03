@@ -1,125 +1,163 @@
 #!/usr/bin/env bash
-# PreToolUse hook: blocks externally destructive commands for agents in workspaces.
-# Agents run with --permission-mode dangerous; this hook is the safety net.
+# PreToolUse hook: sandboxes agents running in a jj workspace.
 #
-# Logic:
-#   - If not in a .jj-workspaces/ dir → pass through (normal permissions apply)
-#   - If tool is Bash → check command against deny patterns
-#   - Everything else (Read, Edit, Write, etc.) → allow
+# Agents are launched with --dangerously-skip-permissions so they never stop to
+# ask. This hook is the safety net that makes that acceptable:
+#
+#   - MAIN workspace (your own checkout) → pass through, normal permissions.
+#     Nothing here changes how you work by hand.
+#   - AGENT workspace (a secondary jj workspace) → keep file edits inside the
+#     workspace, and block commands that reach outside the machine.
+#
+# A jj repo has exactly one MAIN workspace, which stores .jj/repo as the store
+# DIRECTORY; every secondary workspace stores .jj/repo as a FILE pointing at it.
+# Detecting that structurally — rather than matching a path like
+# */.jj-workspaces/* — means the guard keeps working wherever checkouts live,
+# and can't be sidestepped by moving one.
+#
+# Containment is enforced for the file-editing tools. Bash is best-effort: a
+# denylist of outward-facing commands, not a sandbox. `sed -i` on an absolute
+# path outside the workspace would still get through.
 
 set -o pipefail
 
-LOG="/tmp/agent-guard.log"
-
-log() {
-  echo "$(date +%H:%M:%S) $*" >> "$LOG"
-}
+LOG="${AGENT_GUARD_LOG:-/tmp/agent-guard.log}"
+log() { echo "$(date +%H:%M:%S) $*" >>"$LOG" 2>/dev/null || true; }
 
 INPUT=$(cat)
-log "--- tool_name=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) cwd=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null | sed "s|$HOME|~|")"
+jqr() { jq -r "$1" 2>/dev/null <<<"$INPUT"; }
 
-# Only guard agents in workspaces
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
-if [[ -z "$CWD" || "$CWD" != */.jj-workspaces/* ]]; then
-  exit 0
-fi
+TOOL=$(jqr '.tool_name // empty')
+CWD=$(jqr '.cwd // empty')
+log "--- tool=$TOOL cwd=${CWD/#$HOME/~}"
 
-# Extract workspace root: /path/to/repo/.jj-workspaces/<name>/
-# CWD might be deeper (e.g. .../workspace-name/backend/pkg/)
-WORKSPACE_ROOT=$(echo "$CWD" | sed -E 's|(.*/.jj-workspaces/[^/]+).*|\1|')
+# No cwd, or it's gone: say nothing and let normal permissions apply.
+[[ -z "$CWD" || ! -d "$CWD" ]] && exit 0
 
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) || exit 0
+# jj resolves the workspace root from any subdirectory. Without jj (or outside a
+# repo) there's nothing to sandbox against.
+ROOT=$(cd "$CWD" 2>/dev/null && jj workspace root 2>/dev/null) || exit 0
+[[ -z "$ROOT" ]] && exit 0
+ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P) || exit 0
+
+# MAIN workspace → your own checkout, not an agent sandbox.
+[[ -d "$ROOT/.jj/repo" ]] && { log "  -> main workspace, pass through"; exit 0; }
+# Neither a file nor a dir: not a workspace root we understand.
+[[ -f "$ROOT/.jj/repo" ]] || exit 0
+
+log "  workspace=${ROOT/#$HOME/~}"
 
 allow() {
   log "  -> ALLOW"
-  jq -n '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "allow"
-    }
-  }'
+  jq -n '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "allow"}}'
   exit 0
 }
 
-deny() {
-  local reason="$1"
-  log "  -> ASK: $reason"
-  jq -n --arg reason "$reason" '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "ask",
-      permissionDecisionReason: $reason
-    }
-  }'
+ask() {
+  log "  -> ASK: $1"
+  jq -n --arg r "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'
   exit 0
 }
 
-# File-editing tools: only allow within the workspace
-if [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
-  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || { allow; }
-  # Expand ~ and resolve to absolute
-  FILE_PATH="${FILE_PATH/#\~/$HOME}"
-  if [[ -n "$FILE_PATH" && "$FILE_PATH" != "$WORKSPACE_ROOT"* ]]; then
-    deny "File edit outside workspace blocked — only modify files within $WORKSPACE_ROOT"
-  fi
-  allow
+# Is a path inside the workspace? Walks up to the deepest existing *directory*
+# and resolves that with `pwd -P`, so symlinks and `..` are collapsed to a real
+# location before comparing. The remaining components are appended verbatim,
+# which covers files that don't exist yet (a fresh Write) as well as existing
+# ones. Fails closed: if the path can't be resolved, it isn't inside.
+inside() {
+  local p="${1/#\~/$HOME}"
+  [[ "$p" != /* ]] && p="$ROOT/$p"   # relative paths are relative to the pane cwd
+
+  # A symlinked file points outside while its parent dir sits inside, so resolve
+  # the link itself first. `readlink -f` is GNU-only (and absent before
+  # macOS 13), so walk the chain by hand with plain `readlink`, which is POSIX
+  # and behaves the same everywhere. Bounded, so a symlink loop can't hang us.
+  local hops=0
+  while [[ -L "$p" && $hops -lt 40 ]]; do
+    local target
+    target=$(readlink "$p" 2>/dev/null) || break
+    # A relative link resolves against the directory holding the link.
+    [[ "$target" != /* ]] && target="$(dirname "$p")/$target"
+    p="$target"
+    hops=$((hops + 1))
+  done
+  # Still a link after 40 hops: a loop. Fail closed.
+  [[ -L "$p" ]] && return 1
+
+  local dir="$p" leaf=""
+  # Walk up to the deepest existing directory: covers files that don't exist yet.
+  while [[ ! -d "$dir" && "$dir" != "/" && -n "$dir" ]]; do
+    leaf="$(basename "$dir")${leaf:+/$leaf}"
+    dir=$(dirname "$dir")
+  done
+  local real
+  real=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
+  [[ -n "$leaf" ]] && real="$real/$leaf"
+  [[ "$real" == "$ROOT" || "$real" == "$ROOT"/* ]]
+}
+
+case "$TOOL" in
+  # Every tool that writes a file, keyed by where it takes the path.
+  Write|Edit|MultiEdit|NotebookEdit)
+    for field in '.tool_input.file_path' '.tool_input.notebook_path'; do
+      p=$(jqr "$field // empty")
+      [[ -z "$p" ]] && continue
+      inside "$p" || ask "Blocked: $TOOL targets $p, outside this agent's workspace ($ROOT). Only modify files inside the workspace."
+    done
+    allow
+    ;;
+  Bash|BashOutput|KillShell) ;;   # fall through to the command denylist
+  *) allow ;;                     # Read, Grep, Glob, WebFetch, … are safe
+esac
+
+CMD=$(jqr '.tool_input.command // empty')
+[[ -z "$CMD" ]] && allow
+
+# --- outward-facing commands: require a human ------------------------------
+# These publish, mutate shared state, or destroy things beyond this checkout.
+# The user pushes and opens PRs themselves (`jj pr`).
+
+re() { grep -qiE "$1" <<<"$CMD"; }
+
+re '(^|[;&|[:space:]])(git|jj)([[:space:]]+git)?[[:space:]]+push' \
+  && ask "Push blocked — the user pushes, or runs 'jj pr', when the work is ready."
+
+re 'gh[[:space:]]+pr[[:space:]]+(create|merge|close|edit|comment|review)' \
+  && ask "PR mutation blocked — use 'jj pr' only when the user explicitly asks."
+
+re 'gh[[:space:]]+issue[[:space:]]+(create|delete|close|edit|comment)' \
+  && ask "GitHub issue mutation blocked — needs explicit user instruction."
+
+re 'gh[[:space:]]+api[[:space:]].*-X[[:space:]]*(POST|PUT|PATCH|DELETE)' \
+  && ask "GitHub API write blocked — needs explicit user instruction."
+
+re '(gcloud|aws|az|kubectl|terraform)[[:space:]].*\b(delete|destroy|terminate|purge|rb)\b' \
+  && ask "Cloud/infra destructive operation blocked — needs explicit user instruction."
+
+re 'aws[[:space:]]+s3[[:space:]]+(rm|rb)' \
+  && ask "S3 deletion blocked — needs explicit user instruction."
+
+re 'docker[[:space:]]+push|npm[[:space:]]+publish|cargo[[:space:]]+publish|pnpm[[:space:]]+publish|(twine|uv)[[:space:]]+(upload|publish)' \
+  && ask "Publish blocked — needs explicit user instruction."
+
+re '(psql|mysql|mongo|mongosh)[[:space:]].*\b(DROP|DELETE|TRUNCATE|ALTER)\b' \
+  && ask "Database mutation blocked — needs explicit user instruction."
+
+# jj/git operations that reach past this workspace's own history.
+re 'jj[[:space:]]+workspace[[:space:]]+forget' \
+  && ask "Blocked: forgetting a workspace is managed by 'herdr-jj rm'."
+re 'jj[[:space:]]+(op[[:space:]]+(restore|undo)|abandon[[:space:]]+.*\ball\(\))' \
+  && ask "Repo-wide history rewrite blocked — this repo is shared with other agents."
+
+# Recursive delete: allow it inside the workspace, question it anywhere else.
+if re '(^|[;&|[:space:]])rm[[:space:]]+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)'; then
+  # Check every absolute-looking or ~ path in the command; also catch bare `rm -rf /`.
+  for tok in $CMD; do
+    case "$tok" in
+      -*) continue ;;
+      /*|~*) inside "$tok" || ask "Recursive delete outside the workspace blocked ($tok). Only delete inside $ROOT." ;;
+    esac
+  done
 fi
 
-# Non-Bash, non-file tools (Read, etc.) are always safe
-if [[ "$TOOL_NAME" != "Bash" ]]; then
-  allow
-fi
-
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || { allow; }
-[[ -z "$COMMAND" ]] && allow
-
-# --- Deny patterns: externally destructive commands ---
-
-# Git/jj push operations
-if echo "$COMMAND" | grep -qE '(git|jj)\s+(git\s+)?push'; then
-  deny "Push blocked — ask the user to push or use 'jj pr' when instructed."
-fi
-
-# PR creation
-if echo "$COMMAND" | grep -qE 'gh\s+pr\s+(create|merge|close)'; then
-  deny "PR mutation blocked — use 'jj pr' when explicitly instructed by the user."
-fi
-
-# GitHub issue/PR destructive actions
-if echo "$COMMAND" | grep -qE 'gh\s+(issue|pr)\s+(delete|close|edit|comment)'; then
-  deny "GitHub mutation blocked — requires explicit user instruction."
-fi
-
-# GitHub API write methods
-if echo "$COMMAND" | grep -qE 'gh\s+api\s+.*-X\s+(POST|PUT|PATCH|DELETE)'; then
-  deny "GitHub API write blocked — requires explicit user instruction."
-fi
-
-# Cloud provider destructive operations
-if echo "$COMMAND" | grep -qE '(gcloud|aws)\s+.*\b(delete|destroy|terminate|remove|purge)\b'; then
-  deny "Cloud destructive operation blocked — requires explicit user instruction."
-fi
-if echo "$COMMAND" | grep -qE 'aws\s+s3\s+(rm|rb)'; then
-  deny "AWS S3 deletion blocked — requires explicit user instruction."
-fi
-
-# Broad filesystem destruction outside workspace
-if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+|.*--recursive)'; then
-  # Allow rm -rf within the workspace
-  if ! echo "$COMMAND" | grep -qF "$CWD"; then
-    deny "Recursive delete outside workspace blocked — only delete files within your workspace."
-  fi
-fi
-
-# Docker push
-if echo "$COMMAND" | grep -qE 'docker\s+push'; then
-  deny "Docker push blocked — requires explicit user instruction."
-fi
-
-# Database mutations (common CLIs)
-if echo "$COMMAND" | grep -qiE '(psql|mysql|mongo)\s.*\b(DROP|DELETE|TRUNCATE|ALTER)\b'; then
-  deny "Database mutation blocked — requires explicit user instruction."
-fi
-
-# Everything else is allowed
 allow
