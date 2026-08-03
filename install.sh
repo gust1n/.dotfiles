@@ -35,6 +35,21 @@ fi
 echo "symlinking ~/.claude/CLAUDE.md -> $BASE/agents/AGENTS.md"
 ln -sfn "$BASE/agents/AGENTS.md" ~/.claude/CLAUDE.md
 
+# Agent skills live once in agents/skills/ and are linked into each agent's
+# skills dir. ~/.agents/skills is the vendor-neutral location that pi, opencode
+# and others read natively; Claude Code needs its own ~/.claude/skills.
+# Update a vendored skill with:
+#   cd agents && npx skills update
+for skills_dir in ~/.agents/skills ~/.claude/skills; do
+	mkdir -p "$(dirname "$skills_dir")"
+	if [ -e "$skills_dir" ] && [ ! -L "$skills_dir" ]; then
+		echo "backing up existing $skills_dir"
+		mv -v "$skills_dir" bak/ 2>/dev/null || rm -rf "$skills_dir"
+	fi
+	echo "symlinking $skills_dir -> $BASE/agents/skills"
+	ln -sfn "$BASE/agents/skills" "$skills_dir"
+done
+
 # Symlink all files folders (and backup existing)
 for rc in *rc *profile *ignore; do
 	target_location=~/.$rc

@@ -28,7 +28,8 @@ bin/herdr-jj    - jj workspace lifecycle: new (pick/attach) / rm / tidy
 bin/agent-guard - PreToolUse hook: sandboxes agents to their workspace
 config/herdr/config.toml - keybindings (popups → herdr-jj), sidebar, attention queue
 claude/settings.json     - the single PreToolUse hook
-~/.claude/skills/dispatch.md - /dispatch skill for spawning agents from a chat
+agents/AGENTS.md         - shared agent instructions (→ ~/.claude/CLAUDE.md)
+agents/skills/           - agent skills, linked into every agent (see below)
 ```
 
 That's it. Agent state icons, stale detection, the status bar and session
@@ -144,12 +145,41 @@ as a guardrail against an agent wandering off, not a security boundary.
 
 Debug with `tail -f /tmp/agent-guard.log` (override via `AGENT_GUARD_LOG`).
 
-## Dispatching from a Claude session
+## Agent skills
 
-`/dispatch <task>` — the skill writes a self-contained prompt and calls
-`herdr-jj new --repo … --name … --prompt …`. That path uses
-`herdr agent start`, which blocks until the agent is genuinely ready before
-submitting, rather than sleeping and hoping.
+Skills live once in `agents/skills/` and are linked into every agent, so they're
+tracked in this repo and not tied to one vendor:
+
+```
+agents/skills/            ← canonical, version-controlled
+  ├── herdr/SKILL.md      ← official skill from herdrdev/herdr
+  └── skills-lock.json    ← source + content hash, for updates
+~/.agents/skills  → agents/skills   (pi, opencode, codex, … read this natively)
+~/.claude/skills  → agents/skills   (Claude Code needs its own path)
+```
+
+Both symlinks are created by `install.sh`.
+
+**`herdr`** — the official skill, teaching an agent to drive herdr from inside a
+pane: split panes, start helper agents in siblings, read their output, wait on
+lifecycle states. It refuses to act unless `HERDR_ENV=1`, so it can't touch a
+session from outside. Note this is *sibling* delegation, orthogonal to the
+one-agent-per-jj-workspace isolation above — both can be used together.
+
+Add or update skills from the repo root:
+
+```bash
+cd agents && npx skills add <owner>/<repo> --skill <name> --agent universal -y
+cd agents && npx skills update          # refresh vendored skills
+```
+
+Install with `--agent universal`: it writes the plain `skills/<name>/SKILL.md`
+that every agent reads, instead of per-vendor copies. The `.agents/` nesting it
+creates is flattened into `agents/skills/` by hand.
+
+Scripted dispatch is still available (`herdr-jj new --repo … --prompt …`, which
+uses `herdr agent start` to wait for readiness rather than sleeping), but there
+is no longer a `/dispatch` skill — the herdr skill covers delegation.
 
 ## Notes
 
