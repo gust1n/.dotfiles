@@ -75,6 +75,34 @@ jj new
 
 After creating commits, always run `jj new` to maintain the squash workflow pattern.
 
+### Never let jj open an editor
+
+You have no interactive TTY, so any jj command that opens `$EDITOR` blocks until
+the harness kills it at timeout. `JJ_EDITOR=true` is exported for agent sessions,
+which stops the hang — but it does not always give the message you want, so still
+pass the message explicitly:
+
+| Command | Use |
+|---|---|
+| `jj squash` where **both** source and destination have descriptions | `jj squash --into <rev> --use-destination-message` |
+| `jj describe` | always with `-m "..."` (or `--stdin`) |
+| `jj commit` | always with `-m "..."` |
+| `jj split` | always with explicit **paths** and `-m "..."` |
+
+Two traps `JJ_EDITOR` does not cover:
+
+- **`jj squash` with no flags concatenates both messages.** With `JJ_EDITOR=true`
+  the editor is a no-op, so the destination silently keeps `dest msg\n\nwip: ...`
+  — your throwaway `wip:` line ends up in the real commit message. Use
+  `--use-destination-message` (keep the destination's) or `-m` (write a new one).
+- **`jj split` with no paths opens the builtin TUI diff editor**, which is
+  `ui.diff-editor`, not `JJ_EDITOR`. It fails fast (`Device not configured`)
+  rather than hanging, but it will not work — always name the paths.
+
+Path-scoped jj config (`--when.repositories`) does **not** apply inside secondary
+workspaces, so it cannot be used to make agent checkouts non-interactive; the
+environment variable is the mechanism.
+
 ## Workspace Isolation
 
 You may be running inside a **jj workspace** — a second working copy of the repo,

@@ -203,7 +203,11 @@ is no longer a `/dispatch` skill — the herdr skill covers delegation.
 - **Agent state needs no setup.** herdr detects Claude Code and its
   working/idle/blocked state from its screen manifest. `herdr integration
   install claude` is optional and only adds session-resume identity.
-- `bin/jj-workflow` (`jj pr`, `jj sync`, `jj start`) is unrelated and unchanged.
+- `bin/jj-workflow` (`jj pr`, `jj sync`, `jj start`) is otherwise unrelated to the
+  agent system, but it is non-interactive-safe: it exports `JJ_EDITOR=true` and
+  `GH_PROMPT_DISABLED=1` so it can never hang waiting on an editor or a prompt,
+  and `--help` short-circuits before any fetch/rebase/push. Agent sessions get the
+  same two variables from `claude/settings.json`.
 - Old `<repo>/.jj-workspaces/` checkouts from the tmux system are not migrated;
   finish or `jj workspace forget` them. The `gitignore` entry stays harmlessly.
 

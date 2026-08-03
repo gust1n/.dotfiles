@@ -11,7 +11,9 @@
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "eu.anthropic.claude-sonnet-5[1m]",
     "AWS_PROFILE": "bedrock",
     "AWS_REGION": "eu-north-1",
-    "CLAUDE_CODE_USE_BEDROCK": "1"
+    "CLAUDE_CODE_USE_BEDROCK": "1",
+    "GH_PROMPT_DISABLED": "1",
+    "JJ_EDITOR": "true"
   },
   "hooks": {
     "PreToolUse": [

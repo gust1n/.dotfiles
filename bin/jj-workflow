@@ -2,9 +2,47 @@
 # JJ workflow commands - based on odsod/machine jj/workflow.fish
 set -euo pipefail
 
+# This script is run non-interactively (agent sessions, scripts), where there is
+# no TTY to drive an editor or a prompt - anything that tried would hang until
+# something killed it. So: never let jj open $EDITOR, and make gh fail loudly
+# instead of prompting. Exported, so every jj/gh child process inherits it.
+export JJ_EDITOR=true
+export GH_PROMPT_DISABLED=1
+
 fail() {
     echo "$1" >&2
     exit 1
+}
+
+usage() {
+    cat <<'EOF'
+Usage: jj-workflow <command> [options]
+
+Commands:
+  sync          Fetch refs from origin
+  start         Start an empty working commit on top of latest main@origin
+  pr            Create or update a pull request for the current change
+
+Run 'jj-workflow <command> --help' for a command's options.
+EOF
+}
+
+usage_pr() {
+    cat <<'EOF'
+Usage: jj pr [options]
+
+Creates or updates a pull request for the current change: rebases onto
+main@origin, picks the nearest non-empty described commit as the publish
+target, moves the head bookmark there, pushes, and opens the PR.
+
+Options:
+  -r, --revision <rev>   Publish this revision instead of the automatic target
+      --body <text>      PR body (default: the commit description after line 1)
+      --draft            Create the PR as a draft
+  -h, --help             Show this help
+
+The PR title is always the first line of the commit description.
+EOF
 }
 
 fetch_origin() {
@@ -173,12 +211,20 @@ post_publish_new_working_commit() {
 # --- Subcommands ---
 
 cmd_sync() {
+    case "${1:-}" in
+        -h|--help) echo "Usage: jj sync    Fetch refs from origin."; return 0 ;;
+    esac
+
     try_update_stale_workspace
     fetch_origin
     echo "Synced refs from origin."
 }
 
 cmd_start() {
+    case "${1:-}" in
+        -h|--help) echo "Usage: jj start    Start an empty working commit on top of latest main@origin."; return 0 ;;
+    esac
+
     fetch_origin
     require_origin_main "jj start"
     jj new main@origin >/dev/null || fail "Failed to create new commit from main@origin."
@@ -187,10 +233,12 @@ cmd_start() {
 
 cmd_pr() {
     local opt_rev="" opt_body="" opt_draft=false
+    # Parse fully before any mutating work, so --help can't fetch/rebase/push.
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -r|--revision) opt_rev="$2"; shift 2 ;;
-            --body)        opt_body="$2"; shift 2 ;;
+            -h|--help)     usage_pr; return 0 ;;
+            -r|--revision) [[ $# -ge 2 ]] || fail "$1 needs a revision."; opt_rev="$2"; shift 2 ;;
+            --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
             --draft)       opt_draft=true; shift ;;
             *)             shift ;;
         esac
@@ -215,9 +263,12 @@ cmd_pr() {
     local pr_exists
     pr_exists=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
     if [[ -n "$pr_exists" && "$pr_exists" != "null" ]]; then
-        # Updating existing PR
+        # Updating existing PR. --allow-backwards because after a rebase the new
+        # commit is sideways from the pushed one - that is the normal case here,
+        # not a mistake: this branch only runs when an open PR already exists for
+        # this head, so repointing it at the current target is the whole job.
         jj bookmark track "$head" --remote=origin >/dev/null 2>&1 || true
-        jj bookmark set "$head" -r "$target" >/dev/null || fail "Failed to move $head to publish target."
+        jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null || fail "Failed to move $head to publish target."
         jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
     else
         # New PR
@@ -257,17 +308,21 @@ cmd_pr() {
 # --- Main ---
 
 case "${1:-}" in
+    -h|--help|help|"")
+        usage
+        ;;
     sync)
-        cmd_sync
+        shift; cmd_sync "$@"
         ;;
     start)
-        cmd_start
+        shift; cmd_start "$@"
         ;;
     pr)
         shift; cmd_pr "$@"
         ;;
     *)
-        echo "Usage: jj-workflow {sync|start|pr}" >&2
+        echo "jj-workflow: unknown command '$1'" >&2
+        usage >&2
         exit 1
         ;;
 esac
