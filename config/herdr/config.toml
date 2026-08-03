@@ -76,9 +76,11 @@ prefix = "ctrl+a"
 # remove_worktree = ""  # optional, unset by default; opens confirmation
 # rename_workspace = "prefix+shift+w"
 # close_workspace = "prefix+shift+d"
-# NOTE: prefix+shift+a/r/d/y are bound to herdr-jj under [[keys.command]] below,
-# so leave new_worktree/remove_worktree/close_workspace unset. Closing a
-# workspace without removing its jj checkout is `herdr-jj rm`'s job.
+# NOTE: prefix+shift+a/d/y are bound to herdr-jj under [[keys.command]] below.
+# shift+d shadows close_workspace on purpose but falls back to it outside an
+# agent workspace, so nothing native is lost. Leave new_worktree/
+# remove_worktree unset — those are git-worktree only, which a jj repo won't
+# track.
 # previous_workspace = "" # optional, unset by default
 # next_workspace = ""     # optional, unset by default
 # previous_agent = ""     # optional, unset by default
@@ -154,8 +156,11 @@ command = "herdr-jj new"
 width = "80%"
 height = "70%"
 
-# Remove the focused workspace: jj workspace forget + delete + close in herdr.
-# Prompts if it holds unpushed commits.
+# Same key as herdr's native close_workspace, and it keeps that meaning:
+#   in an agent workspace -> jj workspace forget + delete + close in herdr
+#                            (prompts first if it holds unpushed commits)
+#   anywhere else         -> plain "close this herdr workspace"
+# So while you're just coding, prefix+shift+d behaves exactly as stock herdr.
 [[keys.command]]
 key = "prefix+shift+d"
 type = "popup"

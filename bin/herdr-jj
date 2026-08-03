@@ -196,18 +196,6 @@ launch() {
     || echo "warning: could not submit the prompt; the agent is waiting for input" >&2
 }
 
-# --- workspace inventory ----------------------------------------------------
-
-# Every agent workspace on disk, as: <path>\t<repo-name>\t<jj-workspace-name>
-agent_workspaces() {
-  local d
-  for d in "$WS_ROOT"/*/*; do
-    [[ -d "$d" ]] || continue
-    is_agent_ws "$d" || continue
-    printf '%s\t%s\t%s\n' "$d" "$(basename "$(dirname "$d")")" "$(basename "$d")"
-  done
-}
-
 # --- the picker -------------------------------------------------------------
 
 # One ranked list of everything you might want to work on in this repo, most
@@ -404,24 +392,45 @@ cmd_new() {
   launch "$pane" "$prompt"
 }
 
+# Not an agent workspace: behave like herdr's native close_workspace. Prefer the
+# id herdr injected into this process; a popup inherits the calling pane's
+# context, so that is the workspace the user is looking at. Fall back to whatever
+# herdr currently reports as focused.
+close_this_workspace() {
+  local id="${HERDR_WORKSPACE_ID:-}"
+  [[ -z "$id" ]] && id=$(herdr api snapshot 2>/dev/null \
+    | jq -r '.result.snapshot.focused_workspace_id // empty' 2>/dev/null)
+  [[ -z "$id" ]] && die_pause "no herdr workspace to close"
+
+  local label
+  label=$(herdr api snapshot 2>/dev/null | jq -r --arg i "$id" \
+    '(.result.snapshot.workspaces // [])[] | select(.workspace_id==$i) | .label' 2>/dev/null)
+
+  # Closing kills the pane processes, so confirm when there is a terminal to ask.
+  if [[ -t 0 ]]; then
+    printf 'close workspace %s? [y/N] ' "${label:-$id}"
+    read -r ans
+    [[ "$ans" == [yY] ]] || { echo "aborted."; return 0; }
+  fi
+  herdr workspace close "$id" >/dev/null 2>&1 \
+    || die_pause "herdr workspace close $id failed"
+  echo "closed workspace ${label:-$id}"
+}
+
 cmd_rm() {
   need herdr jj jq
   local path="${1:-}"
 
   if [[ -z "$path" ]]; then
-    # Inside a workspace pane (the keybinding case), remove this one. Otherwise
-    # let the user pick.
+    # Bound to prefix+shift+d, which is herdr's own close_workspace. Keep that
+    # meaning: in an agent workspace, remove the checkout too; anywhere else fall
+    # back to plain "close this herdr workspace", so the key behaves natively
+    # while you're just coding.
     if is_agent_ws "$(jj workspace root 2>/dev/null || echo /nonexistent)"; then
       path=$(jj workspace root)
     else
-      need fzf
-      local rows
-      rows=$(agent_workspaces)
-      [[ -z "$rows" ]] && { echo "no agent workspaces." >&2; return 1; }
-      local pick
-      pick=$(printf '%s' "$rows" | awk -F'\t' '{print $2"/"$3}' | _fzf "remove") || return 0
-      [[ -z "$pick" ]] && return 0
-      path=$(printf '%s' "$rows" | awk -F'\t' -v k="$pick" '$2"/"$3==k {print $1; exit}')
+      close_this_workspace
+      return $?
     fi
   fi
 
@@ -521,7 +530,8 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
 
   herdr-jj new              pick a repo, then pick or name the work
   herdr-jj new --repo R --name N [--prompt P] [--agent CMD]
-  herdr-jj rm [path]        forget + delete a workspace, close it in herdr
+  herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
+                            anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
 
 The picker is one ranked list — running agents first, then idle workspaces, then

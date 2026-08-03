@@ -75,12 +75,24 @@ Prefix is `ctrl+a`.
 | Key | Does |
 |---|---|
 | `prefix+shift+a` | New agent, or attach to an existing workspace |
-| `prefix+shift+d` | Remove the focused workspace (forget + delete + close) |
+| `prefix+shift+d` | In an agent workspace: remove it. Elsewhere: close the workspace (native) |
 | `prefix+shift+y` | Tidy: sweep dead workspaces and divergent commits |
 | `prefix+w` | Workspace picker (herdr native) |
 | `prefix+alt+1..9` | Focus the Nth agent (herdr native) |
 | `prefix+g` | Goto (herdr native) |
 | `prefix+b` | Toggle sidebar (herdr native) |
+
+Only three keys are custom, and `shift+d` degrades to its native behaviour, so
+everything else is stock herdr — `prefix+shift+n` for a new workspace,
+`prefix+c` for a tab, `prefix+v` / `prefix+minus` to split.
+
+## Just coding (no agent)
+
+Nothing custom needed. Use native herdr — `prefix+shift+n` for a new workspace
+at any directory, then work in your main checkout as usual. No jj workspace is
+created, and `agent-guard` passes straight through in a main checkout, so your
+own permissions are untouched. The picker is only for spawning or reattaching to
+agents.
 
 ## CLI
 
