@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Merge pi/settings.json (tracked) + pi/settings.local.json (gitignored) into
+# ~/.pi/agent/settings.json, preserving pi-managed fields from the existing file.
+#
+# Run this after editing pi/settings.json in dotfiles, or on a new machine after
+# creating pi/settings.local.json with machine-specific provider/model settings.
+
+set -euo pipefail
+
+BASE="$(cd "$(dirname "$0")/.." && pwd)"
+PI_BASE="$BASE/pi/settings.json"
+PI_LOCAL="$BASE/pi/settings.local.json"
+PI_OUT="$HOME/.pi/agent/settings.json"
+
+if [ ! -f "$PI_BASE" ]; then
+  echo "error: $PI_BASE not found" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$PI_OUT")"
+
+node -e "
+  const fs = require('fs');
+  const base   = JSON.parse(fs.readFileSync('$PI_BASE',  'utf8'));
+  const local  = fs.existsSync('$PI_LOCAL')
+                   ? JSON.parse(fs.readFileSync('$PI_LOCAL', 'utf8'))
+                   : {};
+  const existing = fs.existsSync('$PI_OUT')
+                     ? JSON.parse(fs.readFileSync('$PI_OUT', 'utf8'))
+                     : {};
+
+  // Preserve pi-managed fields from the live file so pi doesn't re-show
+  // changelogs, re-generate theme names, etc.
+  const piManaged = ['lastChangelogVersion', 'theme', 'trackingId', 'enableAnalytics'];
+  const preserved = {};
+  for (const k of piManaged) {
+    if (existing[k] !== undefined) preserved[k] = existing[k];
+  }
+
+  const merged = { ...base, ...local, ...preserved };
+  fs.writeFileSync('$PI_OUT', JSON.stringify(merged, null, 2) + '\n');
+" 
+
+if [ -f "$PI_LOCAL" ]; then
+  echo "merged pi/settings.json + pi/settings.local.json → $PI_OUT"
+else
+  echo "no pi/settings.local.json found — written from base only → $PI_OUT"
+  echo "hint: create pi/settings.local.json with { \"defaultProvider\": \"...\", \"defaultModel\": \"...\" }"
+fi

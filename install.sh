@@ -44,6 +44,11 @@ fi
 echo "symlinking ~/.pi/agent/AGENTS.md -> $BASE/agents/AGENTS.md"
 ln -sfn "$BASE/agents/AGENTS.md" ~/.pi/agent/AGENTS.md
 
+# Generate ~/.pi/agent/settings.json from tracked base + gitignored local override.
+# pi/settings.local.json (gitignored) holds machine-specific defaultProvider/defaultModel.
+# See bin/pi-settings-sync to re-run this after editing pi/settings.json.
+"$BASE/bin/pi-settings-sync"
+
 # Agent skills live once in agents/skills/ and are linked into each agent's
 # skills dir. ~/.agents/skills is the vendor-neutral location that pi, opencode
 # and others read natively; Claude Code needs its own ~/.claude/skills.

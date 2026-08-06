@@ -1,0 +1,10 @@
+{
+  "defaultThinkingLevel": "high",
+  "quietStartup": true,
+  "hideThinkingBlock": true,
+  "packages": [
+    "git:github.com/SamuelLHuber/pi-jj-statusbar@v1.0.2",
+    "npm:pi-jj",
+    "npm:@ogulcancelik/pi-ghostty-theme-sync"
+  ]
+}
