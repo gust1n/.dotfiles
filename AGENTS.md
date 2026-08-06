@@ -193,6 +193,14 @@ Scripted dispatch is still available (`herdr-jj new --repo … --prompt …`, wh
 uses `herdr agent start` to wait for readiness rather than sleeping), but there
 is no longer a `/dispatch` skill — the herdr skill covers delegation.
 
+## Tool Installation
+
+**Prefer mise for all CLI tools.** Only use Homebrew for bootstrap dependencies
+(mise itself, system-level packages that don't work well under mise). Everything
+else — language runtimes, linters, CLI agents, formatters — goes in
+`config/mise/config.toml`. This keeps tools version-pinnable, portable across
+machines, and avoids Homebrew's "upgrade everything" behaviour.
+
 ## Notes
 
 - **Portable across macOS and Linux.** Both scripts avoid GNU-only behaviour:

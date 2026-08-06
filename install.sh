@@ -35,6 +35,15 @@ fi
 echo "symlinking ~/.claude/CLAUDE.md -> $BASE/agents/AGENTS.md"
 ln -sfn "$BASE/agents/AGENTS.md" ~/.claude/CLAUDE.md
 
+# Symlink ~/.pi/agent/AGENTS.md
+mkdir -p ~/.pi/agent
+if [ -e ~/.pi/agent/AGENTS.md ] && [ ! -L ~/.pi/agent/AGENTS.md ]; then
+	echo "backing up existing ~/.pi/agent/AGENTS.md"
+	mv -v ~/.pi/agent/AGENTS.md bak/
+fi
+echo "symlinking ~/.pi/agent/AGENTS.md -> $BASE/agents/AGENTS.md"
+ln -sfn "$BASE/agents/AGENTS.md" ~/.pi/agent/AGENTS.md
+
 # Agent skills live once in agents/skills/ and are linked into each agent's
 # skills dir. ~/.agents/skills is the vendor-neutral location that pi, opencode
 # and others read natively; Claude Code needs its own ~/.claude/skills.
@@ -90,6 +99,11 @@ then
 fi
 
 git config --global core.excludesfile ~/.gitignore
+
+# Install brew packages
+if command -v brew >/dev/null 2>&1; then
+	brew bundle --file="$BASE/Brewfile"
+fi
 
 # Check if some base tools are installed and prompt to install otherwise
 command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
