@@ -29,3 +29,7 @@ config/mise/config.local.toml
 
 # Pi machine-specific settings (provider/model overrides)
 pi/settings.local.json
+
+# Herdr plugin installs and runtime state (managed by herdr, machine-specific)
+config/herdr/plugins/
+config/herdr/plugins.json
