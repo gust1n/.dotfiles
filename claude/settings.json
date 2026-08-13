@@ -42,6 +42,10 @@
       }
     ]
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "autoMemoryEnabled": false,
   "cleanupPeriodDays": 3650,
   "effortLevel": "xhigh",
