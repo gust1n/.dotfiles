@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Pick a URL from the calling pane's content and open it.
+# HERDR_PANE_ID is not injected by herdr into popup terminals; fall back to
+# `herdr pane current --current` which resolves the calling pane.
+# Reads both `visible` (captures Claude Code / alternate-screen apps) and
+# `recent-unwrapped` (captures regular terminal scrollback history).
+
+set -uo pipefail
+
+_notify() { herdr notification show "URL Picker" --body "$*" 2>/dev/null || true; }
+
+command -v herdr   >/dev/null || exit 0
+command -v fzf     >/dev/null || { _notify "fzf not found"; exit 1; }
+command -v python3 >/dev/null || { _notify "python3 not found"; exit 1; }
+
+pane_id="${HERDR_PANE_ID:-}"
+if [[ -z "$pane_id" ]]; then
+  pane_id=$(herdr pane current --current 2>/dev/null \
+    | jq -r '.result.pane.pane_id // empty' 2>/dev/null)
+fi
+[[ -n "$pane_id" ]] || exit 0
+
+raw=$(printf '%s\n%s\n' \
+  "$(herdr pane read "$pane_id" --source visible 2>/dev/null)" \
+  "$(herdr pane read "$pane_id" --source recent-unwrapped --lines 2000 2>/dev/null)")
+
+[[ -n "$raw" ]] || { _notify "No text in pane"; exit 0; }
+
+urls=$(printf '%s\n' "$raw" | python3 -c '
+import re, sys
+
+pat = re.compile(
+    r"https?://[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?"
+    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)+"
+    r"(?:[:/][a-zA-Z0-9._%+~:/?#@!$&()*,;=\-]*[a-zA-Z0-9/=_~#)-])?"
+)
+
+seen = set()
+urls = []
+for line in sys.stdin:
+    for url in pat.findall(line):
+        opens  = url.count("(")
+        closes = url.count(")")
+        while closes > opens and url.endswith(")"):
+            url = url[:-1]
+            closes -= 1
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+
+for url in reversed(urls):
+    print(url)
+')
+
+[[ -n "$urls" ]] || { _notify "No URLs found"; exit 0; }
+
+selected=$(printf '%s\n' "$urls" \
+  | fzf --prompt="Open URL> " --height=100% --reverse --no-multi \
+        --bind='ctrl-j:down,ctrl-k:up')
+
+[[ -n "$selected" ]] && open "$selected"

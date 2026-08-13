@@ -297,16 +297,40 @@ pick_target() {
   printf '%s\n' "$picked"
 }
 
+# --- model picker ----------------------------------------------------------
+
+# Interactive model-tier prompt. Esc or empty input → opus (default).
+pick_model() {
+  local choice
+  choice=$(printf '%s\n' \
+      'opus    planner / orchestrator' \
+      'sonnet  worker / balanced' \
+      'haiku   simple tasks / cheapest' \
+    | fzf --prompt='model> ' --height=25% --reverse --no-sort --no-multi \
+          --bind='ctrl-j:down,ctrl-k:up' \
+          --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
+  local tier="${choice%% *}"  # first word; empty if Esc
+  case "${tier:-opus}" in
+    opus)   printf 'claude --dangerously-skip-permissions --model %s\n' \
+                "${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
+    sonnet) printf 'claude --dangerously-skip-permissions --model %s\n' \
+                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
+    haiku)  printf 'claude --dangerously-skip-permissions --model %s\n' \
+                "${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+    *)      printf 'claude --dangerously-skip-permissions\n' ;;
+  esac
+}
+
 # --- commands ---------------------------------------------------------------
 
 cmd_new() {
-  local repo="" name="" prompt="" agent=""
+  local repo="" name="" prompt="" agent="" model_specified=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)   repo="${2:-}"; shift 2 ;;
       --name)   name="${2:-}"; shift 2 ;;
       --prompt) prompt="${2:-}"; shift 2 ;;
-      --agent)  agent="${2:-}"; shift 2 ;;
+      --agent)  agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
           opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
@@ -314,7 +338,7 @@ cmd_new() {
           haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
           *)      agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
-        shift 2 ;;
+        model_specified=1; shift 2 ;;
       *) shift ;;
     esac
   done
@@ -342,6 +366,9 @@ cmd_new() {
   if (( interactive )); then
     name=$(pick_target "$repo") || return 0
     [[ -z "$name" ]] && return 0
+    if (( ! model_specified )); then
+      AGENT_CMD=$(pick_model)
+    fi
   fi
 
   name="${name%@origin}"

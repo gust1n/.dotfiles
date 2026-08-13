@@ -176,6 +176,24 @@ command = "herdr-jj tidy"
 width = "70%"
 height = "60%"
 
+# URL picker: extract and open URLs from the current pane's scrollback.
+[[keys.command]]
+key = "prefix+shift+u"
+type = "popup"
+command = "herdr-url-picker"
+width = "80%"
+height = "60%"
+description = "URL Picker"
+
+# jj status overlay — quick repo state without leaving the current pane.
+[[keys.command]]
+key = "prefix+shift+j"
+type = "popup"
+command = "jj-status-popup"
+width = "85%"
+height = "85%"
+description = "jj Status"
+
 [worktrees]
 # Only used by herdr's built-in git worktree flow. jj workspaces live under
 # ~/.herdr/workspaces (HERDR_JJ_ROOT in bin/herdr-jj).
@@ -296,12 +314,8 @@ rows = [["state_icon", "workspace"], ["branch", "git_status"]]
 
 # Background notification popup delivery
 [ui.toast]
-# off = disable pop-up notifications
-# herdr = show in-app toasts
-# terminal = ask the outer terminal to show a desktop notification
-# system = ask the OS notification service directly
-# delivery = "off"
-# delay_seconds = 1
+delivery = "herdr"
+delay_seconds = 1
 
 [ui.toast.herdr]
 # position = "bottom-right"

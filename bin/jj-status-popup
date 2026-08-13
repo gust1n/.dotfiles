@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# jj-status-popup — show jj status in a herdr popup and wait for a keypress.
+jj --no-pager --color=always status
+printf '\n\033[2mpress any key to close\033[0m'
+read -rsn1
