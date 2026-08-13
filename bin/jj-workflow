@@ -123,9 +123,9 @@ current_head_bookmark() {
     local ws
     ws=$(jj workspace list -T 'if(self.target().current_working_copy(), self.name(), "") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1)
     if [[ -n "$ws" && "$ws" != "default" ]]; then
-        local at_ws
-        at_ws=$(jj log -r "bookmarks(\"$ws\") & $rev" --no-graph 2>/dev/null || true)
-        if [[ -n "$at_ws" ]]; then
+        # Use the workspace bookmark as long as it exists *somewhere* — it need
+        # not be at $rev yet; cmd_pr moves it to the target before pushing.
+        if jj log -r "present(bookmarks(\"$ws\"))" --no-graph -T '""' >/dev/null 2>&1; then
             echo "$ws"
             return 0
         fi
@@ -271,8 +271,13 @@ cmd_pr() {
         jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null || fail "Failed to move $head to publish target."
         jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
     else
-        # New PR
-        jj git push -c "$target" || fail "Failed to push publish target."
+        # New PR — move (or create) the head bookmark to the target, then push.
+        # jj git push -c would auto-generate a push-<id> name; using the named
+        # bookmark instead means the PR head matches the workspace name.
+        jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null 2>&1 \
+            || jj bookmark create "$head" -r "$target" >/dev/null 2>&1 \
+            || fail "Failed to set bookmark $head at publish target."
+        jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
     fi
 
     # Create or find existing PR
