@@ -389,6 +389,8 @@ cmd_new() {
     fi
     [[ -z "$pane" ]] && die_pause "herdr did not return a pane for $path"
     echo "reopened ${path/#$HOME/~}" >&2
+    # Re-trust in case the workspace was cleaned or mise's cache expired.
+    command -v mise >/dev/null 2>&1 && mise trust "$path" >/dev/null 2>&1 || true
     if [[ -n "$prompt" ]]; then
       launch "$pane" "$prompt"
     else
@@ -419,6 +421,10 @@ cmd_new() {
   jj -R "$path" bookmark create "$name" -r '@' >/dev/null 2>&1 \
     || jj -R "$path" bookmark set "$name" -r '@' >/dev/null 2>&1 \
     || echo "warning: could not create bookmark $name" >&2
+
+  # Trust mise config files in the workspace so the agent shell can find tools
+  # immediately — without this, mise shows a trust prompt before claude starts.
+  command -v mise >/dev/null 2>&1 && mise trust "$path" >/dev/null 2>&1 || true
 
   echo "created $path (base: $base)" >&2
   local pane
