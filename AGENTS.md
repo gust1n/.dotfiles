@@ -3,7 +3,7 @@
 Parallel Claude Code agents, each in its own **jj workspace**, orchestrated by
 **herdr**.
 
-**See [PERSONAL.md](PERSONAL.md) for general workflow instructions (version control, tools, code style).**
+**See [agents/AGENTS.md](agents/AGENTS.md) for general workflow instructions (version control, tools, code style).**
 
 ## The idea
 
@@ -203,21 +203,8 @@ machines, and avoids Homebrew's "upgrade everything" behaviour.
 
 ## Notes
 
-- **Portable across macOS and Linux.** Both scripts avoid GNU-only behaviour:
-  no `readlink -f` (symlink chains are walked with POSIX `readlink`), no
-  `sed -E` groups, no `timeout`, no bash 4+ features. Verified running under
-  bash 3.2 (macOS system bash) as well as bash 5, and with `find` as a fallback
-  when `fd` is absent — both discovery paths return identical results.
-- **Agent state needs no setup.** herdr detects Claude Code and its
-  working/idle/blocked state from its screen manifest. `herdr integration
-  install claude` is optional and only adds session-resume identity.
-- `bin/jj-workflow` (`jj pr`, `jj sync`, `jj start`) is otherwise unrelated to the
-  agent system, but it is non-interactive-safe: it exports `JJ_EDITOR=true` and
-  `GH_PROMPT_DISABLED=1` so it can never hang waiting on an editor or a prompt,
-  and `--help` short-circuits before any fetch/rebase/push. Agent sessions get the
-  same two variables from `claude/settings.json`.
-- Old `<repo>/.jj-workspaces/` checkouts from the tmux system are not migrated;
-  finish or `jj workspace forget` them. The `gitignore` entry stays harmlessly.
+- `bin/jj-workflow` (`jj pr`, `jj sync`, `jj start`) is non-interactive-safe: it exports `JJ_EDITOR=true` and `GH_PROMPT_DISABLED=1` and `--help` short-circuits before any fetch/rebase/push. Agent sessions get the same two variables from `claude/settings.json`.
+- Both scripts are portable across macOS and Linux (POSIX, bash 3.2+, `find` fallback when `fd` is absent).
 
 ## Important
 
