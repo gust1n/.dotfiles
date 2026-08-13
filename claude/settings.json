@@ -12,6 +12,8 @@
     "AWS_PROFILE": "bedrock",
     "AWS_REGION": "eu-north-1",
     "CLAUDE_CODE_USE_BEDROCK": "1",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": "eu-north-1",
     "GH_PROMPT_DISABLED": "1",
     "JJ_EDITOR": "true"
   },
@@ -40,6 +42,9 @@
       }
     ]
   },
+  "autoMemoryEnabled": false,
+  "cleanupPeriodDays": 3650,
+  "effortLevel": "xhigh",
   "model": "opus",
   "permissions": {
     "allow": [

@@ -307,6 +307,14 @@ cmd_new() {
       --name)   name="${2:-}"; shift 2 ;;
       --prompt) prompt="${2:-}"; shift 2 ;;
       --agent)  agent="${2:-}"; shift 2 ;;
+      --model)
+        case "${2:-}" in
+          opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
+          sonnet) agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
+          haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+          *)      agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
+        esac
+        shift 2 ;;
       *) shift ;;
     esac
   done
@@ -529,7 +537,7 @@ case "${1:-}" in
 herdr-jj — jj-workspace-backed agent sessions for herdr
 
   herdr-jj new              pick a repo, then pick or name the work
-  herdr-jj new --repo R --name N [--prompt P] [--agent CMD]
+  herdr-jj new --repo R --name N [--prompt P] [--model opus|sonnet|haiku] [--agent CMD]
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
