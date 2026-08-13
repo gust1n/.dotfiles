@@ -19,6 +19,7 @@ For simple requests, skip the ceremony and just execute.
 
 Custom jj commands:
 - `jj pr` — Create or update a pull request (bookmark + push + gh pr create).
+- `jj pr-edit` — Edit the title or body of an existing PR. Use this instead of `gh pr edit`.
 - `jj sync` — Sync with remote and rebase.
 - `jj start <name>` — Start new feature.
 
@@ -32,6 +33,14 @@ jj pr --draft          # draft PR
 ```
 
 The PR title is always the first line of the commit description.
+
+**Editing an existing PR**: Always use `jj pr-edit`. Do NOT call `gh pr edit` directly — it fails in jj workspaces because there is no `.git` directory.
+
+```bash
+jj pr-edit --number 141 --body "..."   # update body
+jj pr-edit --number 141 --title "..."  # update title
+jj pr-edit --number 141 --title "..." --body "..."  # update both
+```
 
 ### The Squash Workflow
 

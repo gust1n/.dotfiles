@@ -22,6 +22,7 @@ Commands:
   sync          Fetch refs from origin
   start         Start an empty working commit on top of latest main@origin
   pr            Create or update a pull request for the current change
+  pr-edit       Edit the title or body of an existing pull request
 
 Run 'jj-workflow <command> --help' for a command's options.
 EOF
@@ -208,6 +209,24 @@ post_publish_new_working_commit() {
     echo "Started new working commit on top of published change."
 }
 
+usage_pr_edit() {
+    cat <<'EOF'
+Usage: jj pr-edit [options]
+
+Edits the title or body of an existing pull request.
+Does not push. Use this to update metadata without republishing.
+
+Options:
+  -n, --number <num>   PR number to edit (required)
+      --title <text>   New PR title
+      --body <text>    New PR body
+  -h, --help           Show this help
+
+Note: jj workspaces have no .git directory, so plain 'gh pr edit' fails.
+This command derives the repo from the jj origin remote.
+EOF
+}
+
 # --- Subcommands ---
 
 cmd_sync() {
@@ -229,6 +248,41 @@ cmd_start() {
     require_origin_main "jj start"
     jj new main@origin >/dev/null || fail "Failed to create new commit from main@origin."
     echo "Now working on a new commit on top of latest main@origin."
+}
+
+cmd_pr_edit() {
+    local opt_number="" opt_title="" opt_body=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)     usage_pr_edit; return 0 ;;
+            -n|--number)   [[ $# -ge 2 ]] || fail "$1 needs a PR number."; opt_number="$2"; shift 2 ;;
+            --title)       [[ $# -ge 2 ]] || fail "$1 needs a title."; opt_title="$2"; shift 2 ;;
+            --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
+            *)             shift ;;
+        esac
+    done
+
+    [[ -n "$opt_number" ]] || fail "--number is required. Example: jj pr-edit --number 141 --body \"...\""
+
+    local repo
+    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
+
+    local gh_args=(--repo "$repo")
+    [[ -n "$opt_title" ]] && gh_args+=(--title "$opt_title")
+
+    if [[ -n "$opt_body" ]]; then
+        local body_file
+        body_file=$(mktemp)
+        printf '%s' "$opt_body" > "$body_file"
+        gh_args+=(--body-file "$body_file")
+        gh pr edit "$opt_number" "${gh_args[@]}" || { rm -f "$body_file"; fail "Failed to edit PR #$opt_number."; }
+        rm -f "$body_file"
+    else
+        [[ ${#gh_args[@]} -gt 2 ]] || fail "Provide at least --title or --body."
+        gh pr edit "$opt_number" "${gh_args[@]}" || fail "Failed to edit PR #$opt_number."
+    fi
+
+    echo "Updated PR #$opt_number."
 }
 
 cmd_pr() {
@@ -324,6 +378,9 @@ case "${1:-}" in
         ;;
     pr)
         shift; cmd_pr "$@"
+        ;;
+    pr-edit)
+        shift; cmd_pr_edit "$@"
         ;;
     *)
         echo "jj-workflow: unknown command '$1'" >&2
