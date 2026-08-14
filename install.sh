@@ -110,6 +110,14 @@ if command -v brew >/dev/null 2>&1; then
 	brew bundle --file="$BASE/Brewfile"
 fi
 
+# Install Antigravity CLI (agy) - self-updating binary, not managed by mise
+if ! command -v agy >/dev/null 2>&1; then
+	echo "Installing Antigravity CLI (agy)..."
+	curl -fsSL https://antigravity.google/cli/install.sh | bash
+else
+	echo "agy already installed: $(agy --version 2>/dev/null)"
+fi
+
 # Check if some base tools are installed and prompt to install otherwise
 command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
 command -v fzf >/dev/null 2>&1 || { echo >&2 "fzf is needed but not found as executable in $PATH, please install."; }
