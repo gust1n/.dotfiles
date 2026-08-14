@@ -25,6 +25,11 @@ CODE_DIR="${CODE_DIR:-$HOME/Code}"
 WS_ROOT="${HERDR_JJ_ROOT:-$HOME/.herdr/workspaces}"
 AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
 
+# Models for the 3-agent loop layout. Override via environment variables.
+LOOP_PLANNER_MODEL="${LOOP_PLANNER_MODEL:-eu.anthropic.claude-opus-4-6-v1}"
+LOOP_WORKER_MODEL="${LOOP_WORKER_MODEL:-eu.anthropic.claude-sonnet-4-6}"
+LOOP_JUDGE_MODEL="${LOOP_JUDGE_MODEL:-eu.anthropic.claude-sonnet-5}"
+
 # --- plumbing ---------------------------------------------------------------
 
 die() { echo "error: $*" >&2; exit 1; }
@@ -300,13 +305,15 @@ pick_target() {
 # --- model picker ----------------------------------------------------------
 
 # Interactive model-tier prompt. Esc or empty input → opus (default).
+# Returns a command string, or the sentinel "__loop__" when loop is chosen.
 pick_model() {
   local choice
   choice=$(printf '%s\n' \
       'opus    planner / orchestrator' \
       'sonnet  worker / balanced' \
       'haiku   simple tasks / cheapest' \
-    | fzf --prompt='model> ' --height=25% --reverse --no-sort --no-multi \
+      'loop    3-agent loop: planner (opus) + worker (sonnet) + judge (sonnet-5)' \
+    | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
           --bind='ctrl-j:down,ctrl-k:up' \
           --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
   local tier="${choice%% *}"  # first word; empty if Esc
@@ -317,25 +324,116 @@ pick_model() {
                 "${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
     haiku)  printf 'claude --dangerously-skip-permissions --model %s\n' \
                 "${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+    loop)   printf '__loop__\n' ;;
     *)      printf 'claude --dangerously-skip-permissions\n' ;;
   esac
+}
+
+# --- loop layout ------------------------------------------------------------
+
+# Start a named pi agent in a pane with its role baked into the system prompt.
+# Blocks until pi is ready (up to 60 s). Falls back to pane run if
+# agent start times out (e.g. root pane still settling after workspace create).
+_loop_start_agent() {
+  local pane="$1" name="$2" model="$3"
+
+  # Role-specific system prompt appended to pi's default so the agent knows
+  # its job without the user having to explain it on every session start.
+  local role_prompt
+  case "$name" in
+    planner)
+      role_prompt='You are the planner in a 3-agent development loop (planner / worker / judge) running inside herdr. The other agents in this workspace are: worker (top-right) and judge (bottom-left).
+
+When the user gives you a task, immediately load /planner-role — do not wait to be asked. Bootstrap the session: resolve the main repo path, create the plan file under .plans/, signal the worker and judge with the plan path and their role skill, then begin grilling requirements from the user.' ;;
+    worker)
+      role_prompt='You are the worker in a 3-agent development loop. You will receive phase signals from the planner via herdr. When signalled, load /worker-role and implement the work as directed. Until then, wait quietly.' ;;
+    judge)
+      role_prompt='You are the judge in a 3-agent development loop. You will receive review signals from the planner via herdr. When signalled, load /judge-role and perform an adversarial cold review. Until then, wait quietly.' ;;
+    terminal)
+      role_prompt='' ;;  # plain shell, no agent
+    *)
+      role_prompt='' ;;
+  esac
+
+  # Build pi args as an array to handle quoting correctly.
+  local pi_args=(--model "$model" --no-session --name "$name")
+  [[ -n "$role_prompt" ]] && pi_args+=(--append-system-prompt "$role_prompt")
+
+  if ! herdr agent start "$name" --kind pi --pane "$pane" --timeout 60000 \
+       -- "${pi_args[@]}" >/dev/null 2>&1; then
+    echo "warning: $name agent start timed out; falling back to pane run" >&2
+    # Fallback omits system prompt — skills still auto-load from ~/.agents/skills/
+    herdr pane run "$pane" "pi --model $model --no-session --name $name" >/dev/null 2>&1
+    sleep 4  # give pi time to draw its UI before reporting metadata
+  fi
+
+  # Override the sidebar 'agent' token so the role name shows instead of "pi".
+  herdr pane report-metadata "$pane" \
+    --source "herdr-jj:loop" --agent pi --applies-to-source "herdr:pi" \
+    --display-agent "$name" 2>/dev/null || true
+}
+
+# Build a 3-agent + 1 terminal layout.
+#
+#   root_pane (planner) | worker_pane
+#   judge_pane           | term_pane (shell — run builds, tail logs)
+#
+launch_loop() {
+  local root_pane="$1" prompt="${2:-}" path="${3:-$PWD}"
+
+  echo "creating loop layout (planner | worker / judge | terminal)..." >&2
+
+  local worker_pane judge_pane term_pane
+  worker_pane=$(herdr pane split --pane "$root_pane" --direction right \
+    --cwd "$path" --no-focus 2>/dev/null | jq -r '.result.pane.pane_id // empty')
+  [[ -n "$worker_pane" ]] || { echo "error: could not create worker pane" >&2; return 1; }
+
+  judge_pane=$(herdr pane split --pane "$root_pane" --direction down \
+    --cwd "$path" --no-focus 2>/dev/null | jq -r '.result.pane.pane_id // empty')
+  [[ -n "$judge_pane" ]] || { echo "error: could not create judge pane" >&2; return 1; }
+
+  term_pane=$(herdr pane split --pane "$worker_pane" --direction down \
+    --cwd "$path" --no-focus 2>/dev/null | jq -r '.result.pane.pane_id // empty')
+  [[ -n "$term_pane" ]] || { echo "error: could not create terminal pane" >&2; return 1; }
+
+  echo "starting agents: planner → worker → judge (~30s each)..." >&2
+  sleep 2  # let the root pane shell fully settle before agent start
+  _loop_start_agent "$root_pane"  planner "$LOOP_PLANNER_MODEL"
+  _loop_start_agent "$worker_pane" worker  "$LOOP_WORKER_MODEL"
+  _loop_start_agent "$judge_pane"  judge   "$LOOP_JUDGE_MODEL"
+  # term_pane stays as a plain shell
+  herdr pane report-metadata "$term_pane" \
+    --source "herdr-jj:loop" --agent pi --applies-to-source "herdr:pi" \
+    --display-agent "terminal" 2>/dev/null || true
+
+  herdr agent focus planner 2>/dev/null || true
+
+  if [[ -n "$prompt" ]]; then
+    herdr agent prompt planner "$prompt" 2>/dev/null \
+      || echo "warning: could not deliver initial prompt to planner" >&2
+  fi
+
+  printf 'loop ready\n  planner (opus)     %s\n  worker (sonnet)    %s\n  judge (sonnet-5)   %s\n  terminal           %s\n' \
+    "$root_pane" "$worker_pane" "$judge_pane" "$term_pane" >&2
 }
 
 # --- commands ---------------------------------------------------------------
 
 cmd_new() {
-  local repo="" name="" prompt="" agent="" model_specified=0
+  local repo="" name="" prompt="" agent="" model_specified=0 layout=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)   repo="${2:-}"; shift 2 ;;
       --name)   name="${2:-}"; shift 2 ;;
       --prompt) prompt="${2:-}"; shift 2 ;;
+      --layout) layout="${2:-}"; model_specified=1; shift 2 ;;
       --agent)  agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
           opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
           sonnet) agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
           haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+          loop)   layout="loop" ;;
           *)      agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
         model_specified=1; shift 2 ;;
@@ -367,7 +465,13 @@ cmd_new() {
     name=$(pick_target "$repo") || return 0
     [[ -z "$name" ]] && return 0
     if (( ! model_specified )); then
-      AGENT_CMD=$(pick_model)
+      local _picked
+      _picked=$(pick_model)
+      if [[ "$_picked" == "__loop__" ]]; then
+        layout="loop"
+      else
+        AGENT_CMD="$_picked"
+      fi
     fi
   fi
 
@@ -430,7 +534,11 @@ cmd_new() {
   local pane
   pane=$(open_ws "$path" "$name")
   [[ -n "$pane" && "$pane" != "FOCUSED" ]] || die_pause "herdr did not return a pane"
-  launch "$pane" "$prompt"
+  if [[ "$layout" == "loop" ]]; then
+    launch_loop "$pane" "$prompt" "$path"
+  else
+    launch "$pane" "$prompt"
+  fi
 }
 
 # Not an agent workspace: behave like herdr's native close_workspace. Prefer the

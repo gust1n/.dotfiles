@@ -28,6 +28,7 @@ bin/herdr-jj    - jj workspace lifecycle: new (pick/attach) / rm / tidy
 bin/agent-guard - PreToolUse hook: sandboxes agents to their workspace
 config/herdr/config.toml - keybindings (popups → herdr-jj), sidebar, attention queue
 claude/settings.json     - the single PreToolUse hook
+pi/settings.json         - pi agent settings (packages, model defaults)
 agents/AGENTS.md         - shared agent instructions (→ ~/.claude/CLAUDE.md)
 agents/skills/           - agent skills, linked into every agent (see below)
 ```
@@ -99,6 +100,7 @@ agents.
 ```bash
 herdr-jj new                    # interactive: repo → pick or name → launch/attach
 herdr-jj new --repo /path --name fix-auth --prompt "..."   # scripted (/dispatch)
+herdr-jj new --layout loop      # 3-agent planner/worker/judge layout (pi)
 herdr-jj rm [path]              # forget + delete + close (defaults to the current one)
 herdr-jj tidy [repo]            # sweep dead workspaces / divergent commits
 ```
@@ -157,6 +159,49 @@ as a guardrail against an agent wandering off, not a security boundary.
 
 Debug with `tail -f /tmp/agent-guard.log` (override via `AGENT_GUARD_LOG`).
 
+## Planner / Worker / Judge loop
+
+For structured development work, `herdr-jj new` offers a **loop** layout in the
+model picker. This creates a 2×2 pane grid with three pi agents and a terminal:
+
+```
+planner (opus)   │ worker (sonnet)
+─────────────────┼──────────────────
+judge (sonnet-5) │ terminal
+```
+
+Based on the production-validated Planner→Worker→Judge pattern (Cursor, Anthropic,
+Sourcegraph). The flow:
+
+1. **Planner** grills requirements (one question at a time), writes a plan file to
+   `<main-repo>/.plans/` (gitignored, survives workspace deletion), then assigns
+   work to the worker with a machine-verifiable proof command.
+2. **Worker** implements, runs `mise run build` or `pnpm check` as the build gate
+   (this IS the automated judge), and can escalate to the planner when blocked on
+   design decisions.
+3. **Judge** reviews the diff cold (context-isolated, no worker notes first),
+   applies the repo's AGENTS.md checklist, and decides BLOCK or APPROVE.
+   Stop rules prevent infinite fix loops (max 3 rounds).
+
+After a loop closes, the planner writes a lesson to `docs/lessons/` and
+backpropagates findings to `backend/AGENTS.md` or files an ADR.
+
+For ad-hoc sub-delegation without the full loop structure, use `pi-subagents`
+(`/parallel-review`, `subagent({ agent: "scout", task: "..." })`) for headless
+parallel work.
+
+### pi-subagents (headless fan-out)
+
+`npm:pi-subagents` is installed in `pi/settings.json`. Use it for parallel
+fan-out work (multiple researchers, parallel reviewers on a diff) that does not
+need visible herdr panes. The loop pattern is for structured development;
+pi-subagents is for quick parallel delegation.
+
+```
+/parallel-review           # fresh-context reviewers from the pi TUI
+subagent({ agent: "scout", task: "..." })    # single scout
+```
+
 ## Agent skills
 
 Skills live once in `agents/skills/` and are linked into every agent, so they're
@@ -165,6 +210,9 @@ tracked in this repo and not tied to one vendor:
 ```
 agents/skills/            ← canonical, version-controlled
   ├── herdr/SKILL.md      ← official skill from herdrdev/herdr
+  ├── planner-role/SKILL.md   ← planner/worker/judge loop coordination
+  ├── worker-role/SKILL.md    ← worker TDD + escalation patterns (repo-agnostic)
+  ├── judge-role/SKILL.md     ← judge adversarial review (cold review, stop rules)
   └── skills-lock.json    ← source + content hash, for updates
 ~/.agents/skills  → agents/skills   (pi, opencode, codex, … read this natively)
 ~/.claude/skills  → agents/skills   (Claude Code needs its own path)

@@ -300,12 +300,17 @@ directory = "~/.herdr/worktrees"
 # "priority" puts agents that need you (blocked, then done) at the top of the
 # agent panel — the attention queue that replaces the old `C-a l` jump-next.
 # Switch back to "spaces" to group by workspace instead.
-agent_panel_sort = "priority"
+agent_panel_sort = "spaces"
 
-# Agent rows: state icon + which workspace, then what the agent is doing (its
-# terminal title, which for Claude Code is the current task summary).
+# Agent rows: icon + workspace, then role on row 2.
+# Loop agents show planner/worker/judge (from --display-agent); plain pi shows "pi".
+# State icon covers idle/working — no state_text row needed.
 [ui.sidebar.agents]
-rows = [["state_icon", "workspace"], ["terminal_title_stripped"]]
+rows = [["state_icon", "workspace"], ["agent"]]
+
+# Claude: swap row 2 for the task title — more useful than "claude".
+[ui.sidebar.agents.rows_by_agent]
+claude = [["state_icon", "workspace"], ["terminal_title_stripped"]]
 
 # Space rows: name, then the bookmark and dirty state of that checkout. `branch`
 # and `git_status` read the colocated git view, so they track jj too.
