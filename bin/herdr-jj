@@ -375,8 +375,10 @@ When the user gives you a task, immediately load /planner-role — do not wait t
   fi
 
   # Override the sidebar 'agent' token so the role name shows instead of "pi".
+  # No --applies-to-source filter: the root pane starts as a shell before pi
+  # runs in it, so herdr may not have re-detected the source yet.
   herdr pane report-metadata "$pane" \
-    --source "herdr-jj:loop" --agent pi --applies-to-source "herdr:pi" \
+    --source "herdr-jj:loop" --agent pi \
     --display-agent "$name" 2>/dev/null || true
 }
 
@@ -410,15 +412,16 @@ launch_loop() {
   _loop_start_agent "$judge_pane"  judge   "$LOOP_JUDGE_MODEL"
   # term_pane stays as a plain shell
   herdr pane report-metadata "$term_pane" \
-    --source "herdr-jj:loop" --agent pi --applies-to-source "herdr:pi" \
+    --source "herdr-jj:loop" --agent pi \
     --display-agent "terminal" 2>/dev/null || true
 
   herdr agent focus planner 2>/dev/null || true
 
-  if [[ -n "$prompt" ]]; then
-    herdr agent prompt planner "$prompt" 2>/dev/null \
-      || echo "warning: could not deliver initial prompt to planner" >&2
-  fi
+  # Always send the planner a kick-off. If the user passed --prompt use it as
+  # the task directly; otherwise prompt them to describe what to build.
+  local init_msg="${prompt:-Worker and judge are ready. Describe your task and I will start the loop.}"
+  herdr agent prompt planner "$init_msg" 2>/dev/null \
+    || echo "warning: could not deliver initial prompt to planner" >&2
 
   printf 'loop ready\n  planner (opus)     %s\n  worker (sonnet)    %s\n  judge (sonnet-5)   %s\n  terminal           %s\n' \
     "$root_pane" "$worker_pane" "$judge_pane" "$term_pane" >&2

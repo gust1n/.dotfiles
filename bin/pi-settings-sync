@@ -49,7 +49,7 @@ node -e "
   // Inject model IDs from bedrock.env into local overrides.
   // local already has defaultProvider + enabledModels; we add the model fields.
   if (sonnetModel) {
-    local.defaultModel = 'amazon-bedrock/' + sonnetModel;
+    local.defaultModel = sonnetModel;  // bare ID; defaultProvider supplies the provider
     if (local.subagents) {
       local.subagents.defaultModel = 'amazon-bedrock/' + sonnetModel;
       const overrides = local.subagents.agentOverrides ?? {};
