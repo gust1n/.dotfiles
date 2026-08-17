@@ -19,14 +19,18 @@ do
 done
 
 
-# Symlink ~/.claude/settings.json and CLAUDE.md
+# Generate ~/.claude/settings.json from claude/settings.json + config/bedrock.env.
+# (Not symlinked — model IDs are injected at sync time from config/bedrock.env.)
+# Re-run with: bin/claude-settings-sync
 mkdir -p ~/.claude
-if [ -e ~/.claude/settings.json ] && [ ! -L ~/.claude/settings.json ]; then
+if [ -e ~/.claude/settings.json ] && [ -L ~/.claude/settings.json ]; then
+	echo "removing old ~/.claude/settings.json symlink (switching to generated)"
+	rm ~/.claude/settings.json
+elif [ -e ~/.claude/settings.json ]; then
 	echo "backing up existing ~/.claude/settings.json"
-	mv -v ~/.claude/settings.json bak/
+	cp ~/.claude/settings.json bak/claude-settings.json.bak
 fi
-echo "symlinking ~/.claude/settings.json -> $BASE/claude/settings.json"
-ln -sfn "$BASE/claude/settings.json" ~/.claude/settings.json
+"$BASE/bin/claude-settings-sync"
 
 if [ -e ~/.claude/CLAUDE.md ] && [ ! -L ~/.claude/CLAUDE.md ]; then
 	echo "backing up existing ~/.claude/CLAUDE.md"

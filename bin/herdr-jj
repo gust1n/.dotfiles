@@ -25,10 +25,17 @@ CODE_DIR="${CODE_DIR:-$HOME/Code}"
 WS_ROOT="${HERDR_JJ_ROOT:-$HOME/.herdr/workspaces}"
 AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
 
-# Models for the 3-agent loop layout. Override via environment variables.
-LOOP_PLANNER_MODEL="${LOOP_PLANNER_MODEL:-eu.anthropic.claude-opus-4-6-v1}"
-LOOP_WORKER_MODEL="${LOOP_WORKER_MODEL:-eu.anthropic.claude-sonnet-4-6}"
-LOOP_JUDGE_MODEL="${LOOP_JUDGE_MODEL:-eu.anthropic.claude-sonnet-5}"
+# Load canonical model IDs from dotfiles if available.
+_DOTFILES="${DOTFILES_DIR:-$HOME/Code/dotfiles}"
+if [ -f "$_DOTFILES/config/bedrock.env" ]; then
+  # shellcheck source=/dev/null
+  source "$_DOTFILES/config/bedrock.env"
+fi
+
+# Models for the 3-agent loop layout. Derive from bedrock.env; env override still works.
+LOOP_PLANNER_MODEL="${LOOP_PLANNER_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
+LOOP_WORKER_MODEL="${LOOP_WORKER_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
+LOOP_JUDGE_MODEL="${LOOP_JUDGE_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
 
 # --- plumbing ---------------------------------------------------------------
 
@@ -319,11 +326,11 @@ pick_model() {
   local tier="${choice%% *}"  # first word; empty if Esc
   case "${tier:-opus}" in
     opus)   printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
+                "${ANTHROPIC_DEFAULT_OPUS_MODEL:-$BEDROCK_OPUS_MODEL}" ;;
     sonnet) printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
+                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
     haiku)  printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
     loop)   printf '__loop__\n' ;;
     *)      printf 'claude --dangerously-skip-permissions\n' ;;
   esac
@@ -430,9 +437,9 @@ cmd_new() {
       --agent)  agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
-          opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-eu.anthropic.claude-opus-4-6-v1}" ;;
-          sonnet) agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-eu.anthropic.claude-sonnet-4-6}" ;;
-          haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_HAIKU_MODEL:-eu.anthropic.claude-haiku-4-5-20251001-v1:0}" ;;
+          opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-$BEDROCK_OPUS_MODEL}" ;;
+          sonnet) agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
+          haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
           loop)   layout="loop" ;;
           *)      agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
