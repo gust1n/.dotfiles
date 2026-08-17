@@ -24,7 +24,7 @@ Settings for [pi](https://pi.dev), the coding agent.
    ```json
    {
      "defaultProvider": "amazon-bedrock",
-     "defaultModel": "eu.anthropic.claude-sonnet-4-6",
+     "defaultModel": "eu.anthropic.claude-sonnet-5",
      "enabledModels": ["eu.anthropic.claude-*"]
    }
    ```
