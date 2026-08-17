@@ -115,8 +115,7 @@ Signal planner:
 
 ```bash
 herdr agent prompt planner \
-  "Review round <N>: BLOCKED/APPROVED/ESCALATE. Ledger updated in $PLAN_PATH." \
-  --wait --timeout 60000
+  "Review round <N>: BLOCKED/APPROVED/ESCALATE. Ledger updated in $PLAN_PATH."
 ```
 
 ---

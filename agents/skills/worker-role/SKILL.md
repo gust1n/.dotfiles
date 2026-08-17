@@ -64,8 +64,7 @@ Then signal planner:
 
 ```bash
 herdr agent prompt planner \
-  "Done. Summary in $PLAN_PATH ## Handoff Log." \
-  --wait --timeout 60000
+  "Done. Summary in $PLAN_PATH ## Handoff Log."
 ```
 
 ## Escalating to planner
