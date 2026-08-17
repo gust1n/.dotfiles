@@ -598,7 +598,7 @@ cmd_rm() {
   # Warn about work that would vanish with the checkout.
   local unpushed
   unpushed=$(jj --ignore-working-copy -R "$path" log \
-    -r 'mutable() & ~empty() & ::@' --no-graph \
+    -r 'mutable() & ~empty() & ::@ & ~(::remote_bookmarks())' --no-graph \
     -T 'description.first_line() ++ "\n"' 2>/dev/null | sed '/^$/d')
   if [[ -n "$unpushed" && -t 0 ]]; then
     echo "unpushed commits in this workspace:" >&2
