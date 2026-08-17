@@ -49,6 +49,15 @@ ln -sfn "$BASE/agents/AGENTS.md" ~/.pi/agent/AGENTS.md
 # See bin/pi-settings-sync to re-run this after editing pi/settings.json.
 "$BASE/bin/pi-settings-sync"
 
+# Symlink pi extensions directory so extensions/*.ts are version-controlled.
+mkdir -p ~/.pi/agent
+if [ -e ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
+	echo "backing up existing ~/.pi/agent/extensions"
+	mv -v ~/.pi/agent/extensions bak/pi-extensions
+fi
+echo "symlinking ~/.pi/agent/extensions -> $BASE/pi/extensions"
+ln -sfn "$BASE/pi/extensions" ~/.pi/agent/extensions
+
 # Agent skills live once in agents/skills/ and are linked into each agent's
 # skills dir. ~/.agents/skills is the vendor-neutral location that pi, opencode
 # and others read natively; Claude Code needs its own ~/.claude/skills.
