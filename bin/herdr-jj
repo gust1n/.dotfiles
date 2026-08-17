@@ -362,17 +362,76 @@ When the user gives you a task, immediately load /planner-role — do not wait t
       role_prompt='' ;;
   esac
 
+  # `agent start`'s argv encoding rejects a multi-line, em-dash-bearing
+  # role_prompt outright (invalid_agent_argument, in well under a second —
+  # not an actual timeout). pi's --append-system-prompt accepts a file path
+  # and reads its contents, so write the prompt to a temp file and pass the
+  # (short, single-line) path instead. This is what makes `agent start`
+  # succeed directly, register the live name, and skip the fallback below
+  # in the common case.
+  local role_prompt_file=""
+  if [[ -n "$role_prompt" ]]; then
+    role_prompt_file=$(mktemp "${TMPDIR:-/tmp}/herdr-jj-role-prompt.XXXXXX")
+    printf '%s\n' "$role_prompt" > "$role_prompt_file"
+  fi
+
   # Build pi args as an array to handle quoting correctly.
   local pi_args=(--model "$model" --no-session --name "$name")
-  [[ -n "$role_prompt" ]] && pi_args+=(--append-system-prompt "$role_prompt")
+  [[ -n "$role_prompt_file" ]] && pi_args+=(--append-system-prompt "$role_prompt_file")
 
   if ! herdr agent start "$name" --kind pi --pane "$pane" --timeout 60000 \
        -- "${pi_args[@]}" >/dev/null 2>&1; then
-    echo "warning: $name agent start timed out; falling back to pane run" >&2
-    # Fallback omits system prompt — skills still auto-load from ~/.agents/skills/
-    herdr pane run "$pane" "pi --model $model --no-session --name $name" >/dev/null 2>&1
-    sleep 4  # give pi time to draw its UI before reporting metadata
+    # `agent start` failing does not mean pi failed to launch — it may have
+    # started fine and herdr's readiness detection just lagged past the
+    # timeout. `agent get` returns agent_not_found only when nothing is
+    # running in the pane at all. Trust that distinction: if pi is already
+    # there, re-running `pane run` below would type the launch command as a
+    # chat message into the live agent instead of starting a new process
+    # (confirmed by hand: the agent picks it up and starts "working" on it).
+    local detected=0 waited=0
+    while (( waited < 30 )); do
+      herdr agent get "$pane" >/dev/null 2>&1 && { detected=1; break; }
+      sleep 1
+      ((waited++))
+    done
+
+    if (( detected == 1 )); then
+      echo "warning: $name agent start reported an error, but pi is already running in $pane; skipping re-launch" >&2
+    else
+      echo "warning: $name pi never started in $pane; falling back to pane run" >&2
+      # Keep the role prompt (now a file path) in the fallback too. Without
+      # it the planner never learns it must load /planner-role and
+      # delegate, and worker/judge never learn to wait quietly for a
+      # signal — each just behaves like a bare solo agent handed the raw
+      # task.
+      local fallback_cmd
+      printf -v fallback_cmd '%q ' pi "${pi_args[@]}"
+      herdr pane run "$pane" "$fallback_cmd" >/dev/null 2>&1
+      sleep 4  # give pi time to draw its UI before reporting metadata
+    fi
+
+    # Neither path above is a *successful* `agent start`, so herdr's live
+    # agent name was never registered (only a successful `agent start`
+    # does that). Without a live name, `herdr agent prompt "$name"` fails
+    # with agent_not_found later, even though herdr auto-classifies the
+    # pane (display_agent) correctly. Register it now, retrying briefly
+    # since detection can still lag by a beat.
+    local rename_tries=0
+    until herdr agent rename "$pane" "$name" >/dev/null 2>&1; do
+      ((rename_tries++))
+      if (( rename_tries >= 10 )); then
+        echo "warning: could not register live name '$name' for $pane;" \
+          "target it by pane ID ($pane) instead of by name" >&2
+        break
+      fi
+      sleep 1
+    done
   fi
+
+  # pi reads --append-system-prompt at startup, well before this point in
+  # either the `agent start` success path or the fallback above, so it is
+  # safe to remove the temp file now.
+  [[ -n "$role_prompt_file" ]] && rm -f "$role_prompt_file"
 
   # Override the sidebar 'agent' token so the role name shows instead of "pi".
   # No --applies-to-source filter: the root pane starts as a shell before pi
