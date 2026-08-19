@@ -415,16 +415,26 @@ When the user gives you a task, immediately load /planner-role — do not wait t
 
   # Build harness-specific args. Both take --model, a role-prompt file, and a
   # display name; the flag spellings differ.
+  #
+  # The display name here is deliberately $role (short: planner/worker/judge),
+  # not $agent_name (the long, namespaced herdr identity) — they're
+  # independent. herdr's `agent start $agent_name` registration is what needs
+  # to be globally unique; this flag only sets the harness's own session name,
+  # which each harness also uses as its terminal title. A dotfiles sidebar rule
+  # (config/herdr/config.toml, ui.sidebar.agents.rows_by_agent.claude) shows
+  # that terminal title for claude panes specifically, so passing the long name
+  # here would print it right back into the sidebar despite --display-agent /
+  # --title below (confirmed by hand: only this flag, not those, controls it).
   local kind cmd_name args=()
   case "$harness" in
     pi)
       kind=pi; cmd_name=pi
-      args=(--model "$model" --no-session --name "$agent_name")
+      args=(--model "$model" --no-session --name "$role")
       [[ -n "$role_prompt_file" ]] && args+=(--append-system-prompt "$role_prompt_file")
       ;;
     claude|*)
       kind=claude; cmd_name=claude
-      args=(--model "$model" --dangerously-skip-permissions -n "$agent_name")
+      args=(--model "$model" --dangerously-skip-permissions -n "$role")
       [[ -n "$role_prompt_file" ]] && args+=(--append-system-prompt-file "$role_prompt_file")
       ;;
   esac
@@ -483,13 +493,17 @@ When the user gives you a task, immediately load /planner-role — do not wait t
   # it is safe to remove the temp file now.
   [[ -n "$role_prompt_file" ]] && rm -f "$role_prompt_file"
 
-  # Override the sidebar 'agent' token so the role name shows instead of the
-  # raw harness. No --applies-to-source filter: the root pane starts as a
-  # shell before the agent runs in it, so herdr may not have re-detected the
-  # source yet.
+  # Override the sidebar 'agent' token and row title so the short role name
+  # shows instead of the raw harness / the namespaced identity. --display-agent
+  # alone isn't enough: the sidebar row label tracks --title (falling back to
+  # the harness's own terminal title, e.g. Claude's, which is our long
+  # per-session --name) when --title is unset — confirmed by hand: setting
+  # --title is what actually changed the rendered row. No --applies-to-source
+  # filter: the root pane starts as a shell before the agent runs in it, so
+  # herdr may not have re-detected the source yet.
   herdr pane report-metadata "$pane" \
     --source "herdr-jj:loop" --agent "$kind" \
-    --display-agent "$role" 2>/dev/null || true
+    --display-agent "$role" --title "$role" 2>/dev/null || true
 }
 
 # Build a 3-agent + 1 terminal layout.
@@ -531,7 +545,7 @@ launch_loop() {
   # term_pane stays as a plain shell
   herdr pane report-metadata "$term_pane" \
     --source "herdr-jj:loop" --agent "$harness" \
-    --display-agent "terminal" 2>/dev/null || true
+    --display-agent "terminal" --title "terminal" 2>/dev/null || true
 
   herdr agent focus "$planner_agent" 2>/dev/null || true
 
