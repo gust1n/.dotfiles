@@ -24,6 +24,9 @@ CODE_DIR="${CODE_DIR:-$HOME/Code}"
 # ~/.herdr/worktrees convention (which is git-only, hence the separate dir).
 WS_ROOT="${HERDR_JJ_ROOT:-$HOME/.herdr/workspaces}"
 AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
+# Which CLI a bare --model/tier choice launches: claude (Claude Code) or pi.
+# --agent (an explicit full command) always overrides this.
+HARNESS="${HERDR_JJ_HARNESS:-claude}"
 
 # Load canonical model IDs from dotfiles if available.
 _DOTFILES="${DOTFILES_DIR:-$HOME/Code/dotfiles}"
@@ -32,10 +35,16 @@ if [ -f "$_DOTFILES/config/bedrock.env" ]; then
   source "$_DOTFILES/config/bedrock.env"
 fi
 
-# Models for the 3-agent loop layout. Derive from bedrock.env; env override still works.
-LOOP_PLANNER_MODEL="${LOOP_PLANNER_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
-LOOP_WORKER_MODEL="${LOOP_WORKER_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
-LOOP_JUDGE_MODEL="${LOOP_JUDGE_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
+# Canonical model IDs, resolved once. Both env-var families are ultimately set
+# from config/bedrock.env (see bashrc.d/100.bedrock-models.sh), so claude and
+# pi land on the same underlying model regardless of which harness is chosen.
+OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
+SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
+
+# Models for the 3-agent loop layout. Env override still works.
+LOOP_PLANNER_MODEL="${LOOP_PLANNER_MODEL:-$OPUS_MODEL}"
+LOOP_WORKER_MODEL="${LOOP_WORKER_MODEL:-$SONNET_MODEL}"
+LOOP_JUDGE_MODEL="${LOOP_JUDGE_MODEL:-$SONNET_MODEL}"
 
 # --- plumbing ---------------------------------------------------------------
 
@@ -309,53 +318,82 @@ pick_target() {
   printf '%s\n' "$picked"
 }
 
-# --- model picker ----------------------------------------------------------
+# --- model + harness pickers ------------------------------------------------
 
 # Interactive model-tier prompt. Esc or empty input → opus (default).
-# Returns a command string, or the sentinel "__loop__" when loop is chosen.
+# Returns a bare tier keyword: opus, sonnet, haiku, or loop.
 pick_model() {
   local choice
   choice=$(printf '%s\n' \
       'opus    planner / orchestrator' \
       'sonnet  worker / balanced' \
       'haiku   simple tasks / cheapest' \
-      'loop    3-agent loop: planner (opus) + worker (sonnet) + judge (sonnet-5)' \
+      'loop    3-agent loop: planner + worker + judge' \
     | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
           --bind='ctrl-j:down,ctrl-k:up' \
           --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
   local tier="${choice%% *}"  # first word; empty if Esc
-  case "${tier:-opus}" in
-    opus)   printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_OPUS_MODEL:-$BEDROCK_OPUS_MODEL}" ;;
-    sonnet) printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
-    haiku)  printf 'claude --dangerously-skip-permissions --model %s\n' \
-                "${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
-    loop)   printf '__loop__\n' ;;
-    *)      printf 'claude --dangerously-skip-permissions\n' ;;
+  printf '%s\n' "${tier:-opus}"
+}
+
+# Interactive harness prompt. Esc or empty input → claude (default).
+# Returns a bare harness keyword: claude or pi.
+pick_harness() {
+  local choice
+  choice=$(printf '%s\n' \
+      'claude  Claude Code' \
+      'pi      pi' \
+    | fzf --prompt='harness> ' --height=20% --reverse --no-sort --no-multi \
+          --bind='ctrl-j:down,ctrl-k:up' \
+          --header='↵ accept · esc = claude (default)' 2>/dev/null) || true
+  local h="${choice%% *}"
+  printf '%s\n' "${h:-claude}"
+}
+
+# tier + harness -> a launch command. "loop" is not a real tier here; callers
+# check for it before calling this.
+build_agent_cmd() {
+  local harness="$1" tier="$2" model
+  case "$tier" in
+    sonnet|haiku) model="$SONNET_MODEL" ;;
+    *)            model="$OPUS_MODEL" ;;
+  esac
+  case "$harness" in
+    pi)      printf 'pi --model %s\n' "$model" ;;
+    claude|*) printf 'claude --dangerously-skip-permissions --model %s\n' "$model" ;;
   esac
 }
 
 # --- loop layout ------------------------------------------------------------
 
-# Start a named pi agent in a pane with its role baked into the system prompt.
-# Blocks until pi is ready (up to 60 s). Falls back to pane run if
+# Start a role agent in a pane with its role baked into the system prompt.
+# Blocks until the agent is ready (up to 60 s). Falls back to pane run if
 # agent start times out (e.g. root pane still settling after workspace create).
+#
+# $agent_name (the herdr identity used for --name / agent start / prompt /
+# focus) is namespaced per session (see launch_loop) — herdr resolves
+# `agent prompt <name>` globally, not scoped to a workspace, so two loop
+# sessions both registering a bare "worker" would make prompts cross-talk
+# between them (confirmed by hand: session B's message landed in session A's
+# worker pane). $role only picks the system prompt and the cosmetic sidebar
+# label; it is not used for addressing.
 _loop_start_agent() {
-  local pane="$1" name="$2" model="$3"
+  local pane="$1" role="$2" agent_name="$3" model="$4" harness="$5"
 
-  # Role-specific system prompt appended to pi's default so the agent knows
+  # Role-specific system prompt appended to the agent's default so it knows
   # its job without the user having to explain it on every session start.
   local role_prompt
-  case "$name" in
+  case "$role" in
     planner)
       role_prompt='You are the planner in a 3-agent development loop (planner / worker / judge) running inside herdr. The other agents in this workspace are: worker (top-right) and judge (bottom-left).
 
+Your own herdr agent identity, and theirs, are namespaced per session (not the bare words "worker"/"judge") to avoid cross-talk with other loop sessions running elsewhere. Compute them yourself before signalling anyone: NS=$(basename "$PWD"); WORKER_AGENT="${NS}-worker"; JUDGE_AGENT="${NS}-judge". Use $WORKER_AGENT / $JUDGE_AGENT in every `herdr agent` command instead of the bare role name.
+
 When the user gives you a task, immediately load /planner-role — do not wait to be asked. Bootstrap the session: resolve the main repo path, create the plan file under .plans/, signal the worker and judge with the plan path and their role skill, then begin grilling requirements from the user.' ;;
     worker)
-      role_prompt='You are the worker in a 3-agent development loop. You will receive phase signals from the planner via herdr. When signalled, load /worker-role and implement the work as directed. Until then, wait quietly.' ;;
+      role_prompt='You are the worker in a 3-agent development loop. Your herdr agent identity is namespaced per session — before signalling the planner, compute it: NS=$(basename "$PWD"); PLANNER_AGENT="${NS}-planner". Use $PLANNER_AGENT (not the bare word "planner") in every `herdr agent` command. You will receive phase signals from the planner via herdr. When signalled, load /worker-role and implement the work as directed. Until then, wait quietly.' ;;
     judge)
-      role_prompt='You are the judge in a 3-agent development loop. You will receive review signals from the planner via herdr. When signalled, load /judge-role and perform an adversarial cold review. Until then, wait quietly.' ;;
+      role_prompt='You are the judge in a 3-agent development loop. Your herdr agent identity is namespaced per session — before signalling the planner, compute it: NS=$(basename "$PWD"); PLANNER_AGENT="${NS}-planner". Use $PLANNER_AGENT (not the bare word "planner") in every `herdr agent` command. You will receive review signals from the planner via herdr. When signalled, load /judge-role and perform an adversarial cold review. Until then, wait quietly.' ;;
     terminal)
       role_prompt='' ;;  # plain shell, no agent
     *)
@@ -364,27 +402,39 @@ When the user gives you a task, immediately load /planner-role — do not wait t
 
   # `agent start`'s argv encoding rejects a multi-line, em-dash-bearing
   # role_prompt outright (invalid_agent_argument, in well under a second —
-  # not an actual timeout). pi's --append-system-prompt accepts a file path
-  # and reads its contents, so write the prompt to a temp file and pass the
-  # (short, single-line) path instead. This is what makes `agent start`
-  # succeed directly, register the live name, and skip the fallback below
-  # in the common case.
+  # not an actual timeout). Both pi's --append-system-prompt and claude's
+  # --append-system-prompt-file accept a file path, so write the prompt to a
+  # temp file and pass the (short, single-line) path instead. This is what
+  # makes `agent start` succeed directly, register the live name, and skip
+  # the fallback below in the common case.
   local role_prompt_file=""
   if [[ -n "$role_prompt" ]]; then
     role_prompt_file=$(mktemp "${TMPDIR:-/tmp}/herdr-jj-role-prompt.XXXXXX")
     printf '%s\n' "$role_prompt" > "$role_prompt_file"
   fi
 
-  # Build pi args as an array to handle quoting correctly.
-  local pi_args=(--model "$model" --no-session --name "$name")
-  [[ -n "$role_prompt_file" ]] && pi_args+=(--append-system-prompt "$role_prompt_file")
+  # Build harness-specific args. Both take --model, a role-prompt file, and a
+  # display name; the flag spellings differ.
+  local kind cmd_name args=()
+  case "$harness" in
+    pi)
+      kind=pi; cmd_name=pi
+      args=(--model "$model" --no-session --name "$agent_name")
+      [[ -n "$role_prompt_file" ]] && args+=(--append-system-prompt "$role_prompt_file")
+      ;;
+    claude|*)
+      kind=claude; cmd_name=claude
+      args=(--model "$model" --dangerously-skip-permissions -n "$agent_name")
+      [[ -n "$role_prompt_file" ]] && args+=(--append-system-prompt-file "$role_prompt_file")
+      ;;
+  esac
 
-  if ! herdr agent start "$name" --kind pi --pane "$pane" --timeout 60000 \
-       -- "${pi_args[@]}" >/dev/null 2>&1; then
-    # `agent start` failing does not mean pi failed to launch — it may have
-    # started fine and herdr's readiness detection just lagged past the
+  if ! herdr agent start "$agent_name" --kind "$kind" --pane "$pane" --timeout 60000 \
+       -- "${args[@]}" >/dev/null 2>&1; then
+    # `agent start` failing does not mean the agent failed to launch — it may
+    # have started fine and herdr's readiness detection just lagged past the
     # timeout. `agent get` returns agent_not_found only when nothing is
-    # running in the pane at all. Trust that distinction: if pi is already
+    # running in the pane at all. Trust that distinction: if it is already
     # there, re-running `pane run` below would type the launch command as a
     # chat message into the live agent instead of starting a new process
     # (confirmed by hand: the agent picks it up and starts "working" on it).
@@ -396,31 +446,31 @@ When the user gives you a task, immediately load /planner-role — do not wait t
     done
 
     if (( detected == 1 )); then
-      echo "warning: $name agent start reported an error, but pi is already running in $pane; skipping re-launch" >&2
+      echo "warning: $agent_name agent start reported an error, but $cmd_name is already running in $pane; skipping re-launch" >&2
     else
-      echo "warning: $name pi never started in $pane; falling back to pane run" >&2
+      echo "warning: $agent_name $cmd_name never started in $pane; falling back to pane run" >&2
       # Keep the role prompt (now a file path) in the fallback too. Without
       # it the planner never learns it must load /planner-role and
       # delegate, and worker/judge never learn to wait quietly for a
       # signal — each just behaves like a bare solo agent handed the raw
       # task.
       local fallback_cmd
-      printf -v fallback_cmd '%q ' pi "${pi_args[@]}"
+      printf -v fallback_cmd '%q ' "$cmd_name" "${args[@]}"
       herdr pane run "$pane" "$fallback_cmd" >/dev/null 2>&1
-      sleep 4  # give pi time to draw its UI before reporting metadata
+      sleep 4  # give the agent time to draw its UI before reporting metadata
     fi
 
     # Neither path above is a *successful* `agent start`, so herdr's live
     # agent name was never registered (only a successful `agent start`
-    # does that). Without a live name, `herdr agent prompt "$name"` fails
-    # with agent_not_found later, even though herdr auto-classifies the
-    # pane (display_agent) correctly. Register it now, retrying briefly
+    # does that). Without a live name, `herdr agent prompt "$agent_name"`
+    # fails with agent_not_found later, even though herdr auto-classifies
+    # the pane (display_agent) correctly. Register it now, retrying briefly
     # since detection can still lag by a beat.
     local rename_tries=0
-    until herdr agent rename "$pane" "$name" >/dev/null 2>&1; do
+    until herdr agent rename "$pane" "$agent_name" >/dev/null 2>&1; do
       ((rename_tries++))
       if (( rename_tries >= 10 )); then
-        echo "warning: could not register live name '$name' for $pane;" \
+        echo "warning: could not register live name '$agent_name' for $pane;" \
           "target it by pane ID ($pane) instead of by name" >&2
         break
       fi
@@ -428,17 +478,18 @@ When the user gives you a task, immediately load /planner-role — do not wait t
     done
   fi
 
-  # pi reads --append-system-prompt at startup, well before this point in
-  # either the `agent start` success path or the fallback above, so it is
-  # safe to remove the temp file now.
+  # Both harnesses read their role-prompt file at startup, well before this
+  # point in either the `agent start` success path or the fallback above, so
+  # it is safe to remove the temp file now.
   [[ -n "$role_prompt_file" ]] && rm -f "$role_prompt_file"
 
-  # Override the sidebar 'agent' token so the role name shows instead of "pi".
-  # No --applies-to-source filter: the root pane starts as a shell before pi
-  # runs in it, so herdr may not have re-detected the source yet.
+  # Override the sidebar 'agent' token so the role name shows instead of the
+  # raw harness. No --applies-to-source filter: the root pane starts as a
+  # shell before the agent runs in it, so herdr may not have re-detected the
+  # source yet.
   herdr pane report-metadata "$pane" \
-    --source "herdr-jj:loop" --agent pi \
-    --display-agent "$name" 2>/dev/null || true
+    --source "herdr-jj:loop" --agent "$kind" \
+    --display-agent "$role" 2>/dev/null || true
 }
 
 # Build a 3-agent + 1 terminal layout.
@@ -446,10 +497,18 @@ When the user gives you a task, immediately load /planner-role — do not wait t
 #   root_pane (planner) | worker_pane
 #   judge_pane           | term_pane (shell — run builds, tail logs)
 #
+# $session_name namespaces each agent's herdr identity (see
+# _loop_start_agent's header comment for why). All four panes share $path as
+# their cwd, so any agent can independently recompute the same namespace via
+# `basename "$PWD"` — no need to pass identities around out of band.
 launch_loop() {
-  local root_pane="$1" prompt="${2:-}" path="${3:-$PWD}"
+  local root_pane="$1" prompt="${2:-}" path="${3:-$PWD}" session_name="${4:-loop}" harness="${5:-claude}"
 
-  echo "creating loop layout (planner | worker / judge | terminal)..." >&2
+  local ns; ns=$(slug "$session_name")
+  local planner_agent="${ns}-planner" worker_agent="${ns}-worker" \
+        judge_agent="${ns}-judge"
+
+  echo "creating loop layout (planner | worker / judge | terminal) [$harness]..." >&2
 
   local worker_pane judge_pane term_pane
   worker_pane=$(herdr pane split --pane "$root_pane" --direction right \
@@ -466,50 +525,56 @@ launch_loop() {
 
   echo "starting agents: planner → worker → judge (~30s each)..." >&2
   sleep 2  # let the root pane shell fully settle before agent start
-  _loop_start_agent "$root_pane"  planner "$LOOP_PLANNER_MODEL"
-  _loop_start_agent "$worker_pane" worker  "$LOOP_WORKER_MODEL"
-  _loop_start_agent "$judge_pane"  judge   "$LOOP_JUDGE_MODEL"
+  _loop_start_agent "$root_pane"   planner "$planner_agent" "$LOOP_PLANNER_MODEL" "$harness"
+  _loop_start_agent "$worker_pane" worker  "$worker_agent"  "$LOOP_WORKER_MODEL"  "$harness"
+  _loop_start_agent "$judge_pane"  judge   "$judge_agent"   "$LOOP_JUDGE_MODEL"   "$harness"
   # term_pane stays as a plain shell
   herdr pane report-metadata "$term_pane" \
-    --source "herdr-jj:loop" --agent pi \
+    --source "herdr-jj:loop" --agent "$harness" \
     --display-agent "terminal" 2>/dev/null || true
 
-  herdr agent focus planner 2>/dev/null || true
+  herdr agent focus "$planner_agent" 2>/dev/null || true
 
   # Always send the planner a kick-off. If the user passed --prompt use it as
   # the task directly; otherwise prompt them to describe what to build.
   local init_msg="${prompt:-Worker and judge are ready. Describe your task and I will start the loop.}"
-  herdr agent prompt planner "$init_msg" 2>/dev/null \
+  herdr agent prompt "$planner_agent" "$init_msg" 2>/dev/null \
     || echo "warning: could not deliver initial prompt to planner" >&2
 
-  printf 'loop ready\n  planner (opus)     %s\n  worker (sonnet)    %s\n  judge (sonnet-5)   %s\n  terminal           %s\n' \
-    "$root_pane" "$worker_pane" "$judge_pane" "$term_pane" >&2
+  printf 'loop ready [%s]\n  planner (opus)     %s  %s\n  worker (sonnet)    %s  %s\n  judge (sonnet-5)   %s  %s\n  terminal           %s\n' \
+    "$harness" "$root_pane" "$planner_agent" "$worker_pane" "$worker_agent" "$judge_pane" "$judge_agent" "$term_pane" >&2
 }
 
 # --- commands ---------------------------------------------------------------
 
 cmd_new() {
-  local repo="" name="" prompt="" agent="" model_specified=0 layout=""
+  local repo="" name="" prompt="" agent="" model_tier="" model_specified=0 \
+        harness_specified=0 layout=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --repo)   repo="${2:-}"; shift 2 ;;
-      --name)   name="${2:-}"; shift 2 ;;
-      --prompt) prompt="${2:-}"; shift 2 ;;
-      --layout) layout="${2:-}"; model_specified=1; shift 2 ;;
-      --agent)  agent="${2:-}"; model_specified=1; shift 2 ;;
+      --repo)    repo="${2:-}"; shift 2 ;;
+      --name)    name="${2:-}"; shift 2 ;;
+      --prompt)  prompt="${2:-}"; shift 2 ;;
+      --layout)  layout="${2:-}"; model_specified=1; shift 2 ;;
+      --harness) HARNESS="${2:-}"; harness_specified=1; shift 2 ;;
+      --agent)   agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
-          opus)   agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_OPUS_MODEL:-$BEDROCK_OPUS_MODEL}" ;;
-          sonnet) agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
-          haiku)  agent="claude --dangerously-skip-permissions --model ${ANTHROPIC_DEFAULT_SONNET_MODEL:-$BEDROCK_SONNET_MODEL}" ;;
-          loop)   layout="loop" ;;
-          *)      agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
+          opus|sonnet|haiku) model_tier="$2" ;;
+          loop)              layout="loop" ;;
+          *)                 agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
         model_specified=1; shift 2 ;;
       *) shift ;;
     esac
   done
-  [[ -n "$agent" ]] && AGENT_CMD="$agent"
+  # Precedence: an explicit --agent command wins outright; otherwise a tier
+  # (from --model) is resolved against --harness (default claude).
+  if [[ -n "$agent" ]]; then
+    AGENT_CMD="$agent"
+  elif [[ -n "$model_tier" ]]; then
+    AGENT_CMD=$(build_agent_cmd "$HARNESS" "$model_tier")
+  fi
 
   local interactive=0
   [[ -z "$repo" || -z "$name" ]] && interactive=1
@@ -534,13 +599,18 @@ cmd_new() {
     name=$(pick_target "$repo") || return 0
     [[ -z "$name" ]] && return 0
     if (( ! model_specified )); then
-      local _picked
-      _picked=$(pick_model)
-      if [[ "$_picked" == "__loop__" ]]; then
+      model_tier=$(pick_model)
+      (( harness_specified )) || HARNESS=$(pick_harness)
+      if [[ "$model_tier" == "loop" ]]; then
         layout="loop"
       else
-        AGENT_CMD="$_picked"
+        AGENT_CMD=$(build_agent_cmd "$HARNESS" "$model_tier")
       fi
+    elif [[ -z "$agent" ]] && (( ! harness_specified )); then
+      # A tier or --layout loop came from a flag but no --harness and no full
+      # --agent override: still worth asking which CLI runs it.
+      HARNESS=$(pick_harness)
+      [[ -n "$model_tier" ]] && AGENT_CMD=$(build_agent_cmd "$HARNESS" "$model_tier")
     fi
   fi
 
@@ -604,7 +674,7 @@ cmd_new() {
   pane=$(open_ws "$path" "$name")
   [[ -n "$pane" && "$pane" != "FOCUSED" ]] || die_pause "herdr did not return a pane"
   if [[ "$layout" == "loop" ]]; then
-    launch_loop "$pane" "$prompt" "$path"
+    launch_loop "$pane" "$prompt" "$path" "$name" "$HARNESS"
   else
     launch "$pane" "$prompt"
   fi
@@ -746,8 +816,10 @@ case "${1:-}" in
     cat <<'EOF'
 herdr-jj — jj-workspace-backed agent sessions for herdr
 
-  herdr-jj new              pick a repo, then pick or name the work
-  herdr-jj new --repo R --name N [--prompt P] [--model opus|sonnet|haiku] [--agent CMD]
+  herdr-jj new              pick a repo, then pick or name the work, then
+                            pick a model tier (or loop) and a harness
+  herdr-jj new --repo R --name N [--prompt P] \
+              [--model opus|sonnet|haiku|loop] [--harness claude|pi] [--agent CMD]
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
@@ -757,8 +829,13 @@ your local bookmarks by recency, then remote ones. Selecting a workspace attache
 to it (continuing its session); selecting a bookmark branches a new workspace off
 it; typing a name that matches nothing starts fresh work.
 
+--model picks opus/sonnet/haiku (or loop, the 3-agent planner/worker/judge
+layout); --harness picks which CLI runs it: claude (Claude Code, default) or
+pi. --agent gives an explicit full launch command and overrides both.
+
 Checkouts live in ~/.herdr/workspaces/<repo>/<name>  ($HERDR_JJ_ROOT to override).
 Agent command: $HERDR_JJ_AGENT (default: claude --dangerously-skip-permissions).
+Harness: $HERDR_JJ_HARNESS (default: claude).
 
 herdr owns the UI — sidebar, agent state, attention queue:
   prefix+shift+a  new / attach agent     prefix+w         workspace picker
