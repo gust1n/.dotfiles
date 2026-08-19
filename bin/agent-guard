@@ -47,6 +47,28 @@ ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P) || exit 0
 
 log "  workspace=${ROOT/#$HOME/~}"
 
+# The main checkout, resolved via the same .jj/repo pointer used to detect a
+# secondary workspace above. A secondary workspace is a fresh checkout, so it
+# has no local copy of gitignored, cross-session artifacts the loop roles
+# (planner/worker/judge) share by design — the plan file, backpropagated
+# lessons. Those explicit main-repo paths are allowed through in addition to
+# the workspace itself; everything else in the main repo stays out of bounds.
+MAIN_ROOT=""
+PTR=$(cat "$ROOT/.jj/repo" 2>/dev/null)
+if [[ -n "$PTR" ]]; then
+  MAIN_ROOT=$( cd "$ROOT/.jj/$PTR/../.." 2>/dev/null && pwd -P ) || MAIN_ROOT=""
+fi
+SHARED_PATHS=()
+[[ -n "$MAIN_ROOT" ]] && SHARED_PATHS+=("$MAIN_ROOT/.plans" "$MAIN_ROOT/docs/lessons" "$MAIN_ROOT/docs/adr")
+
+# /tmp (and macOS's per-user $TMPDIR) are scratch space, not repo content —
+# agents write throwaway files there constantly (mktemp, downloads, probes).
+# Always allowed, in every workspace, regardless of MAIN_ROOT.
+TMP_REAL=$(cd /tmp 2>/dev/null && pwd -P) && SHARED_PATHS+=("$TMP_REAL")
+if [[ -n "${TMPDIR:-}" ]]; then
+  TMPDIR_REAL=$(cd "$TMPDIR" 2>/dev/null && pwd -P) && SHARED_PATHS+=("$TMPDIR_REAL")
+fi
+
 allow() {
   log "  -> ALLOW"
   jq -n '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "allow"}}'
@@ -93,7 +115,12 @@ inside() {
   local real
   real=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
   [[ -n "$leaf" ]] && real="$real/$leaf"
-  [[ "$real" == "$ROOT" || "$real" == "$ROOT"/* ]]
+  [[ "$real" == "$ROOT" || "$real" == "$ROOT"/* ]] && return 0
+  local shared
+  for shared in "${SHARED_PATHS[@]}"; do
+    [[ "$real" == "$shared" || "$real" == "$shared"/* ]] && return 0
+  done
+  return 1
 }
 
 case "$TOOL" in
@@ -102,7 +129,7 @@ case "$TOOL" in
     for field in '.tool_input.file_path' '.tool_input.notebook_path'; do
       p=$(jqr "$field // empty")
       [[ -z "$p" ]] && continue
-      inside "$p" || ask "Blocked: $TOOL targets $p, outside this agent's workspace ($ROOT). Only modify files inside the workspace."
+      inside "$p" || ask "Blocked: $TOOL targets $p, outside this agent's workspace ($ROOT) and outside the shared .plans/docs/tmp paths. Only modify files inside the workspace, /tmp, or $MAIN_ROOT/.plans, docs/lessons, docs/adr."
     done
     allow
     ;;
@@ -155,7 +182,7 @@ if re '(^|[;&|[:space:]])rm[[:space:]]+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)'; t
   for tok in $CMD; do
     case "$tok" in
       -*) continue ;;
-      /*|~*) inside "$tok" || ask "Recursive delete outside the workspace blocked ($tok). Only delete inside $ROOT." ;;
+      /*|~*) inside "$tok" || ask "Recursive delete outside the workspace blocked ($tok). Only delete inside $ROOT or /tmp." ;;
     esac
   done
 fi
