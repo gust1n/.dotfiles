@@ -22,6 +22,25 @@ Before anything, verify you are inside herdr:
 test "${HERDR_ENV:-}" = 1 && echo ok || echo "not in herdr — stop"
 ```
 
+### Agent identities
+
+herdr resolves `agent prompt <name>` / `agent wait <name>` globally, not scoped
+to this workspace — a bare `worker`/`judge` collides with any other loop
+session running elsewhere and cross-talk gets misrouted between them (seen in
+practice). `herdr-jj new --layout loop` namespaces every agent's real herdr
+identity with the workspace name instead. All four panes share the same cwd,
+so compute it yourself rather than trust a literal name:
+
+```bash
+NS=$(basename "$PWD")
+PLANNER_AGENT="${NS}-planner"
+WORKER_AGENT="${NS}-worker"
+JUDGE_AGENT="${NS}-judge"
+```
+
+Use `$WORKER_AGENT` / `$JUDGE_AGENT` in every `herdr agent` command below —
+never the bare words `worker`/`judge`.
+
 ---
 
 ## Subject hygiene (task assignment)
@@ -46,7 +65,7 @@ The worker can signal you when blocked on a design or strategic decision. When t
 5. Signal worker to continue:
 
 ```bash
-herdr agent prompt worker \
+herdr agent prompt "$WORKER_AGENT" \
   "Decision made. Read $PLAN_PATH ## [section]. Continue phase." \
   --wait --timeout 60000
 ```
@@ -114,18 +133,18 @@ Ask about the **riskiest assumption first** — the one that, if wrong, invalida
 herdr pane list --workspace "$HERDR_WORKSPACE_ID"
 ```
 
-Agents are named `planner`, `worker`, `judge` (set by `herdr-jj new --layout loop`).
+Recompute `$WORKER_AGENT` / `$JUDGE_AGENT` per "Agent identities" above if you haven't already this session — do not assume the bare names `worker`/`judge` resolve to this workspace.
 
 ### 3. Signal workers with plan path + role
 
 ```bash
 PLAN_PATH="$PLANS_DIR/<filename>"
 
-herdr agent prompt worker \
+herdr agent prompt "$WORKER_AGENT" \
   "Loop started. Plan: $PLAN_PATH. Load /worker-role. Wait for phase signal." \
   --wait --timeout 30000
 
-herdr agent prompt judge \
+herdr agent prompt "$JUDGE_AGENT" \
   "Loop started. Plan: $PLAN_PATH. Load /judge-role. Wait for review signal." \
   --wait --timeout 30000
 ```
@@ -136,16 +155,16 @@ herdr agent prompt judge \
 
 ```bash
 # Wait up to 20 min for worker (use herdr agent wait — never poll manually)
-herdr agent wait worker --timeout 1200000
+herdr agent wait "$WORKER_AGENT" --timeout 1200000
 
 # Check how it settled
-herdr agent get worker | python3 -c "
+herdr agent get "$WORKER_AGENT" | python3 -c "
 import json,sys; a=json.load(sys.stdin)['result']['agent']; print(a['agent_status'])
 "
 ```
 
 - `idle`/`done` → read handoff log in plan file
-- `blocked` → check with `herdr agent read worker --source recent-unwrapped --lines 50`
+- `blocked` → check with `herdr agent read "$WORKER_AGENT" --source recent-unwrapped --lines 50`
 
 ---
 
@@ -167,10 +186,10 @@ Done when: proof passes AND build gate passes
 Then signal:
 
 ```bash
-herdr agent prompt worker \
+herdr agent prompt "$WORKER_AGENT" \
   "Phase <N>: <one-sentence description>. Plan: $PLAN_PATH ## Phases. Proof: <command>. Escalate if: <condition>. Signal done when proof passes." \
   --wait --timeout 60000
-herdr agent wait worker --timeout 1200000
+herdr agent wait "$WORKER_AGENT" --timeout 1200000
 ```
 
 ---
@@ -178,10 +197,10 @@ herdr agent wait worker --timeout 1200000
 ## Mode C — Trigger judge review
 
 ```bash
-herdr agent prompt judge \
+herdr agent prompt "$JUDGE_AGENT" \
   "Review ready. Diff: $(cd $MAIN_REPO && git diff HEAD~1 --stat 2>/dev/null || jj diff --stat). Plan: $PLAN_PATH. Load /judge-role. Review cold — read the diff, not the worker's notes." \
   --wait --timeout 60000
-herdr agent wait judge --timeout 600000
+herdr agent wait "$JUDGE_AGENT" --timeout 600000
 ```
 
 ---
@@ -191,10 +210,10 @@ herdr agent wait judge --timeout 600000
 Judge writes BLOCK findings to `## Review Ledger`. Before relaying, scan the ledger for prior rounds — if a new BLOCK contradicts a previously APPROVED finding, that is a flip-flop: invoke stop rule 3 yourself, do not relay to worker. Otherwise, relay:
 
 ```bash
-herdr agent prompt worker \
+herdr agent prompt "$WORKER_AGENT" \
   "Judge blocked. Read $PLAN_PATH ## Review Ledger round <N>. Fix BLOCK items only. Signal done when build gate passes." \
   --wait --timeout 60000
-herdr agent wait worker --timeout 1200000
+herdr agent wait "$WORKER_AGENT" --timeout 1200000
 # Then re-trigger judge (Mode C)
 ```
 

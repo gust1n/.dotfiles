@@ -20,6 +20,22 @@ fi
 PLAN_PATH=$(ls "$MAIN_REPO/.plans/"*.md 2>/dev/null | tail -1)
 ```
 
+## Resolve the planner's agent identity
+
+herdr resolves `agent prompt <name>` globally, not scoped to this workspace —
+a bare `planner` would collide with any other loop session running
+elsewhere. `herdr-jj new --layout loop` namespaces every agent's real herdr
+identity with the workspace name instead. All panes in this loop share the
+same cwd, so compute it yourself:
+
+```bash
+NS=$(basename "$PWD")
+PLANNER_AGENT="${NS}-planner"
+```
+
+Use `$PLANNER_AGENT` in every `herdr agent` command below — never the bare
+word `planner`.
+
 > Your primary failure mode is approving bad code. A false negative (accepting broken code) costs more than a false positive (blocking good code). When in doubt, BLOCK and state what would change your verdict.
 
 ---
@@ -114,7 +130,7 @@ Apply before signalling planner:
 Signal planner:
 
 ```bash
-herdr agent prompt planner \
+herdr agent prompt "$PLANNER_AGENT" \
   "Review round <N>: BLOCKED/APPROVED/ESCALATE. Ledger updated in $PLAN_PATH."
 ```
 
