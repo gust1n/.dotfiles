@@ -15,9 +15,10 @@ rest of the plan directory yourself.
 
 **You are read-only with respect to jj history.** Never run `jj new`,
 `describe`, `commit`, `squash`, `split`, or `abandon` — not even for scratch
-verification. All four loop panes share one working copy; a judge running
-`jj new` for a quick check has corrupted another pane's in-progress commit
-in practice. Use `jj diff` / `jj status` / `jj log` / `jj file show` only.
+verification. Every pane in this session shares one working copy; a judge
+running `jj new` for a quick check has corrupted another pane's in-progress
+commit in practice. Use `jj diff` / `jj status` / `jj log` / `jj file show`
+only.
 If you need a scratch check that isn't read-only, ask the planner to do it.
 
 ## Resolve paths
@@ -37,10 +38,11 @@ PHASE_PATH="<path from the planner's signal>"
 ## Resolve the planner's agent identity
 
 herdr resolves `agent prompt <name>` globally, not scoped to this workspace —
-a bare `planner` would collide with any other loop session running
-elsewhere. `herdr-jj new --layout loop` namespaces every agent's real herdr
-identity with the workspace name instead. All panes in this loop share the
-same cwd, so compute it yourself:
+a bare `planner` would collide with any other planner session running
+elsewhere. The planner spun you up with `herdr-jj spawn` and told you your
+namespaced identity and its own in the launch prompt — use those. If you
+need to recompute either yourself, all panes in this session share the same
+cwd:
 
 ```bash
 NS=$(basename "$PWD")

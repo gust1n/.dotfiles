@@ -5,25 +5,55 @@ description: "Planner agent role in the planner/worker/judge loop. Bootstrap and
 
 # Agent Loop
 
-A structured 3-agent cycle running inside one herdr workspace:
+A planner starts solo — an ordinary `herdr-jj new` session — and grows a team
+on demand: it spins up a worker, and later a judge, once a phase is concrete
+enough to delegate, using `herdr-jj spawn` (see "Spinning up a worker or
+judge" below). There is no dedicated terminal pane; run build/verify
+commands yourself, or have the worker run them.
 
-| Agent | Pane | Model | Role |
-|-------|------|-------|------|
-| **planner** | top-left | opus | grills requirements, plans, controls loop, human interface |
-| **worker** | top-right | sonnet | implements, runs verification, escalates when blocked |
-| **judge** | bottom-left | sonnet-5 | adversarial cold review, decides BLOCK or APPROVE |
-| *(terminal)* | bottom-right | — | shell for builds, logs, manual verification |
+Loop order: `planner grills → planner plans → spin up worker → worker builds → spin up judge → judge reviews → (fix loop, max 3 rounds) → planner closes`
 
-Loop order: `planner grills → planner plans → worker builds → judge reviews → (fix loop, max 3 rounds) → planner closes`
+**Ownership split.** The planner owns the process: the plan files, phase
+sequencing, ledger bookkeeping, and every jj history command (`new`,
+`describe`, `commit`, `squash`, `split`, `abandon`). Worker and judge are
+read-only with respect to jj history, and only ever need one file each —
+their current phase file, described below. Keeping their scope narrow is what
+keeps them from compacting mid-phase; see "Context discipline" for the
+planner's own half of this.
 
-**Ownership split.** The planner has the larger context budget (opus) and owns
-the process: the plan files, phase sequencing, ledger bookkeeping, and every
-jj history command (`new`, `describe`, `commit`, `squash`, `split`,
-`abandon`). Worker and judge run on the smaller sonnet window, are read-only
-with respect to jj history, and only ever need one file each — their current
-phase file, described below. Keeping their scope narrow is what keeps them
-from compacting mid-phase; see "Context discipline" for the planner's own
-half of this.
+This split assumes the planner carries the largest context budget in the
+loop. Confirm that assumption instead of trusting the role names, because it
+can flip:
+
+| Harness | Model (this loop's default) | Window | Auto-compact |
+|---|---|---|---|
+| claude (planner) | `eu.anthropic.claude-opus-5[1m]` via Bedrock | ~1M tokens — the `[1m]` suffix on the model string is required; without it Bedrock's default Opus window is ~200K (confirmed: a real planner session hit auto-compact at ~165K cumulative input tokens before this fix landed) | yes, silent — see "Waiting for a worker" below |
+| claude (worker/judge) | `eu.anthropic.claude-sonnet-5` via Bedrock | ~200K tokens — Claude Code's own `/model` picker only ever labels Opus "(1M context)", never Sonnet; the `[1m]` suffix is silently accepted for Sonnet too but an actually-widened window is unconfirmed, so don't rely on it | yes, silent |
+| agy (any role) | `gemini-3.7-flash-medium` | ~1,048,576 tokens (1M), self-reported by the model | **none** — no user-facing compact command exists; if it fills, it fills |
+| pi (any role) | whatever `--model` resolves to | pi's `provider/id` model syntax has no `[1m]`-equivalent flag; don't assume the loop's Bedrock 1M fix carries over | depends on provider |
+
+If the worker or judge pane is running agy (or anything with a bigger window
+than the planner's), the "planner has the room" assumption inverts for that
+loop: the planner becomes the tighter constraint, not the worker. Re-derive
+from this table, don't assume the row that matched last time still applies.
+
+**Context reset per harness**, once a pane's own window fills (this is a
+manual lever you reach for when polling shows a pane repeatedly compacting or
+stalling, not a step you take proactively every phase):
+
+| Harness | How to reset |
+|---|---|
+| claude | `/compact` then `/clear` if you want a clean slate; otherwise its own auto-compact handles it silently — don't trust it as a signal, see "Waiting for a worker" below |
+| agy | `/clear` only — there is no user-triggered compact. Keep agy's phases short by design rather than relying on a reset that doesn't exist. |
+| pi | `/new` |
+| cursor | restart the agent |
+
+**Before assuming any harness supports a flag** (model suffix, session name,
+system-prompt file, whatever) — check that harness's own `--help` first.
+Don't extrapolate from what claude or pi accepts to what agy accepts, or vice
+versa; they diverge in ways that fail at launch time, not gracefully (seen in
+practice: agy's `-i` argument encoding, and `ctrl+d` doing nothing to exit
+its TUI when `/exit` was required).
 
 Before anything, verify you are inside herdr:
 
@@ -34,30 +64,102 @@ test "${HERDR_ENV:-}" = 1 && echo ok || echo "not in herdr — stop"
 ### Agent identities
 
 herdr resolves `agent prompt <name>` / `agent wait <name>` globally, not scoped
-to this workspace — a bare `worker`/`judge` collides with any other loop
-session running elsewhere and cross-talk gets misrouted between them (seen in
-practice). `herdr-jj new --layout loop` namespaces every agent's real herdr
-identity with the workspace name instead. All four panes share the same cwd,
-so compute it yourself rather than trust a literal name:
+to this workspace — a bare `worker`/`judge` collides with any other planner
+session running elsewhere on the machine and cross-talk gets misrouted
+between them (seen in practice). Compute a namespace once, the first time you
+read this skill in a session, and reuse it for every spawn:
 
 ```bash
 NS=$(basename "$PWD")
 PLANNER_AGENT="${NS}-planner"
 WORKER_AGENT="${NS}-worker"
 JUDGE_AGENT="${NS}-judge"
+
+# Register yourself under this name too, even though nothing spawned you.
+# `herdr-jj new` (the normal way to start a solo planner) never registers a
+# namespaced name on its own — confirmed by hand: a plain session's pane has
+# no `name` at all, only the auto-detected kind. Without this, a worker/judge
+# you spawn later has no way to reach you back; do this before spawning
+# anything, not after.
+herdr agent rename "$HERDR_PANE_ID" "$PLANNER_AGENT" 2>/dev/null || true
 ```
 
 Use `$WORKER_AGENT` / `$JUDGE_AGENT` in every `herdr agent` command below —
-never the bare words `worker`/`judge`.
+never the bare words `worker`/`judge`. You mint these names yourself now
+(there is no launch script pre-assigning them); pass them as `<name>` to
+`herdr-jj spawn`, described next.
 
-Registration can drift back to a bare name after launch (seen in practice: a
-live loop's worker/judge panes showed up in `herdr agent list` as bare
-`worker`/`judge` instead of namespaced). If any `herdr agent prompt
-"$WORKER_AGENT"` / `"$JUDGE_AGENT"` call fails with `agent_not_found`, check
-`herdr agent list` for a bare-named pane in this workspace's cwd and
-`herdr agent rename <pane_id> "$WORKER_AGENT"` (or the judge equivalent) to
-re-assert it. Don't poll for this defensively every round — it costs tokens
-for a rare failure; only check it when a signal actually fails.
+Registration can drift back to a different name after launch even when
+`herdr-jj spawn` reports success (rare — it defends against this once at spawn
+time already). If a later `herdr agent prompt "$WORKER_AGENT"` /
+`"$JUDGE_AGENT"` call fails with `agent_not_found`, check `herdr agent list`
+for the pane under a different name and `herdr agent rename <pane_id>
+"$WORKER_AGENT"` to re-assert it. Don't poll for this defensively every
+round — it costs tokens for a rare failure; only check it when a signal
+actually fails.
+
+---
+
+## Spinning up a worker or judge
+
+Don't spawn speculatively. Spawn once a phase is concrete: you have a proof
+command and a phase file ready (worker), or a diff ready to review (judge).
+This mirrors how you'd decide to delegate at all — add an agent when the
+unit genuinely needs one, not by default.
+
+**Pick a kind and model.** A plain model name you or the user names resolves
+to a `--kind`:
+
+| You/user said | `--kind` | Model to pass |
+|---|---|---|
+| opus, sonnet, fable, haiku (default if unspecified: sonnet — cheap, narrow-scope work) | `claude` | the matching Bedrock id, e.g. `eu.anthropic.claude-sonnet-5` (or `[1m]`-suffixed only if this pane itself will hold outsized state — rare for a worker/judge, see the context-window table above) |
+| gemini flash | `agy` | `gemini-3.7-flash-medium` |
+| deepseek, or unspecified fast-coding | `pi` | whatever this repo's `pi` defaults resolve to; pass `--model` explicitly, `herdr-jj spawn` has no default for `pi` |
+
+Judge default stays `claude`/sonnet unless told otherwise — agy is fine for
+worker throughput but is not vetted here for unsupervised review judgment.
+
+**Spawn:**
+
+```bash
+herdr-jj spawn "$WORKER_AGENT" --kind agy --from-pane "$HERDR_PANE_ID" --model gemini-3.7-flash-medium
+```
+
+`--from-pane "$HERDR_PANE_ID"` splits a fresh pane off your own — always use
+your own pane as the source, never try to spawn *into* it directly (`agent
+start` reports `agent_pane_busy` for a pane you're currently running the
+command from, confirmed by hand). `herdr-jj spawn` handles the retry on a
+freshly-split pane not yet settled, the defensive rename-verify, and a clear
+error instead of a confusing one if the name is already taken. Read its own
+`--help` rather than assuming these flags; it can change.
+
+**Then brief it yourself, as a plain follow-up prompt — not baked into the
+spawn command:**
+
+```bash
+herdr agent prompt "$WORKER_AGENT" \
+  "You are the worker. Your herdr identity is $WORKER_AGENT; the planner is $PLANNER_AGENT. Read $PHASE_PATH. Load /worker-role and implement the work as directed. Signal $PLANNER_AGENT when done."
+```
+
+This two-step split (launch clean, then prompt) exists because baking a long
+brief into `agent start`'s own arguments has failed outright for some kinds
+(agy's argv encoding rejected it) but a plain `agent prompt` afterward has
+worked reliably for every kind tried. Read back the pane after a few seconds
+(`herdr agent read <pane> --lines 20`) to confirm the brief actually landed
+rather than trusting the JSON response alone — delivery has silently
+no-op'd once even though the call reported success.
+
+Same pattern for the judge, once there's a diff:
+
+```bash
+herdr-jj spawn "$JUDGE_AGENT" --kind claude --from-pane "$HERDR_PANE_ID"
+herdr agent prompt "$JUDGE_AGENT" \
+  "You are the judge. Your herdr identity is $JUDGE_AGENT; the planner is $PLANNER_AGENT. Read $PHASE_PATH. Load /judge-role and review cold."
+```
+
+Spawn each only once per loop; reuse the same pane/name for later phases
+rather than spawning a fresh worker every phase (that's what `/clear` or a
+harness restart between phases is for — see the context-reset table above).
 
 ---
 
@@ -239,30 +341,13 @@ Before writing a plan, ask clarifying questions — **one at a time**. Goals:
 
 Ask about the **riskiest assumption first** — the one that, if wrong, invalidates the entire approach. When answers are clear, create the plan directory and write `## Requirements` and `## Acceptance Criteria` to `plan.md`.
 
-### 2. Discover agents
+### 2. Plan phases, don't spawn yet
 
-```bash
-herdr pane list --workspace "$HERDR_WORKSPACE_ID"
-```
-
-Recompute `$WORKER_AGENT` / `$JUDGE_AGENT` per "Agent identities" above if you haven't already this session — do not assume the bare names `worker`/`judge` resolve to this workspace.
-
-### 3. Signal workers with plan path + role
-
-```bash
-herdr agent prompt "$WORKER_AGENT" \
-  "Loop started. Plan index: $INDEX_PATH. Load /worker-role. Wait for phase signal."
-
-herdr agent prompt "$JUDGE_AGENT" \
-  "Loop started. Plan index: $INDEX_PATH. Load /judge-role. Wait for review signal."
-```
-
-`herdr agent prompt`'s own `--wait` reports spurious timeouts even on
-successful delivery (seen in practice — every signal in one loop reported
-`{"error":{"code":"timeout"}}` while `herdr agent get` confirmed delivery
-each time). Don't pass `--wait`/`--timeout` to `prompt` at all; use the
-explicit `herdr agent wait` below instead — that's the one that has to be
-right.
+Write `## Phases` as a short outline in `plan.md` (names and one-line scope
+only — the detailed phase spec with proof/gate-blind-risks/mutation-check
+waits until you actually assign one, in Mode B). There is no worker or judge
+to discover or signal at this point; you spawn each the first time you
+actually need it ("Spinning up a worker or judge" above), not upfront.
 
 ---
 
@@ -305,6 +390,10 @@ Create it from the template above (including `Gate-blind risks` and
 this structure was written to fix). Add the phase to `index.md`'s list and
 set `Current phase:`.
 
+**If `$WORKER_AGENT` doesn't exist yet** (first phase, or a prior worker was
+cleared/restarted), spawn it now — see "Spinning up a worker or judge"
+above. Otherwise reuse the live one.
+
 Then signal:
 
 ```bash
@@ -322,6 +411,9 @@ anything in the phase file's `Gate-blind risks` line — those are exactly the
 defects a green build gate cannot catch, and catching one yourself saves a
 full judge round (seen in practice: this is how a real frontend gap got
 caught in one loop instead of costing a round).
+
+**If `$JUDGE_AGENT` doesn't exist yet**, spawn it now — see "Spinning up a
+worker or judge" above. Otherwise reuse the live one.
 
 ```bash
 herdr agent prompt "$JUDGE_AGENT" \
@@ -406,6 +498,7 @@ cat "$MAIN_REPO/.plans/"*/index.md | grep -E '^Status:|^Current phase:'
 
 - **Short signals, rich plan files.** Never send large content via `herdr agent prompt` — send a path and an anchor.
 - **Anchor every reference.** A signal names a specific file and heading, never a bare directory.
+- **Spawn on demand, not speculatively.** No worker/judge until there's a concrete phase or diff for it; see "Spinning up a worker or judge."
 - **Proof path required.** No phase without a machine-verifiable acceptance criterion.
 - **Gate-blind risks and mutation check required.** No phase spec without both fields filled in.
 - **Judge reviews cold.** Send diff stat, not the worker's handoff notes.

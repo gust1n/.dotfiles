@@ -161,30 +161,35 @@ Debug with `tail -f /tmp/agent-guard.log` (override via `AGENT_GUARD_LOG`).
 
 ## Planner / Worker / Judge loop
 
-For structured development work, `herdr-jj new` offers a **loop** layout in the
-model picker. This creates a 2×2 pane grid with three pi agents and a terminal:
-
-```
-planner (opus)   │ worker (sonnet)
-─────────────────┼──────────────────
-judge (sonnet-5) │ terminal
-```
+For structured development work: `herdr-jj new` (plain, no special layout) to
+start a solo planner session, then load `/planner-role` and describe the
+task. The planner grills requirements, writes a plan (`.plans/`, gitignored,
+survives workspace deletion), and spins up a worker — and later a judge — on
+its own, only once a phase is concrete enough to delegate, via `herdr-jj
+spawn` from inside its own session. There is no fixed pane layout to
+provision upfront.
 
 Based on the production-validated Planner→Worker→Judge pattern (Cursor, Anthropic,
 Sourcegraph). The flow:
 
-1. **Planner** grills requirements (one question at a time), writes a plan file to
-   `<main-repo>/.plans/` (gitignored, survives workspace deletion), then assigns
-   work to the worker with a machine-verifiable proof command.
+1. **Planner** grills requirements (one question at a time), writes a plan to
+   `<main-repo>/.plans/<task>/`, then spawns a worker and assigns it a phase
+   with a machine-verifiable proof command.
 2. **Worker** implements, runs `mise run build` or `pnpm check` as the build gate
    (this IS the automated judge), and can escalate to the planner when blocked on
    design decisions.
-3. **Judge** reviews the diff cold (context-isolated, no worker notes first),
-   applies the repo's AGENTS.md checklist, and decides BLOCK or APPROVE.
-   Stop rules prevent infinite fix loops (max 3 rounds).
+3. **Judge**, spawned by the planner once there's a diff, reviews it cold
+   (context-isolated, no worker notes first), applies the repo's AGENTS.md
+   checklist, and decides BLOCK or APPROVE. Stop rules prevent infinite fix
+   loops (max 3 rounds).
 
-After a loop closes, the planner writes a lesson to `docs/lessons/` and
-backpropagates findings to `backend/AGENTS.md` or files an ADR.
+Worker and judge can be a different harness/model than the planner — e.g. a
+claude/opus planner spinning up an `agy`/Gemini Flash worker for throughput —
+chosen per phase, not fixed upfront. See `planner-role` for the kind/model
+decision table and the actual spawn mechanics.
+
+After a loop closes, the planner backpropagates findings to the repo's
+`AGENTS.md`.
 
 For ad-hoc sub-delegation without the full loop structure, use `pi-subagents`
 (`/parallel-review`, `subagent({ agent: "scout", task: "..." })`) for headless

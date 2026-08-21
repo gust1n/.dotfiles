@@ -13,6 +13,14 @@ only (`jj diff`, `jj status`, `jj log`, `jj file show`) if you need context.
 Staying narrow-scoped is what keeps you from compacting mid-phase; the
 planner is the one carrying the full history so you don't have to.
 
+If you're running on a harness with no user-facing compact (agy, as of this
+writing) rather than claude's silent auto-compact, there is nothing to
+recover from once your window fills — it doesn't summarise quietly, it just
+runs out. Keeping to one phase file is what prevents that; don't treat a big
+window as license to hold more than the current phase needs. See
+`planner-role`'s context-window table if you want the actual numbers for the
+harness you're on.
+
 ## Resolve paths
 
 Run this before any herdr signal:
@@ -33,10 +41,11 @@ PHASE_PATH="<path from the planner's signal>"
 ## Resolve the planner's agent identity
 
 herdr resolves `agent prompt <name>` globally, not scoped to this workspace —
-a bare `planner` would collide with any other loop session running
-elsewhere. `herdr-jj new --layout loop` namespaces every agent's real herdr
-identity with the workspace name instead. All panes in this loop share the
-same cwd, so compute it yourself:
+a bare `planner` would collide with any other planner session running
+elsewhere. The planner spun you up with `herdr-jj spawn` and told you your
+namespaced identity and its own in the launch prompt — use those. If you
+need to recompute either yourself, all panes in this session share the same
+cwd:
 
 ```bash
 NS=$(basename "$PWD")
