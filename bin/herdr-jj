@@ -488,6 +488,20 @@ When the user gives you a task, immediately load /planner-role — do not wait t
     done
   fi
 
+  # Defensive re-verify, unconditionally, even on the `agent start` success
+  # path above: registration has been observed not to stick even when
+  # `agent start` itself reports success (a live pi-harness loop drifted
+  # back to showing the bare role name — "worker"/"judge" — in `herdr agent
+  # list` instead of the namespaced $agent_name, with no error at launch
+  # time). Confirm the pane actually resolves under $agent_name and force a
+  # rename if it does not, rather than trusting the launch call's own
+  # reported outcome.
+  local resolved_name
+  resolved_name=$(herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.name // empty')
+  if [[ "$resolved_name" != "$agent_name" ]]; then
+    herdr agent rename "$pane" "$agent_name" >/dev/null 2>&1 || true
+  fi
+
   # Both harnesses read their role-prompt file at startup, well before this
   # point in either the `agent start` success path or the fallback above, so
   # it is safe to remove the temp file now.
