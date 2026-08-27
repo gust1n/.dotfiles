@@ -29,7 +29,7 @@ bin/agent-guard - PreToolUse hook: sandboxes agents to their workspace
 config/herdr/config.toml - keybindings (popups → herdr-jj), sidebar, attention queue
 claude/settings.json     - the single PreToolUse hook
 pi/settings.json         - pi agent settings (packages, model defaults)
-agents/AGENTS.md         - shared agent instructions (→ ~/.claude/CLAUDE.md)
+agents/AGENTS.md         - shared agent instructions (→ ~/.claude, ~/.pi, ~/.gemini)
 agents/skills/           - agent skills, linked into every agent (see below)
 ```
 
@@ -221,9 +221,10 @@ agents/skills/            ← canonical, version-controlled
   └── skills-lock.json    ← source + content hash, for updates
 ~/.agents/skills  → agents/skills   (pi, opencode, codex, … read this natively)
 ~/.claude/skills  → agents/skills   (Claude Code needs its own path)
+~/.gemini/config/skills → agents/skills (Antigravity needs its own path)
 ```
 
-Both symlinks are created by `install.sh`.
+These symlinks are created by `install.sh`.
 
 **`herdr`** — the official skill, teaching an agent to drive herdr from inside a
 pane: split panes, start helper agents in siblings, read their output, wait on

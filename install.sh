@@ -62,12 +62,21 @@ fi
 echo "symlinking ~/.pi/agent/extensions -> $BASE/pi/extensions"
 ln -sfn "$BASE/pi/extensions" ~/.pi/agent/extensions
 
+# Symlink ~/.gemini/config/AGENTS.md
+mkdir -p ~/.gemini/config
+if [ -e ~/.gemini/config/AGENTS.md ] && [ ! -L ~/.gemini/config/AGENTS.md ]; then
+	echo "backing up existing ~/.gemini/config/AGENTS.md"
+	mv -v ~/.gemini/config/AGENTS.md bak/
+fi
+echo "symlinking ~/.gemini/config/AGENTS.md -> $BASE/agents/AGENTS.md"
+ln -sfn "$BASE/agents/AGENTS.md" ~/.gemini/config/AGENTS.md
+
 # Agent skills live once in agents/skills/ and are linked into each agent's
-# skills dir. ~/.agents/skills is the vendor-neutral location that pi, opencode
-# and others read natively; Claude Code needs its own ~/.claude/skills.
+# skills dir: ~/.agents/skills (pi, opencode), ~/.claude/skills (Claude Code),
+# and ~/.gemini/config/skills (Antigravity).
 # Update a vendored skill with:
 #   cd agents && npx skills update
-for skills_dir in ~/.agents/skills ~/.claude/skills; do
+for skills_dir in ~/.agents/skills ~/.claude/skills ~/.gemini/config/skills; do
 	mkdir -p "$(dirname "$skills_dir")"
 	if [ -e "$skills_dir" ] && [ ! -L "$skills_dir" ]; then
 		echo "backing up existing $skills_dir"
