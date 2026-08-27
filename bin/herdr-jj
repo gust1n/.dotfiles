@@ -324,13 +324,14 @@ pick_target() {
 # --- model + harness pickers ------------------------------------------------
 
 # Interactive model-tier prompt. Esc or empty input → opus (default).
-# Returns a bare tier keyword: opus, sonnet, or haiku.
+# Returns a bare tier keyword: opus, sonnet, haiku, or flash.
 pick_model() {
   local choice
   choice=$(printf '%s\n' \
       'opus    planner / orchestrator' \
       'sonnet  worker / balanced' \
       'haiku   simple tasks / cheapest' \
+      'flash   gemini flash / throughput (agy)' \
     | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
           --bind='ctrl-j:down,ctrl-k:up' \
           --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
@@ -338,8 +339,9 @@ pick_model() {
   printf '%s\n' "${tier:-opus}"
 }
 
-# Interactive harness prompt. Esc or empty input → claude (default).
-# Returns a bare harness keyword: claude or pi.
+# Interactive harness prompt. Esc or empty input → claude (default). Only
+# meaningful for the claude/pi tiers — "flash" implies agy on its own, skip
+# asking. Returns a bare harness keyword: claude or pi.
 pick_harness() {
   local choice
   choice=$(printf '%s\n' \
@@ -352,9 +354,14 @@ pick_harness() {
   printf '%s\n' "${h:-claude}"
 }
 
-# tier + harness -> a launch command.
+# tier + harness -> a launch command. "flash" ignores harness and always
+# launches agy — there is no claude/pi equivalent of that tier.
 build_agent_cmd() {
   local harness="$1" tier="$2" model
+  if [[ "$tier" == "flash" ]]; then
+    printf 'agy --dangerously-skip-permissions --model %s\n' "$SPAWN_DEFAULT_MODEL_AGY"
+    return
+  fi
   case "$tier" in
     sonnet|haiku) model="$SONNET_MODEL" ;;
     *)            model="$OPUS_MODEL" ;;
@@ -379,8 +386,8 @@ cmd_new() {
       --agent)   agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
-          opus|sonnet|haiku) model_tier="$2" ;;
-          *)                 agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
+          opus|sonnet|haiku|flash) model_tier="$2" ;;
+          *)                       agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
         model_specified=1; shift 2 ;;
       *) shift ;;
@@ -418,11 +425,14 @@ cmd_new() {
     [[ -z "$name" ]] && return 0
     if (( ! model_specified )); then
       model_tier=$(pick_model)
-      (( harness_specified )) || HARNESS=$(pick_harness)
+      if [[ "$model_tier" != "flash" ]]; then
+        (( harness_specified )) || HARNESS=$(pick_harness)
+      fi
       AGENT_CMD=$(build_agent_cmd "$HARNESS" "$model_tier")
-    elif [[ -z "$agent" ]] && (( ! harness_specified )); then
+    elif [[ -z "$agent" ]] && (( ! harness_specified )) && [[ "$model_tier" != "flash" ]]; then
       # A tier came from a flag but no --harness and no full --agent
-      # override: still worth asking which CLI runs it.
+      # override: still worth asking which CLI runs it. Not for "flash":
+      # that tier always means agy, asking claude-vs-pi doesn't apply.
       HARNESS=$(pick_harness)
       [[ -n "$model_tier" ]] && AGENT_CMD=$(build_agent_cmd "$HARNESS" "$model_tier")
     fi
@@ -745,7 +755,7 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
   herdr-jj new              pick a repo, then pick or name the work, then
                             pick a model tier and a harness
   herdr-jj new --repo R --name N [--prompt P] \
-              [--model opus|sonnet|haiku] [--harness claude|pi] [--agent CMD]
+              [--model opus|sonnet|haiku|flash] [--harness claude|pi] [--agent CMD]
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
@@ -763,9 +773,10 @@ your local bookmarks by recency, then remote ones. Selecting a workspace attache
 to it (continuing its session); selecting a bookmark branches a new workspace off
 it; typing a name that matches nothing starts fresh work.
 
---model picks opus/sonnet/haiku; --harness picks which CLI runs it: claude
-(Claude Code, default) or pi. --agent gives an explicit full launch command
-and overrides both.
+--model picks opus/sonnet/haiku (claude, via --harness) or flash (Gemini
+Flash, always agy — --harness doesn't apply). --harness picks which CLI runs
+a claude/sonnet/haiku tier: claude (Claude Code, default) or pi. --agent
+gives an explicit full launch command and overrides both.
 
 Checkouts live in ~/.herdr/workspaces/<repo>/<name>  ($HERDR_JJ_ROOT to override).
 Agent command: $HERDR_JJ_AGENT (default: claude --dangerously-skip-permissions).
