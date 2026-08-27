@@ -640,6 +640,19 @@ cmd_spawn() {
   local name="" kind="" model="" from_pane="" target_pane=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      -h|--help)
+        cat <<'EOF'
+Usage: herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
+              (--from-pane P | --pane P)
+
+JIT worker/judge: split a pane off P (--from-pane) or use an existing idle
+pane P directly (--pane), then launch <name> there. "flash" is a --kind
+alias for agy that defaults --model to $SPAWN_DEFAULT_MODEL_AGY.
+
+Does not send a brief. Follow with a plain `herdr agent prompt <name> ...`
+once this returns — see agents/skills/planner-role.
+EOF
+        return 0 ;;
       --kind)      kind="${2:-}"; shift 2 ;;
       --model)     model="${2:-}"; shift 2 ;;
       --from-pane) from_pane="${2:-}"; shift 2 ;;
@@ -653,7 +666,11 @@ cmd_spawn() {
 
   need herdr jq
   [[ -n "$name" ]] || die_pause "spawn: <name> is required, e.g. \${NS}-worker"
-  [[ -n "$kind" ]] || die_pause "spawn: --kind is required (claude|agy|pi|...)"
+  [[ -n "$kind" ]] || die_pause "spawn: --kind is required (claude|agy|pi|flash|...)"
+  # "flash" is a --kind alias for agy, matching herdr-jj new's flash tier —
+  # not a real herdr agent kind, translate it before anything downstream
+  # sees it.
+  [[ "$kind" == "flash" ]] && kind="agy"
   if [[ -n "$from_pane" && -n "$target_pane" ]]; then
     die_pause "spawn: pass --from-pane or --pane, not both"
   fi
@@ -759,7 +776,7 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
-  herdr-jj spawn <name> --kind <claude|agy|pi|...> [--model M] \
+  herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
               (--from-pane P | --pane P)
                             JIT worker/judge: split a pane off P (or use an
                             existing idle pane P directly) and launch <name>.

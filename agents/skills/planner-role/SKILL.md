@@ -113,7 +113,7 @@ to a `--kind`:
 | You/user said | `--kind` | Model to pass |
 |---|---|---|
 | opus, sonnet, fable, haiku (default if unspecified: sonnet — cheap, narrow-scope work) | `claude` | the matching Bedrock id, e.g. `eu.anthropic.claude-sonnet-5` (or `[1m]`-suffixed only if this pane itself will hold outsized state — rare for a worker/judge, see the context-window table above) |
-| gemini flash | `agy` | `gemini-3.7-flash-medium` |
+| gemini, flash, gemini flash | `flash` (an alias `herdr-jj spawn` translates to `agy` — omit `--model` and it defaults to `gemini-3.7-flash-medium`) | omit, or a specific gemini id to override the default |
 | deepseek, or unspecified fast-coding | `pi` | whatever this repo's `pi` defaults resolve to; pass `--model` explicitly, `herdr-jj spawn` has no default for `pi` |
 
 Judge default stays `claude`/sonnet unless told otherwise — agy is fine for
@@ -122,8 +122,11 @@ worker throughput but is not vetted here for unsupervised review judgment.
 **Spawn:**
 
 ```bash
-herdr-jj spawn "$WORKER_AGENT" --kind agy --from-pane "$HERDR_PANE_ID" --model gemini-3.7-flash-medium
+herdr-jj spawn "$WORKER_AGENT" --kind flash --from-pane "$HERDR_PANE_ID"
 ```
+
+Use `--kind agy --model <id>` instead of `--kind flash` only if you need a
+specific Gemini model other than the default.
 
 `--from-pane "$HERDR_PANE_ID"` splits a fresh pane off your own — always use
 your own pane as the source, never try to spawn *into* it directly (`agent
