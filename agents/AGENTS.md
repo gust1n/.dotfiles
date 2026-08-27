@@ -4,6 +4,10 @@
 
 **Editing AGENTS.md files**: Be concise. State facts and rules, not explanations or reasoning. No babble, no filler, no restating what a command already says. Every extra sentence costs context and confuses the next agent. Bullets over paragraphs.
 
+**Code comments**: Explain non-obvious *current* behavior for a future reader, nothing else. Never narrate discussion history, rejected alternatives, or what changed and why relative to a previous version — jj history already records that. If the code is self-explanatory, write no comment.
+- Bad: "changed this since the retry approach was rejected"; "kept for backward compat with the old flow"; "per our discussion, using X instead of Y."
+- Good: "retries capped at 3: the upstream API rate-limits above that, see docs.example.com/rate-limits."
+
 **CRITICAL**: Use jj (Jujutsu) for version control, NOT git.
 
 ## Work Process
