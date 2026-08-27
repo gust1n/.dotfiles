@@ -47,7 +47,7 @@ SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthr
 # skill that wants the long-context planner variant passes --model
 # explicitly (e.g. "${OPUS_MODEL}[1m]"; see planner-role).
 SPAWN_DEFAULT_MODEL_CLAUDE="${SPAWN_DEFAULT_MODEL_CLAUDE:-$SONNET_MODEL}"
-SPAWN_DEFAULT_MODEL_AGY="${SPAWN_DEFAULT_MODEL_AGY:-gemini-3.7-flash-medium}"
+SPAWN_DEFAULT_MODEL_AGY="${SPAWN_DEFAULT_MODEL_AGY:-gemini-3.8-flash-medium}"
 
 # --- plumbing ---------------------------------------------------------------
 

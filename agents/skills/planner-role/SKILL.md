@@ -29,7 +29,7 @@ can flip:
 |---|---|---|---|
 | claude (planner) | `eu.anthropic.claude-opus-5[1m]` via Bedrock | ~1M tokens — the `[1m]` suffix on the model string is required; without it Bedrock's default Opus window is ~200K (confirmed: a real planner session hit auto-compact at ~165K cumulative input tokens before this fix landed) | yes, silent — see "Waiting for a worker" below |
 | claude (worker/judge) | `eu.anthropic.claude-sonnet-5` via Bedrock | ~200K tokens — Claude Code's own `/model` picker only ever labels Opus "(1M context)", never Sonnet; the `[1m]` suffix is silently accepted for Sonnet too but an actually-widened window is unconfirmed, so don't rely on it | yes, silent |
-| agy (any role) | `gemini-3.7-flash-medium` | ~1,048,576 tokens (1M), self-reported by the model | **none** — no user-facing compact command exists; if it fills, it fills |
+| agy (any role) | `gemini-3.8-flash-medium` | ~1,048,576 tokens (1M), self-reported by the model | **none** — no user-facing compact command exists; if it fills, it fills |
 | pi (any role) | whatever `--model` resolves to | pi's `provider/id` model syntax has no `[1m]`-equivalent flag; don't assume the loop's Bedrock 1M fix carries over | depends on provider |
 
 If the worker or judge pane is running agy (or anything with a bigger window
@@ -113,7 +113,7 @@ to a `--kind`:
 | You/user said | `--kind` | Model to pass |
 |---|---|---|
 | opus, sonnet, fable, haiku (default if unspecified: sonnet — cheap, narrow-scope work) | `claude` | the matching Bedrock id, e.g. `eu.anthropic.claude-sonnet-5` (or `[1m]`-suffixed only if this pane itself will hold outsized state — rare for a worker/judge, see the context-window table above) |
-| gemini, flash, gemini flash | `flash` (an alias `herdr-jj spawn` translates to `agy` — omit `--model` and it defaults to `gemini-3.7-flash-medium`) | omit, or a specific gemini id to override the default |
+| gemini, flash, gemini flash | `flash` (an alias `herdr-jj spawn` translates to `agy` — omit `--model` and it defaults to `gemini-3.8-flash-medium`) | omit, or a specific gemini id to override the default |
 | deepseek, or unspecified fast-coding | `pi` | whatever this repo's `pi` defaults resolve to; pass `--model` explicitly, `herdr-jj spawn` has no default for `pi` |
 
 Judge default stays `claude`/sonnet unless told otherwise — agy is fine for
