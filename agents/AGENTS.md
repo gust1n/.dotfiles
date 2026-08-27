@@ -2,6 +2,8 @@
 
 **Writing style**: Use ASD-STE100 (Simplified Technical English). Short sentences. Active voice. One idea per sentence. Plain approved words. No marketing language.
 
+**Editing AGENTS.md files**: Be concise. State facts and rules, not explanations or reasoning. No babble, no filler, no restating what a command already says. Every extra sentence costs context and confuses the next agent. Bullets over paragraphs.
+
 **CRITICAL**: Use jj (Jujutsu) for version control, NOT git.
 
 ## Work Process
