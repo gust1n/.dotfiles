@@ -34,13 +34,8 @@ HARNESS="${HERDR_JJ_HARNESS:-claude}"
 OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
 SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
 
-# Default model per --kind for `herdr-jj spawn`, used only when the caller
-# omits --model. These are deliberately the *lighter* default for each kind
-# (a spawned pane is normally a worker or judge, not a planner) — a planner
-# skill that wants the long-context planner variant passes --model
-# explicitly (e.g. "${OPUS_MODEL}[1m]").
-SPAWN_DEFAULT_MODEL_CLAUDE="${SPAWN_DEFAULT_MODEL_CLAUDE:-$SONNET_MODEL}"
-SPAWN_DEFAULT_MODEL_AGY="${SPAWN_DEFAULT_MODEL_AGY:-gemini-3.8-flash-medium}"
+# Model behind the "flash" tier in the picker: agy for throughput.
+FLASH_MODEL="${FLASH_MODEL:-gemini-3.8-flash-medium}"
 
 # --- plumbing ---------------------------------------------------------------
 
@@ -352,7 +347,7 @@ pick_harness() {
 build_agent_cmd() {
   local harness="$1" tier="$2" model
   if [[ "$tier" == "flash" ]]; then
-    printf 'agy --dangerously-skip-permissions --model %s\n' "$SPAWN_DEFAULT_MODEL_AGY"
+    printf 'agy --dangerously-skip-permissions --model %s\n' "$FLASH_MODEL"
     return
   fi
   case "$tier" in
@@ -621,142 +616,11 @@ cmd_tidy() {
   echo "forgot $n workspace(s); abandoned divergent commits."
 }
 
-# --- spawn (sibling agent) ---------------------------------------------------
-#
-# Any agent that already has HERDR_ENV=1 and shell access calls this itself,
-# mid-session, once it has decided some work is worth delegating.
-# It does not decide what to say to the new pane; that's the caller's job via
-# a follow-up `herdr agent prompt` (see below for why that's a separate step,
-# not a flag here).
-cmd_spawn() {
-  local name="" kind="" model="" from_pane="" target_pane=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -h|--help)
-        cat <<'EOF'
-Usage: herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
-              (--from-pane P | --pane P)
-
-Split a pane off P (--from-pane) or use an existing idle pane P directly
-(--pane), then launch <name> there. "flash" is a --kind
-alias for agy that defaults --model to $SPAWN_DEFAULT_MODEL_AGY.
-
-Does not send a brief. Follow with a plain `herdr agent prompt <name> ...`
-once this returns.
-EOF
-        return 0 ;;
-      --kind)      kind="${2:-}"; shift 2 ;;
-      --model)     model="${2:-}"; shift 2 ;;
-      --from-pane) from_pane="${2:-}"; shift 2 ;;
-      --pane)      target_pane="${2:-}"; shift 2 ;;
-      -*)          die_pause "spawn: unknown flag $1" ;;
-      *)
-        [[ -z "$name" ]] || die_pause "spawn: unexpected argument $1"
-        name="$1"; shift ;;
-    esac
-  done
-
-  need herdr jq
-  [[ -n "$name" ]] || die_pause "spawn: <name> is required, e.g. \${NS}-worker"
-  [[ -n "$kind" ]] || die_pause "spawn: --kind is required (claude|agy|pi|flash|...)"
-  # "flash" is a --kind alias for agy, matching herdr-jj new's flash tier —
-  # not a real herdr agent kind, translate it before anything downstream
-  # sees it.
-  [[ "$kind" == "flash" ]] && kind="agy"
-  if [[ -n "$from_pane" && -n "$target_pane" ]]; then
-    die_pause "spawn: pass --from-pane or --pane, not both"
-  fi
-  if [[ -z "$from_pane" && -z "$target_pane" ]]; then
-    die_pause "spawn: pass --from-pane <pane-id> to split a new pane off it, or --pane <existing-idle-pane-id> to use one directly"
-  fi
-
-  # `agent start` reports agent_pane_busy when run from inside the very pane
-  # it targets, even though nothing is actually running there (confirmed by
-  # hand). --from-pane always creates a fresh pane so this only matters for
-  # --pane: catch it here with a clear message instead of the confusing
-  # upstream error.
-  if [[ -n "$target_pane" && -n "${HERDR_PANE_ID:-}" && "$target_pane" == "$HERDR_PANE_ID" ]]; then
-    die_pause "spawn: --pane $target_pane is the pane you're running this from; run spawn from a different pane (herdr reports agent_pane_busy otherwise)"
-  fi
-
-  local pane="$target_pane"
-  if [[ -n "$from_pane" ]]; then
-    pane=$(herdr pane split --pane "$from_pane" --direction right --cwd "$PWD" --no-focus 2>/dev/null \
-      | jq -r '.result.pane.pane_id // empty')
-    [[ -n "$pane" ]] || die_pause "spawn: failed to split a new pane off $from_pane"
-    sleep 2  # let the new pane's shell settle before agent start (confirmed
-             # by hand: agent_pane_busy on a pane that is not actually busy,
-             # just not yet ready, without this)
-  fi
-
-  if [[ -z "$model" ]]; then
-    case "$kind" in
-      claude) model="$SPAWN_DEFAULT_MODEL_CLAUDE" ;;
-      agy)    model="$SPAWN_DEFAULT_MODEL_AGY" ;;
-      *)      die_pause "spawn: --model is required for --kind $kind (no default configured)" ;;
-    esac
-  fi
-
-  # Deliberately no role-prompt baking here: agy's argv encoding rejects
-  # long/non-ASCII text passed to `agent start` outright, and the fix that
-  # actually works for every kind is the same either way — launch clean,
-  # then the caller sends the brief via a plain `herdr agent prompt` once
-  # the pane is ready.
-  local args=()
-  case "$kind" in
-    claude) args=(--model "$model" --dangerously-skip-permissions -n "$name") ;;
-    agy)    args=(--model "$model" --dangerously-skip-permissions) ;;
-    pi)     args=(--model "$model" --no-session --name "$name") ;;
-    *)      args=(--model "$model") ;;
-  esac
-
-  local start_out start_rc attempt
-  for attempt in 1 2 3; do
-    start_out=$(herdr agent start "$name" --kind "$kind" --pane "$pane" --timeout 60000 -- "${args[@]}" 2>&1)
-    start_rc=$?
-    (( start_rc == 0 )) && break
-    # A freshly split pane (--from-pane) can report agent_pane_busy for a
-    # beat while its shell finishes settling, even after the sleep above —
-    # retry a couple times before treating it as a real occupant. A --pane
-    # target (caller-chosen, not just split) skips the retry: busy there
-    # means something is genuinely running.
-    if [[ -n "$from_pane" ]] && grep -q agent_pane_busy <<<"$start_out" && (( attempt < 3 )); then
-      sleep 2
-      continue
-    fi
-    break
-  done
-  if (( start_rc != 0 )); then
-    if grep -q agent_name_taken <<<"$start_out"; then
-      die_pause "spawn: '$name' is already live on $pane. Exit it first (claude/agy: send '/exit' via herdr pane send-text, not ctrl+d — it doesn't exit agy's TUI) then retry."
-    fi
-    if grep -q agent_pane_busy <<<"$start_out"; then
-      die_pause "spawn: $pane is not an available shell (something is still running there). $start_out"
-    fi
-    echo "spawn: agent start reported an error, checking whether it launched anyway: $start_out" >&2
-    sleep 3
-  fi
-
-  # Defensive re-verify: registration has been observed not to stick even
-  # when `agent start` reports success.
-  local resolved_name
-  resolved_name=$(herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.name // empty')
-  if [[ "$resolved_name" != "$name" ]]; then
-    herdr agent rename "$pane" "$name" >/dev/null 2>&1 || true
-    resolved_name=$(herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.name // empty')
-  fi
-  [[ "$resolved_name" == "$name" ]] || die_pause "spawn: could not confirm '$name' registered on $pane (got '${resolved_name:-<none>}'). Check by hand: herdr agent get $pane"
-
-  echo "spawned $name ($kind, $model) on pane $pane"
-  echo "pane=$pane"
-  echo "name=$name"
-}
 
 case "${1:-}" in
   new)            shift; cmd_new "$@" ;;
   rm|remove|kill) shift; cmd_rm "$@" ;;
   tidy)           shift; cmd_tidy "$@" ;;
-  spawn)          shift; cmd_spawn "$@" ;;
   -h|--help|help|"")
     cat <<'EOF'
 herdr-jj — jj-workspace-backed agent sessions for herdr
@@ -768,13 +632,6 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
-  herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
-              (--from-pane P | --pane P)
-                            Split a pane off P (or use an existing idle pane
-                            P directly) and launch <name>. Meant to be called
-                            by a running agent, not typed by a human. Does not
-                            send a brief — follow with
-                            `herdr agent prompt <name> ...` once this returns.
 
 The picker is one ranked list — running agents first, then idle workspaces, then
 your local bookmarks by recency, then remote ones. Selecting a workspace attaches
