@@ -307,13 +307,12 @@ pick_target() {
 # --- model picker -----------------------------------------------------------
 
 # Interactive model-tier prompt. Esc or empty input → opus (default).
-# Returns a bare tier keyword: opus, sonnet, haiku, or flash.
+# Returns a bare tier keyword: opus, sonnet, or flash.
 pick_model() {
   local choice
   choice=$(printf '%s\n' \
       'opus    planner / orchestrator' \
       'sonnet  worker / balanced' \
-      'haiku   simple tasks / cheapest' \
       'flash   gemini flash / throughput (agy)' \
     | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
           --bind='ctrl-j:down,ctrl-k:up' \
@@ -330,8 +329,8 @@ build_agent_cmd() {
     return
   fi
   case "$tier" in
-    sonnet|haiku) model="$SONNET_MODEL" ;;
-    *)            model="$OPUS_MODEL" ;;
+    sonnet) model="$SONNET_MODEL" ;;
+    *)      model="$OPUS_MODEL" ;;
   esac
   printf 'claude --dangerously-skip-permissions --model %s\n' "$model"
 }
@@ -348,8 +347,8 @@ cmd_new() {
       --agent)   agent="${2:-}"; model_specified=1; shift 2 ;;
       --model)
         case "${2:-}" in
-          opus|sonnet|haiku|flash) model_tier="$2" ;;
-          *)                       agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
+          opus|sonnet|flash) model_tier="$2" ;;
+          *)                 agent="claude --dangerously-skip-permissions --model ${2:-}" ;;
         esac
         model_specified=1; shift 2 ;;
       *) shift ;;
@@ -592,7 +591,7 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
   herdr-jj new              pick a repo, then pick or name the work, then
                             pick a model tier
   herdr-jj new --repo R --name N [--prompt P] \
-              [--model opus|sonnet|haiku|flash] [--agent CMD]
+              [--model opus|sonnet|flash] [--agent CMD]
   herdr-jj rm [path]        in an agent workspace: forget + delete + close it;
                             anywhere else: just close the herdr workspace
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
@@ -602,7 +601,7 @@ your local bookmarks by recency, then remote ones. Selecting a workspace attache
 to it (continuing its session); selecting a bookmark branches a new workspace off
 it; typing a name that matches nothing starts fresh work.
 
---model picks opus/sonnet/haiku (Claude Code) or flash (Gemini Flash via agy).
+--model picks opus or sonnet (Claude Code), or flash (Gemini Flash via agy).
 --agent gives an explicit full launch command and overrides it.
 
 Checkouts live in ~/.herdr/workspaces/<repo>/<name>  ($HERDR_JJ_ROOT to override).

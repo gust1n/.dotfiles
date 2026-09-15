@@ -9,7 +9,7 @@ Scripts in this repo. All are POSIX-safe bash unless noted.
 Claude Code `PreToolUse` hook. Sandboxes agents running in a jj agent workspace.
 
 - **Main workspace** (`.jj/repo` is a directory) → pass through unchanged.
-- **Agent workspace** (`.jj/repo` is a file) → file-edit tools must target a path inside the workspace; outward-facing bash commands (push, PR mutations, cloud deletes, publishes, DB DDL, recursive deletes outside the workspace) require explicit user approval.
+- **Agent workspace** (`.jj/repo` is a file) → file-edit tools must target a path inside the workspace; outward-facing bash commands (push, `jj pr`, PR mutations, cloud deletes, publishes, DB DDL, recursive deletes outside the workspace) require explicit user approval.
 
 **Usage:** Set as a `PreToolUse` hook in `claude/settings.json`. Not called directly.
 
@@ -29,7 +29,7 @@ Each agent gets its own jj workspace so parallel agents never touch each other's
 herdr-jj new                                   # interactive: pick repo → pick/name work → pick model
 herdr-jj new --repo <path> --name <name>       # scripted
              [--prompt <text>]                 # submit an initial prompt non-interactively
-             [--model opus|sonnet|haiku]        # model tier shorthand
+             [--model opus|sonnet|flash]        # model tier shorthand
              [--agent <cmd>]                   # override agent command entirely
 herdr-jj rm  [path]                            # forget workspace + delete checkout + close herdr ws
 herdr-jj tidy [repo]                           # sweep dead workspaces and divergent commits
@@ -96,14 +96,14 @@ Exposed as `jj pr`, `jj pr-edit`, `jj sync`, and `jj start` via shims.
 
 ```
 jj-workflow sync                               # fetch refs from origin
-jj-workflow start                              # new empty commit on top of main@origin
-jj-workflow pr [-r <rev>] [--body <text>] [--draft]
-                                               # create or update a PR for the current change
+jj-workflow start                              # new empty commit on top of trunk()
+jj-workflow pr [-r <rev>] [--body <text>] [--draft|--no-draft]
+                                               # create or update a PR; draft by default
 jj-workflow pr-edit -n <number> [--title <text>] [--body <text>]
                                                # edit title/body of an existing PR
 ```
 
-`pr` automatically: rebases onto `main@origin`, finds the nearest non-empty described commit, moves the head bookmark there, pushes, and opens the PR in the browser. After publishing it creates a new empty working commit.
+`pr` automatically: rebases onto `trunk()` (so it works whether the default branch is `main` or `master`), finds the nearest non-empty described commit, moves the head bookmark there, pushes, and opens the PR in the browser. After publishing it creates a new empty working commit. PRs are drafts unless `--no-draft` is passed.
 
 `pr-edit` derives the GitHub repo from the jj origin remote, so it works in jj workspaces where there is no `.git` directory (unlike `gh pr edit`).
 
