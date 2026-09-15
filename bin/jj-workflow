@@ -20,7 +20,7 @@ Usage: jj-workflow <command> [options]
 
 Commands:
   sync          Fetch refs from origin
-  start         Start an empty working commit on top of latest main@origin
+  start         Start an empty working commit on top of latest trunk()
   pr            Create or update a pull request for the current change
   pr-edit       Edit the title or body of an existing pull request
 
@@ -33,13 +33,14 @@ usage_pr() {
 Usage: jj pr [options]
 
 Creates or updates a pull request for the current change: rebases onto
-main@origin, picks the nearest non-empty described commit as the publish
+trunk(), picks the nearest non-empty described commit as the publish
 target, moves the head bookmark there, pushes, and opens the PR.
 
 Options:
   -r, --revision <rev>   Publish this revision instead of the automatic target
       --body <text>      PR body (default: the commit description after line 1)
-      --draft            Create the PR as a draft
+      --draft            Create the PR as a draft (the default)
+      --no-draft         Open a ready-for-review PR instead
   -h, --help             Show this help
 
 The PR title is always the first line of the commit description.
@@ -54,27 +55,28 @@ try_update_stale_workspace() {
     jj workspace update-stale >/dev/null 2>&1 || true
 }
 
-has_origin_main() {
-    jj log -r 'present(main@origin)' --no-graph -T 'commit_id.short()' 2>/dev/null | grep -q .
+has_trunk() {
+    jj log -r 'present(trunk())' --no-graph -T 'commit_id.short()' 2>/dev/null | grep -q .
 }
 
-require_origin_main() {
+# trunk() is jj's own alias for the default bookmark of the default remote, so
+# this works in main- and master-based repos alike. Do not hardcode either name.
+require_trunk() {
     local action="$1"
-    if has_origin_main; then
+    if has_trunk; then
         return 0
     fi
 
-    echo "origin/main doesn't exist yet." >&2
-    echo "Bootstrap the repo first, then retry: $action" >&2
-    echo "Suggested bootstrap:" >&2
-    echo "  jj bookmark set main -r @-" >&2
-    echo "  jj git push --remote origin --bookmark main" >&2
+    echo "Could not resolve trunk() — the remote has no default bookmark yet." >&2
+    echo "Push one, then retry: $action" >&2
+    echo "  jj bookmark set <name> -r @-   # e.g. main or master" >&2
+    echo "  jj git push --remote origin --bookmark <name>" >&2
     exit 1
 }
 
 ensure_pr_preflight() {
     fetch_origin
-    require_origin_main "jj pr"
+    require_trunk "jj pr"
 
     local at_empty
     at_empty=$(jj log -r @ --no-graph -T 'if(empty, "1", "0")' 2>/dev/null)
@@ -97,10 +99,10 @@ ensure_pr_preflight() {
     fi
 
     local rebased
-    rebased=$(jj log -r '@ & descendants(main@origin)' --no-graph 2>/dev/null || true)
+    rebased=$(jj log -r '@ & descendants(trunk())' --no-graph 2>/dev/null || true)
     if [[ -z "$rebased" ]]; then
-        echo "Rebasing onto latest main@origin..."
-        jj rebase -d main@origin >/dev/null || fail "Failed to rebase onto main@origin."
+        echo "Rebasing onto latest trunk()..."
+        jj rebase -d 'trunk()' >/dev/null || fail "Failed to rebase onto trunk()."
     fi
 }
 
@@ -152,12 +154,12 @@ commit_has_description() {
 }
 
 effective_publish_rev() {
-    require_origin_main "jj pr"
+    require_trunk "jj pr"
 
     local rev="@"
     while true; do
         local in_main_lineage
-        in_main_lineage=$(jj log -r "$rev & descendants(main@origin)" --no-graph 2>/dev/null || true)
+        in_main_lineage=$(jj log -r "$rev & descendants(trunk())" --no-graph 2>/dev/null || true)
         if [[ -z "$in_main_lineage" ]]; then
             fail "Could not determine publish target from current lineage."
         fi
@@ -169,9 +171,9 @@ effective_publish_rev() {
         fi
 
         local at_main
-        at_main=$(jj log -r "$rev & main@origin" --no-graph 2>/dev/null || true)
+        at_main=$(jj log -r "$rev & trunk()" --no-graph 2>/dev/null || true)
         if [[ -n "$at_main" ]]; then
-            fail "No non-empty commits to publish between @ and main@origin. Add changes first or run: jj start"
+            fail "No non-empty commits to publish between @ and trunk(). Add changes first or run: jj start"
         fi
 
         rev="${rev}-"
@@ -241,13 +243,13 @@ cmd_sync() {
 
 cmd_start() {
     case "${1:-}" in
-        -h|--help) echo "Usage: jj start    Start an empty working commit on top of latest main@origin."; return 0 ;;
+        -h|--help) echo "Usage: jj start    Start an empty working commit on top of latest trunk()."; return 0 ;;
     esac
 
     fetch_origin
-    require_origin_main "jj start"
-    jj new main@origin >/dev/null || fail "Failed to create new commit from main@origin."
-    echo "Now working on a new commit on top of latest main@origin."
+    require_trunk "jj start"
+    jj new 'trunk()' >/dev/null || fail "Failed to create new commit from trunk()."
+    echo "Now working on a new commit on top of latest trunk()."
 }
 
 cmd_pr_edit() {
@@ -286,7 +288,9 @@ cmd_pr_edit() {
 }
 
 cmd_pr() {
-    local opt_rev="" opt_body="" opt_draft=false
+    # Draft is the default: an agent that publishes without being asked should
+    # not open a review-ready PR. Pass --no-draft to publish for real.
+    local opt_rev="" opt_body="" opt_draft=true
     # Parse fully before any mutating work, so --help can't fetch/rebase/push.
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -294,6 +298,7 @@ cmd_pr() {
             -r|--revision) [[ $# -ge 2 ]] || fail "$1 needs a revision."; opt_rev="$2"; shift 2 ;;
             --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
             --draft)       opt_draft=true; shift ;;
+            --no-draft)    opt_draft=false; shift ;;
             *)             shift ;;
         esac
     done
@@ -354,7 +359,18 @@ cmd_pr() {
             gh_args+=(--draft)
         fi
 
-        pr_url=$(gh pr create "${gh_args[@]}" 2>/dev/null) || fail "Failed to create PR for $head."
+        # stderr is deliberately not discarded: without it a caller only sees
+        # "Failed to create PR" and has no way to tell an auth problem from a
+        # protected branch, which is how agents end up reaching for raw gh.
+        local gh_err
+        gh_err=$(mktemp)
+        pr_url=$(gh pr create "${gh_args[@]}" 2>"$gh_err") || {
+            echo "gh pr create failed for $head:" >&2
+            cat "$gh_err" >&2
+            rm -f "$gh_err" "$pr_body_file"
+            exit 1
+        }
+        rm -f "$gh_err"
         rm -f "$pr_body_file"
     fi
 

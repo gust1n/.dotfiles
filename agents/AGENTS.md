@@ -29,14 +29,18 @@ Custom jj commands:
 - `jj sync` — Sync with remote and rebase.
 - `jj start <name>` — Start new feature.
 
-**Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create`.
+**Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create` — `jj pr` handles the bookmark, the push and the PR together, and passes `--repo` so it works in a jj workspace with no `.git`.
 
 ```bash
-jj pr                  # title from commit description's first line
+jj pr                  # draft PR; title from the commit description's first line
 jj pr --body "..."     # explicit PR body
 jj pr -r @-            # target a specific revision
-jj pr --draft          # draft PR
+jj pr --no-draft       # ready for review — only when the user asks for that
 ```
+
+Drafts are the default. Only pass `--no-draft` when the user has said the work is ready.
+
+It works against `trunk()`, so it does not care whether the default branch is `main` or `master`. If it fails it now prints the underlying `gh` error — read that and fix the cause. Do not fall back to raw `gh pr create`; `jj pr` is the only path that keeps the bookmark and the PR head in step.
 
 The PR title is always the first line of the commit description.
 
@@ -56,7 +60,7 @@ Rules:
 - Changes in `@` are normal — do NOT auto-describe or clean up the working copy.
 - Create commits naturally as work completes; use `jj split` for multiple logical commits.
 - **NEVER push or create PRs unless explicitly instructed.**
-- When `@-` is immutable (e.g. `main@origin`), use `jj describe` on `@` instead of `jj squash`.
+- When `@-` is immutable (e.g. `trunk()`), use `jj describe` on `@` instead of `jj squash`.
 - After creating commits, run `jj new` to re-establish the empty working commit.
 
 ### Never let jj open an editor
@@ -86,10 +90,11 @@ Rules:
 - Use `jj log -r 'ancestors(@, 10)'` to orient yourself.
 
 If a guard denies a command, that is expected — tell the user, do not work around it.
+Pushing and `jj pr` always prompt: publishing is the user's call, not yours.
 
 To pull in upstream changes:
 ```bash
-jj rebase -d main@origin
+jj rebase -d 'trunk()'
 ```
 
 ## Snapshot Discipline
