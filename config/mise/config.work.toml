@@ -1,0 +1,17 @@
+# Work-machine config. Tracked, so it follows you to every work box.
+# Loaded only when MISE_ENV includes `work`. Opt a machine in with:
+#
+#   echo work > ~/.mise-env
+#
+# ~/.bashrc reads that file before activating mise. MISE_ENV stacks, so
+# `macos,work` loads both profiles.
+#
+# Put here anything work-specific that is safe to commit: linters the team uses,
+# an AWS profile name, extra registries. Anything genuinely private — tokens,
+# hostnames, socket paths — belongs in config.local.toml instead.
+
+[tools]
+# "npm:some-work-linter" = "latest"
+
+[env]
+# AWS_PROFILE = "work-sso"

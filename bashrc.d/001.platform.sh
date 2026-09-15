@@ -1,1 +1,0 @@
-export PLATFORM=$(uname -s)

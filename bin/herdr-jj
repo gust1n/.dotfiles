@@ -28,16 +28,9 @@ AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
 # --agent (an explicit full command) always overrides this.
 HARNESS="${HERDR_JJ_HARNESS:-claude}"
 
-# Load canonical model IDs from dotfiles if available.
-_DOTFILES="${DOTFILES_DIR:-$HOME/Code/dotfiles}"
-if [ -f "$_DOTFILES/config/bedrock.env" ]; then
-  # shellcheck source=/dev/null
-  source "$_DOTFILES/config/bedrock.env"
-fi
-
-# Canonical model IDs, resolved once. Both env-var families are ultimately set
-# from config/bedrock.env (see bashrc.d/100.bedrock-models.sh), so claude and
-# pi land on the same underlying model regardless of which harness is chosen.
+# Canonical model IDs, resolved once. Both env-var families come from [env] in
+# config/mise/config.toml, so claude and pi land on the same underlying model
+# regardless of which harness is chosen.
 OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
 SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
 
@@ -45,7 +38,7 @@ SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthr
 # omits --model. These are deliberately the *lighter* default for each kind
 # (a spawned pane is normally a worker or judge, not a planner) — a planner
 # skill that wants the long-context planner variant passes --model
-# explicitly (e.g. "${OPUS_MODEL}[1m]"; see planner-role).
+# explicitly (e.g. "${OPUS_MODEL}[1m]").
 SPAWN_DEFAULT_MODEL_CLAUDE="${SPAWN_DEFAULT_MODEL_CLAUDE:-$SONNET_MODEL}"
 SPAWN_DEFAULT_MODEL_AGY="${SPAWN_DEFAULT_MODEL_AGY:-gemini-3.8-flash-medium}"
 
@@ -628,11 +621,10 @@ cmd_tidy() {
   echo "forgot $n workspace(s); abandoned divergent commits."
 }
 
-# --- spawn (JIT worker/judge) ------------------------------------------------
+# --- spawn (sibling agent) ---------------------------------------------------
 #
-# Any agent that already has HERDR_ENV=1 and shell access — typically a
-# planner-role session started the ordinary way via `herdr-jj new` — calls
-# this itself, mid-session, once it has decided a phase is worth delegating.
+# Any agent that already has HERDR_ENV=1 and shell access calls this itself,
+# mid-session, once it has decided some work is worth delegating.
 # It does not decide what to say to the new pane; that's the caller's job via
 # a follow-up `herdr agent prompt` (see below for why that's a separate step,
 # not a flag here).
@@ -645,12 +637,12 @@ cmd_spawn() {
 Usage: herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
               (--from-pane P | --pane P)
 
-JIT worker/judge: split a pane off P (--from-pane) or use an existing idle
-pane P directly (--pane), then launch <name> there. "flash" is a --kind
+Split a pane off P (--from-pane) or use an existing idle pane P directly
+(--pane), then launch <name> there. "flash" is a --kind
 alias for agy that defaults --model to $SPAWN_DEFAULT_MODEL_AGY.
 
 Does not send a brief. Follow with a plain `herdr agent prompt <name> ...`
-once this returns — see agents/skills/planner-role.
+once this returns.
 EOF
         return 0 ;;
       --kind)      kind="${2:-}"; shift 2 ;;
@@ -778,12 +770,11 @@ herdr-jj — jj-workspace-backed agent sessions for herdr
   herdr-jj tidy [repo]      sweep dead workspaces / divergent commits
   herdr-jj spawn <name> --kind <claude|agy|pi|flash|...> [--model M] \
               (--from-pane P | --pane P)
-                            JIT worker/judge: split a pane off P (or use an
-                            existing idle pane P directly) and launch <name>.
-                            Meant to be called by a running planner-role
-                            session, not typed by a human. Does not send a
-                            brief — follow with `herdr agent prompt <name> ...`
-                            once this returns. See agents/skills/planner-role.
+                            Split a pane off P (or use an existing idle pane
+                            P directly) and launch <name>. Meant to be called
+                            by a running agent, not typed by a human. Does not
+                            send a brief — follow with
+                            `herdr agent prompt <name> ...` once this returns.
 
 The picker is one ranked list — running agents first, then idle workspaces, then
 your local bookmarks by recency, then remote ones. Selecting a workspace attaches

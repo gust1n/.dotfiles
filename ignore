@@ -1,10 +1,10 @@
-log
-tags
-tmp
-vendor
+# Search excludes for ripgrep and fd (~/.ignore). Both walk up from the search
+# path, so this applies to anything under $HOME.
 .git/
-.svn/
-bower_components/
 node_modules/
+vendor/
+log
+tmp
+tags
 *.min.*
 *.map

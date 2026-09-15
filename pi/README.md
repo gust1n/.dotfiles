@@ -1,44 +1,18 @@
-# pi config
+# pi agent config
 
-Settings for [pi](https://pi.dev), the coding agent.
+| File | Tracked | What |
+|---|---|---|
+| `settings.json` | ✅ | pi settings. Symlinked to `~/.pi/agent/settings.json`. |
+| `extensions/*.ts` | ✅ | pi extensions. The directory is symlinked. |
 
-## Files
+Both links are `[dotfiles]` entries in `config/mise/config.toml` and are applied
+by `mise bootstrap`. There is no sync script and no `settings.local.json`.
 
-| File | Tracked | Description |
-|------|---------|-------------|
-| `settings.json` | ✅ | Shared settings: packages, thinking level, UI prefs |
-| `settings.local.json` | ❌ gitignored | Machine-specific overrides: provider, model |
+Because `settings.json` is a symlink, pi writes its own state
+(`lastChangelogVersion`, `theme`) straight into this repo. Those edits show up in
+`jj diff` — commit them or discard them.
 
-## Setup on a new machine
+Model IDs come from `[env]` in `config/mise/config.toml`, except the `subagents`
+entries here, which pi reads from this file.
 
-1. Create `pi/settings.local.json` (not committed) with the provider for this machine:
-
-   ```json
-   {
-     "defaultProvider": "openrouter",
-     "defaultModel": "anthropic/claude-sonnet-4-5"
-   }
-   ```
-
-   For Amazon Bedrock:
-   ```json
-   {
-     "defaultProvider": "amazon-bedrock",
-     "defaultModel": "eu.anthropic.claude-sonnet-5",
-     "enabledModels": ["eu.anthropic.claude-*"]
-   }
-   ```
-
-2. Run the sync (also runs automatically during `install.sh`):
-
-   ```bash
-   bin/pi-settings-sync
-   ```
-
-This generates `~/.pi/agent/settings.json` by merging the tracked base with your
-local overrides, preserving pi-managed fields (`lastChangelogVersion`, `theme`, etc.)
-from any existing live file.
-
-## Updating shared settings
-
-Edit `pi/settings.json`, then run `bin/pi-settings-sync` to apply.
+`AGENTS.md` comes from `agents/AGENTS.md`, shared with every other harness.

@@ -2,10 +2,6 @@
   "awsAuthRefresh": "aws sso login --profile bedrock",
   "cleanupPeriodDays": 3650,
   "env": {
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "eu.anthropic.claude-opus-5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "eu.anthropic.claude-sonnet-5",
-    "AWS_PROFILE": "bedrock",
-    "AWS_REGION": "eu-north-1",
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": "eu-north-1",
@@ -45,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/Code/dotfiles/bin/agent-guard",
+            "command": "~/.dotfiles/bin/agent-guard",
             "timeout": 5000
           }
         ]
@@ -57,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Users/gust1n/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "[ -f ~/.claude/hooks/herdr-agent-state.sh ] && bash ~/.claude/hooks/herdr-agent-state.sh session || true",
             "timeout": 10
           }
         ]
@@ -70,9 +66,8 @@
     "typescript-lsp@claude-plugins-official": true
   },
   "effortLevel": "high",
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
-  "skipAutoPermissionPrompt": true,
-  "tui": "fullscreen"
+  "theme": "dark"
 }

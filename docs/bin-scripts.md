@@ -108,21 +108,3 @@ jj-workflow pr-edit -n <number> [--title <text>] [--body <text>]
 `pr-edit` derives the GitHub repo from the jj origin remote, so it works in jj workspaces where there is no `.git` directory (unlike `gh pr edit`).
 
 **Dependencies:** `jj`, `gh`.
-
----
-
-## `pi-settings-sync`
-
-Merge `pi/settings.json` (tracked) and `pi/settings.local.json` (gitignored) into `~/.pi/agent/settings.json`.
-
-Preserves pi-managed fields from the existing live file (`lastChangelogVersion`, `theme`, `trackingId`, `enableAnalytics`) so pi does not re-show changelogs or regenerate theme names.
-
-**Usage:**
-
-```
-pi-settings-sync
-```
-
-Run after editing `pi/settings.json`, or on a new machine after creating `pi/settings.local.json` with machine-specific provider/model settings.
-
-**Dependencies:** `node`.

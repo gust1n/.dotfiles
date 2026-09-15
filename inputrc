@@ -24,6 +24,13 @@ set completion-query-items 200
 # Show extra file information when completing, like `ls -F` does
 set visible-stats on
 
+# Colour completions by file type, and highlight the prefix already typed
+set colored-stats on
+set colored-completion-prefix on
+
+# No bell on an ambiguous completion — show-all-if-ambiguous already lists them
+set bell-style none
+
 # Be more intelligent when autocompleting by also looking at the text after
 # the cursor. For example, when the current line is "cd ~/src/mozil", and
 # the cursor is on the "z", pressing Tab will not autocomplete it to "cd

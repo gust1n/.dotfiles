@@ -1,10 +1,15 @@
-# macOS-only bootstrap config. Loaded only with `-E macos`; install.sh passes
-# that on Darwin.
+# macOS-only config. Loaded only with `-E macos`, which install.sh passes on
+# Darwin.
 #
-# `[bootstrap.user]` needs this file because it has no way to guard itself:
-# login_shell takes one bare absolute path, accepts no `os` key, and is read
-# before templating (so `{% if os() == 'macos' %}` renders literally).
-# Per-OS keys DO work in [bootstrap.packages], so those stay in config.toml.
+# Keep this file to things applied by an explicit `mise bootstrap` step. Do NOT
+# put [env] or [shell_alias] here: interactive shells do not set MISE_ENV=macos,
+# so they would never see them. Use a portable value in config.toml instead —
+# CLICOLOR rather than an `ls -G` alias, for example.
+#
+# [bootstrap.packages] guards itself with a per-entry `os` key, so those stay in
+# config.toml. login_shell cannot: it takes one bare absolute path, rejects an
+# `os` key, and is read before templating, so `{% if os() == 'macos' %}` would
+# render literally into the path.
 
 [bootstrap.user]
 login_shell = "/opt/homebrew/bin/bash"

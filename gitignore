@@ -1,35 +1,22 @@
-# Folder view configuration files
+# Global git excludes (core.excludesfile → ~/.gitignore).
+#
+# Only things that are noise in EVERY repo. Anything specific to one repo,
+# including this one, belongs in that repo's own .gitignore — an entry here
+# silently applies everywhere.
+
+# macOS and Windows folder cruft
 .DS_Store
 Desktop.ini
-
-# Thumbnail cache files
 ._*
 Thumbs.db
-
-# Files that might appear on external disks
 .Spotlight-V100
 .Trashes
 
-# Logs
+# Logs and local environment
 log/
 *.log
-
 .env
 
-# Machine-specific mise config
-config/mise/config.local.toml
-
-# Agent workspaces (jj)
+# Agent workspaces (jj) and per-repo agent settings, which can appear anywhere
 .jj-workspaces/
-
-# Claude Code local settings
-.claude/settings.local.json
-
 **/.claude/settings.local.json
-
-# Pi machine-specific settings (provider/model overrides)
-pi/settings.local.json
-
-# Herdr plugin installs and runtime state (managed by herdr, machine-specific)
-config/herdr/plugins/
-config/herdr/plugins.json

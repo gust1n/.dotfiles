@@ -1,3 +1,24 @@
+# The declarative hub for this machine: tools, system packages, environment,
+# shell aliases and dotfile links. `mise bootstrap` applies all of it.
+#
+# Layers, most general first. Later layers win.
+#   config.toml         this file — tracked, everything portable
+#   config.macos.toml   tracked, loads under `-E macos`
+#   config.work.toml    tracked, loads under `-E work`
+#   config.local.toml   gitignored — this machine only
+#
+# Dotfile sources are written `~/.dotfiles/…`, never a real path. install.sh
+# points ~/.dotfiles at wherever the repo was cloned, so nothing here knows the
+# clone location — move the checkout and only that one symlink changes.
+#
+# The indirection is required, not just tidy: a relative source resolves against
+# ~/.config/mise/ (itself a symlink into the repo) and escapes to the wrong
+# directory, `dotfiles.root` applies only when `source` is omitted entirely, and
+# sources are not templated. `~/.dotfiles/…` is the only portable form.
+
+[settings]
+dotfiles.root = "~/.dotfiles"
+
 [tools]
 awscli = "latest"
 bat = "latest"
@@ -36,12 +57,126 @@ bun = "latest"
 
 # System packages: only what the mise registry has no tool for.
 # mise pours homebrew/core bottles into /opt/homebrew itself — Homebrew is not
-# required. Applied by `mise bootstrap` (or `mise bootstrap packages apply`).
+# required.
 [bootstrap.packages]
 "brew:bash" = { version = "latest", os = "macos" }              # bash 5, the login shell
 "brew:bash-completion@2" = { version = "latest", os = "macos" }
 "brew:libpq" = { version = "latest", os = "macos" }             # psql and friends
 
+# tmux plugins. tpm still *sources* them — that is what tmux.conf's
+# `set -g @plugin` lines do — but mise does the cloning, so a new machine needs no
+# `prefix+I`. Keep this list and the @plugin lines in step; they are two halves of
+# the same thing. Without a `ref`, mise clones what is missing and never pulls,
+# so no plugin updates behind your back. Cloned before [dotfiles] runs, straight
+# into the checkout, which is why the path is ~/.dotfiles/… and gitignored.
+[bootstrap.repos]
+"~/.dotfiles/config/tmux/plugins/tpm" = { url = "https://github.com/tmux-plugins/tpm.git" }
+"~/.dotfiles/config/tmux/plugins/tmux-sensible" = { url = "https://github.com/tmux-plugins/tmux-sensible.git" }
+"~/.dotfiles/config/tmux/plugins/tmux-battery" = { url = "https://github.com/tmux-plugins/tmux-battery.git" }
+"~/.dotfiles/config/tmux/plugins/tmux-cpu" = { url = "https://github.com/tmux-plugins/tmux-cpu.git" }
+"~/.dotfiles/config/tmux/plugins/tmux-yank" = { url = "https://github.com/tmux-plugins/tmux-yank.git" }
+"~/.dotfiles/config/tmux/plugins/vim-tmux-navigator" = { url = "https://github.com/christoomey/vim-tmux-navigator.git" }
+"~/.dotfiles/config/tmux/plugins/extrakto" = { url = "https://github.com/laktak/extrakto.git" }
+"~/.dotfiles/config/tmux/plugins/tmux-fzf-url" = { url = "https://github.com/wfxr/tmux-fzf-url.git" }
+
+# Canonical model IDs. Every consumer reads them from the environment, so this
+# is the only place they are written.
+[vars]
+opus_model = "eu.anthropic.claude-opus-5"
+sonnet_model = "eu.anthropic.claude-sonnet-5"
+
 [env]
-# libpq is keg-only: mise links it under opt/ but not into the prefix bin.
-_.path = ["/opt/homebrew/opt/libpq/bin"]
+EDITOR = "nvim"
+LANG = "en_US.UTF-8"
+LC_ALL = "en_US.UTF-8"
+CLICOLOR = "1" # BSD ls colours, so no macOS-only `ls -G` alias is needed
+
+# Read by awscli, pi's aws-bedrock-sso extension and Claude Code alike. Override
+# in config.work.toml for a work SSO profile.
+AWS_PROFILE = "bedrock"
+AWS_REGION = "eu-north-1"
+
+BEDROCK_OPUS_MODEL = "{{ vars.opus_model }}"
+BEDROCK_SONNET_MODEL = "{{ vars.sonnet_model }}"
+ANTHROPIC_DEFAULT_OPUS_MODEL = "{{ vars.opus_model }}"
+ANTHROPIC_DEFAULT_SONNET_MODEL = "{{ vars.sonnet_model }}"
+
+FZF_DEFAULT_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
+FZF_DEFAULT_OPTS = "--bind J:down,K:up --reverse"
+FZF_CTRL_T_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
+FZF_CTRL_T_OPTS = "--preview 'bat -n --color=always {}' --bind 'ctrl-/:change-preview-window(down|hidden|)'"
+FZF_ALT_C_COMMAND = "fd --type d --strip-cwd-prefix --hidden --follow --exclude .git"
+
+# These land ahead of mise's own tool installs, so nothing here may shadow a
+# tool in [tools]. /opt/homebrew/bin holds only brew, bash and force-linked
+# keg-only binaries, so it is safe. libpq is keg-only and never force-linked.
+_.path = [
+  "~/.local/bin", # agy and other self-installing binaries
+  "~/.dotfiles/bin",
+  "~/go/bin",
+  "/opt/homebrew/bin",
+  "/opt/homebrew/opt/libpq/bin",
+]
+
+# `mise run link` after editing a copied file; `mise run drift` to see whether
+# anything has been injected since the last apply.
+[tasks.link]
+description = "Re-apply dotfiles (needed after editing bashrc or bash_profile)"
+run = "mise bootstrap dotfiles apply --yes"
+
+[tasks.drift]
+description = "Report dotfiles that differ from the repo; exits 1 if any do"
+run = "mise bootstrap dotfiles status --missing"
+
+[shell_alias]
+rg = "rg --hidden" # rg skips .git unconditionally; ~/.ignore covers the rest
+tmux = "tmux -u"
+"cd..." = "cd ../.."
+"cd...." = "cd ../../.."
+"cd....." = "cd ../../../.."
+gst = "git status"
+gc = "git commit"
+gco = "git checkout"
+ga = "git add"
+gd = "git diff"
+
+[dotfiles]
+# Listed one by one rather than globbed as `~/.config/*`, so that ~/.config/mise
+# is NOT managed here. That link is what lets mise find this file; a glob would
+# put it in reach of `mise bootstrap dotfiles unapply`, which would delete it and
+# leave nothing able to put it back. install.sh owns it alone.
+# Adding a config directory means adding a line here.
+"~/.config/alacritty" = "~/.dotfiles/config/alacritty"
+"~/.config/ghostty" = "~/.dotfiles/config/ghostty"
+"~/.config/herdr" = "~/.dotfiles/config/herdr"
+"~/.config/jj" = "~/.dotfiles/config/jj"
+"~/.config/nvim" = "~/.dotfiles/config/nvim"
+"~/.config/tmux" = "~/.dotfiles/config/tmux"
+
+"~/.inputrc" = "~/.dotfiles/inputrc"
+"~/.gitignore" = "~/.dotfiles/gitignore"
+"~/.ignore" = "~/.dotfiles/ignore"
+
+# Copies, not symlinks — these are what installers append to. A copy sends the
+# injected line to ~/.bashrc only, never into the repo; `mise bootstrap dotfiles
+# status` then reports `differs`, and the next apply overwrites it back, no
+# --force needed. Editing these means re-running `mise run link`.
+# Sanctioned additions go in ~/.bashrc.local, which is never touched.
+"~/.bashrc" = { source = "~/.dotfiles/bashrc", mode = "copy" }
+"~/.bash_profile" = { source = "~/.dotfiles/bash_profile", mode = "copy" }
+
+# One AGENTS.md and one skills directory, linked wherever each harness looks.
+# ~/.agents is the vendor-neutral convention (agy, opencode, codex read it);
+# claude and pi each need their own path.
+"~/.agents/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
+"~/.agents/skills" = "~/.dotfiles/agents/skills"
+"~/.claude/CLAUDE.md" = "~/.dotfiles/agents/AGENTS.md"
+"~/.claude/skills" = "~/.dotfiles/agents/skills"
+"~/.pi/agent/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
+
+# Both harnesses write their own settings back (model, theme, effortLevel,
+# lastChangelogVersion). These are symlinks, so those writes land in the repo
+# and show up in `jj diff` — commit them or discard them.
+"~/.claude/settings.json" = "~/.dotfiles/claude/settings.json"
+"~/.pi/agent/settings.json" = "~/.dotfiles/pi/settings.json"
+"~/.pi/agent/extensions" = "~/.dotfiles/pi/extensions"

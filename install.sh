@@ -1,151 +1,65 @@
 #!/usr/bin/env bash
+# Set this machine up. Everything is declared in config/mise/config.toml; this
+# script only records where the repo is, then hands over.
+#
+#   curl https://mise.run | sh
+#   git clone <repo> <anywhere>
+#   <anywhere>/install.sh
+#
+# Re-running is safe: every phase converges.
+set -euo pipefail
 
-BASE=$(pwd)
+# Where this checkout actually lives. Nothing in the repo hardcodes it.
+BASE="$(cd "$(dirname "$0")" && pwd)"
 
-mkdir -pv bak
+if ! command -v mise >/dev/null 2>&1; then
+	echo >&2 "mise is not installed — run 'curl https://mise.run | sh' first."
+	exit 1
+fi
 
-# Symlink .config directories (and backup existing)
+# Clone this repo wherever you like. ~/.dotfiles is not where it has to live — it
+# is a pointer TO wherever it lives, computed above from $0. It exists because
+# mise's [dotfiles] sources cannot be templated, so they need one stable prefix
+# to hang off; `~/.dotfiles/bashrc` resolves correctly from any checkout path.
+#
+#   ~/.dotfiles     → this checkout (whatever path that is)
+#   ~/.config/mise  → the config dir, reached through ~/.dotfiles, so moving the
+#                     checkout means re-pointing one symlink and nothing else.
+link() {
+	local target=$1 source=$2
+	if [ -e "$target" ] && [ ! -L "$target" ]; then
+		mkdir -p "$BASE/bak"
+		mv -v "$target" "$BASE/bak/"
+	fi
+	ln -sfn "$source" "$target"
+}
+
 mkdir -p ~/.config
-for entry in "$BASE"/config/*/
-do
-	dir_name=$(basename "$entry")
-	dir_path=~/.config/$dir_name
-	if [ -e "$dir_path" ] && [ ! -L "$dir_path" ]; then
-		echo "backing up existing $dir_path"
-		mv -v "$dir_path" bak/
-	fi
-	echo "symlinking $dir_path -> $BASE/config/$dir_name"
-	ln -sfn "$BASE/config/$dir_name" "$dir_path"
-done
+link ~/.dotfiles "$BASE"
+link ~/.config/mise ~/.dotfiles/config/mise
 
+mise trust ~/.config/mise/config.toml
+mise bootstrap --yes
 
-# Generate ~/.claude/settings.json from claude/settings.json + config/bedrock.env.
-# (Not symlinked — model IDs are injected at sync time from config/bedrock.env.)
-# Re-run with: bin/claude-settings-sync
-mkdir -p ~/.claude
-if [ -e ~/.claude/settings.json ] && [ -L ~/.claude/settings.json ]; then
-	echo "removing old ~/.claude/settings.json symlink (switching to generated)"
-	rm ~/.claude/settings.json
-elif [ -e ~/.claude/settings.json ]; then
-	echo "backing up existing ~/.claude/settings.json"
-	cp ~/.claude/settings.json bak/claude-settings.json.bak
-fi
-"$BASE/bin/claude-settings-sync"
-
-if [ -e ~/.claude/CLAUDE.md ] && [ ! -L ~/.claude/CLAUDE.md ]; then
-	echo "backing up existing ~/.claude/CLAUDE.md"
-	mv -v ~/.claude/CLAUDE.md bak/
-fi
-echo "symlinking ~/.claude/CLAUDE.md -> $BASE/agents/AGENTS.md"
-ln -sfn "$BASE/agents/AGENTS.md" ~/.claude/CLAUDE.md
-
-# Symlink ~/.pi/agent/AGENTS.md
-mkdir -p ~/.pi/agent
-if [ -e ~/.pi/agent/AGENTS.md ] && [ ! -L ~/.pi/agent/AGENTS.md ]; then
-	echo "backing up existing ~/.pi/agent/AGENTS.md"
-	mv -v ~/.pi/agent/AGENTS.md bak/
-fi
-echo "symlinking ~/.pi/agent/AGENTS.md -> $BASE/agents/AGENTS.md"
-ln -sfn "$BASE/agents/AGENTS.md" ~/.pi/agent/AGENTS.md
-
-# Generate ~/.pi/agent/settings.json from tracked base + gitignored local override.
-# pi/settings.local.json (gitignored) holds machine-specific defaultProvider/defaultModel.
-# See bin/pi-settings-sync to re-run this after editing pi/settings.json.
-"$BASE/bin/pi-settings-sync"
-
-# Symlink pi extensions directory so extensions/*.ts are version-controlled.
-mkdir -p ~/.pi/agent
-if [ -e ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
-	echo "backing up existing ~/.pi/agent/extensions"
-	mv -v ~/.pi/agent/extensions bak/pi-extensions
-fi
-echo "symlinking ~/.pi/agent/extensions -> $BASE/pi/extensions"
-ln -sfn "$BASE/pi/extensions" ~/.pi/agent/extensions
-
-# Symlink ~/.gemini/config/AGENTS.md
-mkdir -p ~/.gemini/config
-if [ -e ~/.gemini/config/AGENTS.md ] && [ ! -L ~/.gemini/config/AGENTS.md ]; then
-	echo "backing up existing ~/.gemini/config/AGENTS.md"
-	mv -v ~/.gemini/config/AGENTS.md bak/
-fi
-echo "symlinking ~/.gemini/config/AGENTS.md -> $BASE/agents/AGENTS.md"
-ln -sfn "$BASE/agents/AGENTS.md" ~/.gemini/config/AGENTS.md
-
-# Agent skills live once in agents/skills/ and are linked into each agent's
-# skills dir: ~/.agents/skills (pi, opencode), ~/.claude/skills (Claude Code),
-# and ~/.gemini/config/skills (Antigravity).
-# Update a vendored skill with:
-#   cd agents && npx skills update
-for skills_dir in ~/.agents/skills ~/.claude/skills ~/.gemini/config/skills; do
-	mkdir -p "$(dirname "$skills_dir")"
-	if [ -e "$skills_dir" ] && [ ! -L "$skills_dir" ]; then
-		echo "backing up existing $skills_dir"
-		mv -v "$skills_dir" bak/ 2>/dev/null || rm -rf "$skills_dir"
-	fi
-	echo "symlinking $skills_dir -> $BASE/agents/skills"
-	ln -sfn "$BASE/agents/skills" "$skills_dir"
-done
-
-# Symlink all files folders (and backup existing)
-for rc in *rc *profile *ignore; do
-	target_location=~/.$rc
-	[ -e ~/.$rc ] && echo "backing up existing $target_location" && mv -v $target_location bak/.$rc
-	echo "symlinking $target_location -> $BASE/$rc"
-	ln -sfv $BASE/$rc $target_location
-done
-
-# Dynamically create bashrc
-echo "creating .bashrc from template"
-# cp $BASE/template/bashrc ~/.bashrc
-sed -e "s|__REPLACE__|$BASE|g" $BASE/bashrc_template > ~/.bashrc
-chmod +x ~/.bashrc
-chmod 600 ~/.bashrc
-
-# download some helpers
-mkdir -pv ~/.bin
-
-# git-prompt
-if [ ! -e ~/.bin/git-prompt.sh ]; then
-	echo "downloading ~/.bin/git-prompt.sh"
-	curl https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh -o ~/.bin/git-prompt.sh
-fi
-# z.sh
-if [ ! -e ~/.bin/z.sh ]; then
-	echo "downloading ~/.bin/z.sh"
-	curl https://raw.githubusercontent.com/rupa/z/master/z.sh -o ~/.bin/z.sh
+# The login shell lives in config.macos.toml, which loads only under -E macos.
+# It runs last on purpose: chsh may prompt, and a failure here must not stop the
+# phases above, which it would if it ran inside `mise bootstrap`.
+if [ "$(uname -s)" = "Darwin" ]; then
+	mise bootstrap user apply -E macos --yes ||
+		echo >&2 "could not set the login shell; run: chsh -s /opt/homebrew/bin/bash"
 fi
 
-read -p 'Git User Name (empty to skip): ' gitname
-
-if [ ! -z "$gitname" ]
-then
-	read -p 'Git User Email: ' gitemail
-	git config --global user.email $gitemail
-	git config --global user.name "$gitname"
-	echo "Configured to use git as $gitname <$gitemail>"
-fi
-
+# ~/.gitconfig stays unmanaged: `gh auth login` writes machine-specific absolute
+# paths into it, which have no business in the repo.
 git config --global core.excludesfile ~/.gitignore
+git config --global user.name >/dev/null 2>&1 ||
+	echo >&2 "set your git identity: git config --global user.name '…' && git config --global user.email '…'"
 
-# Install everything declared in config/mise/config.toml: [bootstrap.packages]
-# (system packages mise has no tool for) and [tools].
-if command -v mise >/dev/null 2>&1; then
-	mise bootstrap --yes
-	# The login shell lives in config.macos.toml (see the comment there) and runs
-	# last on purpose: chsh may prompt, and a failure must not stop the phases
-	# above, which mise would do if this ran inside `mise bootstrap`.
-	if [ "$(uname -s)" = "Darwin" ]; then
-		mise bootstrap user apply -E macos --yes ||
-			echo >&2 "could not set the login shell; run: chsh -s /opt/homebrew/bin/bash"
-	fi
-else
-	echo >&2 "mise is not installed — run 'curl https://mise.run | sh' then re-run this script."
-fi
-
-# Install Antigravity CLI (agy) - self-updating binary, not managed by mise
 if ! command -v agy >/dev/null 2>&1; then
-	echo "Installing Antigravity CLI (agy)..."
+	echo "Installing Antigravity CLI (agy) — self-updating, not in the mise registry."
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
-else
-	echo "agy already installed: $(agy --version 2>/dev/null)"
 fi
+
+echo
+echo "Done. ~/.dotfiles -> $BASE"
+echo "Open a new shell."
