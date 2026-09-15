@@ -33,3 +33,15 @@ stylua = "latest"
 tmux = "latest"
 tree-sitter = "latest"
 bun = "latest"
+
+# System packages: only what the mise registry has no tool for.
+# mise pours homebrew/core bottles into /opt/homebrew itself — Homebrew is not
+# required. Applied by `mise bootstrap` (or `mise bootstrap packages apply`).
+[bootstrap.packages]
+"brew:bash" = { version = "latest", os = "macos" }              # bash 5, the login shell
+"brew:bash-completion@2" = { version = "latest", os = "macos" }
+"brew:libpq" = { version = "latest", os = "macos" }             # psql and friends
+
+[env]
+# libpq is keg-only: mise links it under opt/ but not into the prefix bin.
+_.path = ["/opt/homebrew/opt/libpq/bin"]

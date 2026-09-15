@@ -249,11 +249,49 @@ is no longer a `/dispatch` skill — the herdr skill covers delegation.
 
 ## Tool Installation
 
-**Prefer mise for all CLI tools.** Only use Homebrew for bootstrap dependencies
-(mise itself, system-level packages that don't work well under mise). Everything
-else — language runtimes, linters, CLI agents, formatters — goes in
-`config/mise/config.toml`. This keeps tools version-pinnable, portable across
-machines, and avoids Homebrew's "upgrade everything" behaviour.
+Everything goes in `config/mise/config.toml`. There is no Brewfile.
+
+| Kind of thing | Where |
+|---|---|
+| Anything in the mise registry (runtimes, linters, CLI agents, formatters) | `[tools]` |
+| System packages the registry has no tool for | `[bootstrap.packages]` |
+| Machine-specific tools (docker, gcloud, …) | `config/mise/config.local.toml` (gitignored) |
+
+`[bootstrap.packages]` uses `brew:<formula>` / `brew-cask:<app>` names, but does
+**not** need Homebrew installed: mise pours homebrew/core bottles into
+`/opt/homebrew` itself, verifies checksums, and writes brew-compatible install
+receipts, so `brew list` still sees them. Add one with:
+
+```bash
+mise bootstrap packages use -p config/mise/config.toml brew:libpq
+```
+
+Apply everything (`[bootstrap.packages]` then `[tools]`) with `mise bootstrap`;
+`install.sh` runs it for you. Inspect with `mise bootstrap plan` or
+`mise bootstrap packages status`.
+
+**Keg-only formulae are never force-linked** — brew's `link: true` has no
+equivalent. mise links them under `/opt/homebrew/opt/<formula>` only, so put
+their `bin` on `PATH` yourself via `[env] _.path`. This is what `libpq` needs
+for `psql`.
+
+### Per-OS bootstrap config
+
+`[bootstrap.packages]` guards itself with a per-entry `os` key:
+
+```toml
+"brew:libpq" = { version = "latest", os = "macos" }
+```
+
+`[bootstrap.user]` cannot: `login_shell` takes one bare absolute path, rejects
+an `os` key, and is read before templating, so `{% if os() == 'macos' %}`
+renders literally. macOS-only settings therefore live in
+`config/mise/config.macos.toml`, which mise loads only under `-E macos`.
+`install.sh` applies it on Darwin, after the main `mise bootstrap`, so a `chsh`
+prompt or failure cannot block tool installation.
+
+mise itself is the one bootstrap dependency it cannot install:
+`curl https://mise.run | sh`.
 
 ## Notes
 

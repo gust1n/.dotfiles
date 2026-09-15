@@ -1,0 +1,10 @@
+# macOS-only bootstrap config. Loaded only with `-E macos`; install.sh passes
+# that on Darwin.
+#
+# `[bootstrap.user]` needs this file because it has no way to guard itself:
+# login_shell takes one bare absolute path, accepts no `os` key, and is read
+# before templating (so `{% if os() == 'macos' %}` renders literally).
+# Per-OS keys DO work in [bootstrap.packages], so those stay in config.toml.
+
+[bootstrap.user]
+login_shell = "/opt/homebrew/bin/bash"

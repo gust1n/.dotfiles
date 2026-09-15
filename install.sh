@@ -127,9 +127,19 @@ fi
 
 git config --global core.excludesfile ~/.gitignore
 
-# Install brew packages
-if command -v brew >/dev/null 2>&1; then
-	brew bundle --file="$BASE/Brewfile"
+# Install everything declared in config/mise/config.toml: [bootstrap.packages]
+# (system packages mise has no tool for) and [tools].
+if command -v mise >/dev/null 2>&1; then
+	mise bootstrap --yes
+	# The login shell lives in config.macos.toml (see the comment there) and runs
+	# last on purpose: chsh may prompt, and a failure must not stop the phases
+	# above, which mise would do if this ran inside `mise bootstrap`.
+	if [ "$(uname -s)" = "Darwin" ]; then
+		mise bootstrap user apply -E macos --yes ||
+			echo >&2 "could not set the login shell; run: chsh -s /opt/homebrew/bin/bash"
+	fi
+else
+	echo >&2 "mise is not installed — run 'curl https://mise.run | sh' then re-run this script."
 fi
 
 # Install Antigravity CLI (agy) - self-updating binary, not managed by mise
@@ -139,7 +149,3 @@ if ! command -v agy >/dev/null 2>&1; then
 else
 	echo "agy already installed: $(agy --version 2>/dev/null)"
 fi
-
-# Check if some base tools are installed and prompt to install otherwise
-command -v rg >/dev/null 2>&1 || { echo >&2 "rg (ripgrep) is needed but not found as executable in $PATH, please install."; }
-command -v fzf >/dev/null 2>&1 || { echo >&2 "fzf is needed but not found as executable in $PATH, please install."; }
