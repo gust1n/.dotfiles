@@ -41,7 +41,6 @@ node = "latest"
 "npm:defuddle" = "latest"
 "npm:oxfmt" = "latest"
 "npm:oxlint" = "latest"
-pi = "latest"
 "npm:pnpm" = "11"
 "npm:pyright" = "latest"
 "npm:vercel" = "latest"
@@ -91,8 +90,8 @@ LANG = "en_US.UTF-8"
 LC_ALL = "en_US.UTF-8"
 CLICOLOR = "1" # BSD ls colours, so no macOS-only `ls -G` alias is needed
 
-# Read by awscli, pi's aws-bedrock-sso extension and Claude Code alike. Override
-# in config.work.toml for a work SSO profile.
+# Read by awscli and Claude Code alike. Override in config.work.toml for a work
+# SSO profile.
 AWS_PROFILE = "bedrock"
 AWS_REGION = "eu-north-1"
 
@@ -167,16 +166,12 @@ gd = "git diff"
 
 # One AGENTS.md and one skills directory, linked wherever each harness looks.
 # ~/.agents is the vendor-neutral convention (agy, opencode, codex read it);
-# claude and pi each need their own path.
+# Claude Code needs its own path.
 "~/.agents/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
 "~/.agents/skills" = "~/.dotfiles/agents/skills"
 "~/.claude/CLAUDE.md" = "~/.dotfiles/agents/AGENTS.md"
 "~/.claude/skills" = "~/.dotfiles/agents/skills"
-"~/.pi/agent/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
 
-# Both harnesses write their own settings back (model, theme, effortLevel,
-# lastChangelogVersion). These are symlinks, so those writes land in the repo
-# and show up in `jj diff` — commit them or discard them.
+# Claude Code writes its own settings back (model, theme, effortLevel). This is a
+# symlink, so those writes land in the repo and show up in `jj diff`.
 "~/.claude/settings.json" = "~/.dotfiles/claude/settings.json"
-"~/.pi/agent/settings.json" = "~/.dotfiles/pi/settings.json"
-"~/.pi/agent/extensions" = "~/.dotfiles/pi/extensions"

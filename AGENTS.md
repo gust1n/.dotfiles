@@ -36,15 +36,13 @@ Machine-specific values go in `config.local.toml` (gitignored). Work values go i
 ## Model IDs
 
 `[vars]` in `config.toml` is the only place they are written. Everything reads them
-from `[env]`. The single exception is `pi/settings.json`, whose `subagents` IDs pi
-reads from its own file — update both when changing a generation.
+from `[env]`, so a generation change is one edit.
 
 ## Settings files write themselves
 
-`claude/settings.json` and `pi/settings.json` are symlinked into `$HOME`, so the
-harnesses write their own state (`model`, `theme`, `effortLevel`,
-`lastChangelogVersion`) straight into the working copy. Those diffs are expected.
-Do not revert them as if they were accidental, and do not add generator scripts.
+`claude/settings.json` is symlinked into `$HOME`, so Claude Code writes its own
+state (`model`, `theme`, `effortLevel`) straight into the working copy. Those diffs
+are expected. Do not revert them as if they were accidental.
 
 ## Verify before reporting done
 

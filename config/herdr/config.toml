@@ -303,7 +303,6 @@ directory = "~/.herdr/worktrees"
 agent_panel_sort = "spaces"
 
 # Agent rows: icon + workspace, then role on row 2.
-# Loop agents show planner/worker/judge (from --display-agent); plain pi shows "pi".
 # State icon covers idle/working — no state_text row needed.
 [ui.sidebar.agents]
 rows = [["state_icon", "workspace"], ["agent"]]

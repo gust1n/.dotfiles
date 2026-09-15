@@ -24,7 +24,7 @@ git clone https://github.com/gust1n/.dotfiles ~/Code/dotfiles
 - **[herdr](https://herdr.dev)** — terminal multiplexer, and the sessions the agents
   run in. tmux is still here for now.
 - **neovim**, **fzf**, **fd**, **ripgrep**, **bat**, **difftastic** — the usual.
-- **Claude Code**, **pi**, **agy** — coding agents, sharing one `AGENTS.md`.
+- **Claude Code**, **agy** — coding agents, sharing one `AGENTS.md`.
 
 ## Layout
 
@@ -34,7 +34,7 @@ config/                   app configs, symlinked into ~/.config
 bashrc                    only what mise cannot express: functions, evals, prompt
 agents/                   one AGENTS.md and the skills, shared by every agent
 bin/                      herdr-jj, agent-guard, jj-workflow
-claude/  pi/              per-harness settings
+claude/                   Claude Code settings
 ```
 
 Machine-specific bits go in `config/mise/config.local.toml`, which is gitignored.
