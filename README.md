@@ -1,11 +1,8 @@
 # dotfiles
 
-Personal dotfiles of gust1n. macOS, bash, neovim, jj.
+Personal dotfiles of gust1n. 
 
-Everything the machine needs is declared in one file, `config/mise/config.toml` —
-tools, system packages, environment, shell aliases, the symlinks into `$HOME`, and
-the tmux plugin checkouts. `mise bootstrap` applies it, and every step converges, so
-running it again is a no-op.
+Managed almost fully by `mise` and manages tools, system packages, environment, shell aliases etc.
 
 ## Bootstrap
 
@@ -16,9 +13,7 @@ git clone https://github.com/gust1n/.dotfiles ~/Code/dotfiles
 ```
 
 `install.sh` symlinks `~/.dotfiles` to the checkout and `~/.config/mise` to
-`config/mise`, then hands over to `mise bootstrap`. The first of those is why the
-config can say `~/.dotfiles/bashrc` and still work from any clone path. Re-running is
-safe.
+`config/mise`, then hands over to `mise bootstrap` (which should be idempotent).
 
 ## Tools
 
@@ -47,11 +42,10 @@ Work-specific bits go in `config.work.toml`, enabled with `echo work > ~/.mise-e
 
 ## Agents
 
-Each agent gets its own **jj workspace** — a second working copy of the same repo —
-so several can work in one project without touching each other's files, and the main
-checkout stays mine. `bin/herdr-jj` creates and reaps those workspaces; `herdr` does
-everything visual. `bin/agent-guard` is a `PreToolUse` hook that keeps an agent
-inside its own workspace and asks before anything outward-facing, like a push.
+Each agent gets its own **jj workspace** so several can work in one project in isolation.
+`bin/herdr-jj` creates and reaps those workspaces; `herdr` does everything visual. 
+`bin/agent-guard` is a `PreToolUse` hook that keeps an agent inside its own workspace 
+and asks before anything outward-facing, like a push.
 
 With `ctrl+a` as the prefix: `shift+a` starts or attaches to an agent, `shift+d`
 removes its workspace, `shift+y` sweeps dead ones. Everything else is stock herdr.
