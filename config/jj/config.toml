@@ -26,7 +26,9 @@ ll = ["log", "-T", "log_with_files"]
 # float: rebase local/wip commits on top of current @
 float = ["util", "exec", "--", "jj-float"]
 
-# safe-push: push but error if local commits would be included
+# safe-push: push but error if local commits would be included.
+# The trailing "jj-push" is $0 for `bash -c`. Without it the first real argument
+# is consumed as $0, so `jj push -b master` reached jj as `jj git push master`.
 push = ["util", "exec", "--", "bash", "-c", """
 if jj log -r 'local() & ::@' --no-graph -T 'description.first_line() ++ "\n"' 2>/dev/null | grep -q .; then
   echo 'Error: refusing to push - local commits in ancestry:' >&2
@@ -34,7 +36,7 @@ if jj log -r 'local() & ::@' --no-graph -T 'description.first_line() ++ "\n"' 2>
   exit 1
 fi
 jj git push "$@"
-"""]
+""", "jj-push"]
 
 # new-under: create new commit under local commits (inserts before them)
 new-under = ["new", "--before", "roots(local())"]
