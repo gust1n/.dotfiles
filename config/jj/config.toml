@@ -3,11 +3,7 @@
 [user]
 name = "Joakim Gustin"
 email = "jocke.gustin@gmail.com"
-
-[[--scope]]
---when.repositories = ["~/Code/Way"]
-[--scope.user]
-email = "joakim@way.cloud"
+# Per-repo identity overrides live in conf.d/, which is gitignored.
 
 [ui]
 default-command = ["status"]
