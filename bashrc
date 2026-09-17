@@ -85,8 +85,12 @@ shopt -s nocaseglob # case-insensitive globbing
 HISTSIZE=100000
 HISTFILESIZE=1000000                 # larger than HISTSIZE, so exits never truncate
 HISTCONTROL=ignorespace:ignoredups   # leading space keeps a command out entirely
-HISTIGNORE='ls:ll:la:cd:cd ..:pwd:exit:clear:history:jj:jj log:jj st:gst'
 HISTTIMEFORMAT='%F %T '              # safe with fzf: its Ctrl-R reads `fc -ln`
+
+# No HISTIGNORE. Filtering "noise" out of the file also makes it unrecallable
+# with up-arrow, and the commands worth filtering by frequency are exactly the
+# ones typed most. Duplicates in the file cost nothing: fzf's Ctrl-R dedupes on
+# display, and `ignoredups` already drops consecutive repeats.
 
 # -a flushes this session's new commands; -n reads back only what other sessions
 # have appended since the last read. Deliberately not `-c -r`, which cleared the
