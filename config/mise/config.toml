@@ -165,12 +165,18 @@ gd = "git diff"
 "~/.bash_profile" = { source = "~/.dotfiles/bash_profile", mode = "copy" }
 
 # One AGENTS.md and one skills directory, linked wherever each harness looks.
-# ~/.agents is the vendor-neutral convention (agy, opencode, codex read it);
-# Claude Code needs its own path.
+# Each of these paths is required by the harness that reads it:
+#   ~/.claude          Claude Code's own global config dir
+#   ~/.gemini/config   agy's "Global Customizations Root". Per its embedded docs a
+#                      root holds standalone AGENTS.md/GEMINI.md plus skills/,
+#                      plugins/, hooks.json. agy does NOT walk up to ~/.agents.
+#   ~/.agents          the vendor-neutral convention (opencode, codex)
 "~/.agents/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
 "~/.agents/skills" = "~/.dotfiles/agents/skills"
 "~/.claude/CLAUDE.md" = "~/.dotfiles/agents/AGENTS.md"
 "~/.claude/skills" = "~/.dotfiles/agents/skills"
+"~/.gemini/config/AGENTS.md" = "~/.dotfiles/agents/AGENTS.md"
+"~/.gemini/config/skills" = "~/.dotfiles/agents/skills"
 
 # Claude Code writes its own settings back (model, theme, effortLevel). This is a
 # symlink, so those writes land in the repo and show up in `jj diff`.
