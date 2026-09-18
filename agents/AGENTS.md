@@ -63,9 +63,11 @@ Rules:
 - When `@-` is immutable (e.g. `trunk()`), use `jj describe` on `@` instead of `jj squash`.
 - After creating commits, run `jj new` to re-establish the empty working commit.
 
-### Never let jj open an editor
+### Never let jj block on a prompt
 
-No interactive TTY in agent sessions. Always pass messages explicitly:
+Do not assume there is no TTY: some harnesses run tools in a PTY, so jj sees a
+terminal and opens an editor or a pager that nobody can answer. Always pass
+messages explicitly:
 
 | Command | Rule |
 |---|---|
@@ -77,6 +79,9 @@ No interactive TTY in agent sessions. Always pass messages explicitly:
 Traps:
 - `jj squash` with no flags concatenates both messages. Use `--use-destination-message`.
 - `jj split` with no paths opens a TUI diff editor. Always name the paths.
+- jj ignores `PAGER`, so exporting `PAGER=cat` does nothing. A scope in
+  `config/jj/config.toml` sets `paginate = "never"` for known agent
+  environments; if jj still pages, add `--no-pager`.
 
 ## Workspace Isolation
 
