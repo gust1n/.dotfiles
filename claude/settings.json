@@ -49,11 +49,11 @@
     ],
     "SessionStart": [
       {
-        "matcher": "*",
+        "matcher": "^(startup|resume|clear|compact|fork)$",
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f ~/.claude/hooks/herdr-agent-state.sh ] && bash ~/.claude/hooks/herdr-agent-state.sh session || true",
+            "command": "bash '/Users/gust1n/.claude/hooks/herdr-agent-state.sh' session",
             "timeout": 10
           }
         ]
