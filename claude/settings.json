@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.dotfiles/bin/agent-guard",
+            "command": "~/.config/mise/bin/agent-guard",
             "timeout": 5
           }
         ]

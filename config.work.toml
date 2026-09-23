@@ -3,8 +3,8 @@
 #
 #   echo work > ~/.mise-env
 #
-# ~/.bashrc reads that file before activating mise. MISE_ENV stacks, so
-# `macos,work` loads both profiles.
+# ~/.bashrc reads that file before activating mise. The OS file still loads on
+# top of it through auto_env.
 #
 # Put here anything work-specific that is safe to commit: linters the team uses,
 # an AWS profile name, extra registries. Anything genuinely private — tokens,

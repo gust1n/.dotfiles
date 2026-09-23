@@ -1,6 +1,6 @@
 # Neovim Agent Guide
 
-`config/nvim/` is linked to `~/.config/nvim` by `[dotfiles]` in `config/mise/config.toml`.
+`config/nvim/` is linked to `~/.config/nvim` by `[dotfiles]` in `config.toml`.
 
 ## Layout
 

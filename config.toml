@@ -1,0 +1,140 @@
+# The declarative hub for every machine: tools, system packages, environment,
+# shell aliases and dotfile links. This repo is ~/.config/mise itself, so
+# `mise bootstrap` applies it and relative sources resolve against the repo root.
+#
+# Layers, most general first. Later layers win.
+#   config.toml         this file — tracked, everything portable
+#   config.macos.toml   tracked, loads on macOS (auto_env in miserc.toml)
+#   config.linux.toml   tracked, loads on Linux
+#   config.work.toml    tracked, loads under MISE_ENV=work
+#   config.local.toml   gitignored — this machine only
+
+[tools]
+awscli = "latest"
+bat = "latest"
+buf = "latest"
+claude = "latest"
+difftastic = "latest"
+fd = "latest"
+fzf = "latest"
+gh = "latest"
+go = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+golangci-lint = "latest"
+herdr = "latest"
+hledger = "latest"
+jj = "latest"
+lua-language-server = "latest"
+neovim = "latest"
+node = "latest"
+"npm:agent-browser" = "latest"
+"npm:defuddle" = "latest"
+"npm:oxfmt" = "latest"
+"npm:oxlint" = "latest"
+"npm:pnpm" = "11"
+"npm:pyright" = "latest"
+"npm:vercel" = "latest"
+protolint = "latest"
+python = "3.12"
+rg = "latest"
+ruff = "latest"
+rust = "latest"
+stylua = "latest"
+tmux = "latest"
+tree-sitter = "latest"
+bun = "latest"
+
+
+# Canonical model IDs. Every consumer reads them from the environment, so this
+# is the only place they are written. Claude Code resolves `--model opus` and
+# `--model sonnet` through ANTHROPIC_DEFAULT_*_MODEL.
+[vars]
+opus_model = "eu.anthropic.claude-opus-5-5"
+sonnet_model = "eu.anthropic.claude-sonnet-5"
+
+[env]
+EDITOR = "nvim"
+LANG = "en_US.UTF-8"
+LC_ALL = "en_US.UTF-8"
+CLICOLOR = "1" # BSD ls colours, so no macOS-only `ls -G` alias is needed
+
+# Read by awscli and Claude Code alike, including for Claude Code's small
+# model. Override in config.work.toml for a work SSO profile.
+AWS_PROFILE = "bedrock"
+AWS_REGION = "eu-north-1"
+
+ANTHROPIC_DEFAULT_OPUS_MODEL = "{{ vars.opus_model }}"
+ANTHROPIC_DEFAULT_SONNET_MODEL = "{{ vars.sonnet_model }}"
+
+FZF_DEFAULT_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
+FZF_DEFAULT_OPTS = "--reverse"
+FZF_CTRL_T_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
+FZF_CTRL_T_OPTS = "--preview 'bat -n --color=always {}' --bind 'ctrl-/:change-preview-window(down|hidden|)'"
+FZF_ALT_C_COMMAND = "fd --type d --strip-cwd-prefix --hidden --follow --exclude .git"
+
+# These land ahead of mise's own tool installs, so nothing here may shadow a
+# tool in [tools].
+_.path = [
+  "~/.local/bin", # agy and other self-installing binaries
+  "~/.config/mise/bin",
+  "~/go/bin",
+]
+
+# `mise run link` after editing a copied file; `mise run drift` to see whether
+# anything has been injected since the last apply.
+[tasks.link]
+description = "Re-apply dotfiles (needed after editing bashrc or bash_profile)"
+run = "mise bootstrap dotfiles apply --yes"
+
+[tasks.drift]
+description = "Report dotfiles that differ from the repo; exits 1 if any do"
+run = "mise bootstrap dotfiles status --missing"
+
+[shell_alias]
+rg = "rg --hidden" # rg skips .git unconditionally; ~/.ignore covers the rest
+"cd..." = "cd ../.."
+"cd...." = "cd ../../.."
+"cd....." = "cd ../../../.."
+
+# agy installs and updates itself, and is not in the mise registry.
+[bootstrap.hooks]
+post-tools = "command -v agy >/dev/null || curl -fsSL https://antigravity.google/cli/install.sh | bash"
+
+[dotfiles]
+# Every app config dir in config/. This repo is ~/.config/mise, so the glob
+# cannot reach it.
+"~/.config/*" = "config/*"
+"~/.config/git/ignore" = "gitignore" # git and jj read this path by default
+"~/.inputrc" = "inputrc"
+"~/.ignore" = "ignore"
+
+# ~/.gitconfig stays unmanaged: `gh auth login` writes machine-specific paths
+# into it. mise owns only this block.
+"~/.gitconfig/identity" = { block = "[user]\n\tname = gust1n\n\temail = jocke.gustin@gmail.com" }
+
+# The usual place for code, and where herdr-jj looks for repos.
+"~/Code/dotfiles" = "."
+
+# Copies, not symlinks — these are what installers append to. A copy sends the
+# injected line to ~/.bashrc only, never into the repo; `mise bootstrap dotfiles
+# status` then reports `differs`, and the next apply overwrites it back, no
+# --force needed. Editing these means re-running `mise run link`.
+# Sanctioned additions go in ~/.bashrc.local, which is never touched.
+"~/.bashrc" = { source = "bashrc", mode = "copy" }
+"~/.bash_profile" = { source = "bash_profile", mode = "copy" }
+
+# One AGENTS.md and one skills directory, linked wherever each harness looks.
+#   ~/.agents          the vendor-neutral convention (opencode, codex)
+#   ~/.claude          Claude Code's own global config dir
+#   ~/.gemini/config   agy's "Global Customizations Root". It holds AGENTS.md and
+#                      skills/ next to agy's own state, and agy does NOT walk up
+#                      to ~/.agents.
+"~/.agents" = "agents"
+"~/.claude/CLAUDE.md" = "agents/AGENTS.md"
+"~/.claude/skills" = "agents/skills"
+"~/.gemini/config/AGENTS.md" = "agents/AGENTS.md"
+"~/.gemini/config/skills" = "agents/skills"
+
+# Claude Code writes its own settings back (model, theme, effortLevel). This is a
+# symlink, so those writes land in the repo and show up in `jj diff`.
+"~/.claude/settings.json" = "claude/settings.json"

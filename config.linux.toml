@@ -1,0 +1,6 @@
+# Linux only. Loaded automatically on Linux (auto_env in miserc.toml).
+# The system bash is bash 5 already, so the login shell stays as it is.
+
+[bootstrap.packages]
+"apt:bash-completion" = "latest"
+"apt:postgresql-client" = "latest"   # psql and friends

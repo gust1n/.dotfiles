@@ -1,0 +1,16 @@
+# macOS only. Loaded automatically on macOS (auto_env in miserc.toml).
+
+# mise pours homebrew/core bottles into /opt/homebrew itself — Homebrew is not
+# required. Only what the mise registry has no tool for.
+[bootstrap.packages]
+"brew:bash" = "latest"               # bash 5, the login shell
+"brew:bash-completion@2" = "latest"
+"brew:libpq" = "latest"              # psql and friends
+
+[bootstrap.user]
+login_shell = "/opt/homebrew/bin/bash"
+
+# /opt/homebrew/bin holds only brew, bash and force-linked keg-only binaries, so
+# it shadows no tool in [tools]. libpq is keg-only and never force-linked.
+[env]
+_.path = ["/opt/homebrew/bin", "/opt/homebrew/opt/libpq/bin"]

@@ -5,33 +5,31 @@ Personal workflow rules (jj, code style, writing style) come from
 here. [README.md](README.md) is a short public overview; keep it that way. Rationale
 belongs in a comment next to the config it explains, not in either file.
 
-## Everything declarative goes in `config/mise/config.toml`
+## Everything declarative goes in `config.toml`
 
-`[tools]`, `[bootstrap.packages]`, `[env]`, `[shell_alias]`, `[dotfiles]`,
-`[bootstrap.repos]`. Only shell functions, `eval` integrations and the prompt belong
-in `bashrc`. Never add an env var, `PATH` entry or alias to `bashrc`.
+This repo is `~/.config/mise`. `~/Code/dotfiles` is a link to it. A new machine
+is set up only with `mise bootstrap --adopt gust1n/.dotfiles --yes` (see README).
+Never add a setup script: put each step in mise config or a `[bootstrap.hooks]`
+entry.
 
-Machine-specific values go in `config.local.toml` (gitignored). Work values go in
-`config.work.toml`.
+`[tools]`, `[bootstrap.*]`, `[env]`, `[shell_alias]`, `[dotfiles]`. Only shell
+functions, `eval` integrations and the prompt belong in `bashrc`. Never add an env
+var, `PATH` entry or alias to `bashrc`.
+
+- OS-specific values go in `config.macos.toml` or `config.linux.toml`. They load
+  automatically (`auto_env` in `miserc.toml`). Both must keep working.
+- Machine-specific values go in `config.local.toml` (gitignored).
+- Work values go in `config.work.toml`.
 
 ## Traps that will bite you
 
-- **`[dotfiles]` sources must be written `~/.dotfiles/…`.** Never a real path, never
-  relative, never templated — all three break. `~/.dotfiles` is a symlink
-  `install.sh` points at the checkout, so this is already location-independent: do
-  not "fix" it to wherever the repo happens to be.
+- **`[dotfiles]` sources are relative to the repo root.** Never write an absolute
+  or `~/` source.
+- **Every directory in `config/` is linked into `~/.config`** by one glob. A new
+  directory there is linked on the next apply.
 - **`bashrc` and `bash_profile` are copies, not symlinks.** Editing them does
   nothing until `mise run link`.
-- **Never add `~/.config/mise` to `[dotfiles]`**, and do not glob `~/.config/*`.
-  A glob puts it in reach of `unapply`, which would delete the link mise needs to
-  find its own config, leaving nothing able to restore it. List config dirs one by
-  one.
-- **Never put `[env]` or `[shell_alias]` in `config.macos.toml`.** Interactive
-  shells do not set `MISE_ENV=macos`, so they would never apply. Use a portable
-  value in `config.toml` instead — `CLICOLOR=1`, not an `ls -G` alias.
 - **Never export `PROMPT_COMMAND`.** Nested shells inherit it and append again.
-- **`[bootstrap.repos]` and tmux.conf's `set -g @plugin` lines are one list.**
-  Change both or neither.
 
 ## Model IDs
 
@@ -47,11 +45,11 @@ are expected. Do not revert them as if they were accidental.
 ## Verify before reporting done
 
 ```bash
-./install.sh                          # idempotent; must end with no changes
+mise bootstrap --yes                  # idempotent; must end with no changes
 mise bootstrap plan                   # expect 0 create, 0 update, 0 remove
 mise bootstrap dotfiles status        # expect every target `applied`
 mise run drift                        # expect exit 0
-bash -n bashrc bash_profile install.sh
+bash -n bashrc bash_profile bin/*
 ```
 
 For shell changes, also check a fresh login shell. Note that `bash -c` never reads

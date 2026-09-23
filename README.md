@@ -1,6 +1,6 @@
 # dotfiles
 
-Personal dotfiles of gust1n. 
+Personal dotfiles of gust1n.
 
 Managed almost fully by `mise` and manages tools, system packages, environment, shell aliases etc.
 
@@ -8,12 +8,13 @@ Managed almost fully by `mise` and manages tools, system packages, environment, 
 
 ```bash
 curl https://mise.run | sh
-git clone https://github.com/gust1n/.dotfiles ~/Code/dotfiles
-~/Code/dotfiles/install.sh
+~/.local/bin/mise bootstrap --adopt gust1n/.dotfiles --yes
 ```
 
-`install.sh` symlinks `~/.dotfiles` to the checkout and `~/.config/mise` to
-`config/mise`, then hands over to `mise bootstrap` (which should be idempotent).
+This clones the repo as `~/.config/mise` and applies it. It works on macOS and
+Linux, and it is safe to re-run. After a change to the config, apply it with
+`mise bootstrap --yes`; after editing `bashrc` or `bash_profile`, `mise run link`
+is enough.
 
 ## Tools
 
@@ -29,7 +30,7 @@ git clone https://github.com/gust1n/.dotfiles ~/Code/dotfiles
 ## Layout
 
 ```
-config/mise/config.toml   the machine
+config.toml               the machine; config.{macos,linux,work}.toml layer on top
 config/                   app configs, symlinked into ~/.config
 bashrc                    only what mise cannot express: functions, evals, prompt
 agents/                   one AGENTS.md and the skills, shared by every agent
@@ -37,7 +38,7 @@ bin/                      herdr-jj, agent-guard, jj-workflow
 claude/                   Claude Code settings
 ```
 
-Machine-specific bits go in `config/mise/config.local.toml`, which is gitignored.
+Machine-specific bits go in `config.local.toml`, which is gitignored.
 Work-specific bits go in `config.work.toml`, enabled with `echo work > ~/.mise-env`.
 
 ## Agents

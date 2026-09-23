@@ -1,7 +1,7 @@
 # Interactive bash setup. Copied to ~/.bashrc by `mise bootstrap`.
 #
 # Environment variables, PATH and aliases are NOT here — they live in
-# config/mise/config.toml under [env] and [shell_alias], so they layer per
+# config.toml under [env] and [shell_alias], so they layer per
 # machine and per profile. Only what mise cannot express belongs in this file:
 # shell functions, `eval` integrations, completions and the prompt.
 

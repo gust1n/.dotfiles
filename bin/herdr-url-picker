@@ -57,4 +57,5 @@ for url in reversed(urls):
 selected=$(printf '%s\n' "$urls" \
   | fzf --prompt="Open URL> " --height=100% --reverse --no-multi)
 
-[[ -n "$selected" ]] && open "$selected"
+[[ -n "$selected" ]] || exit 0
+if command -v open >/dev/null; then open "$selected"; else xdg-open "$selected"; fi

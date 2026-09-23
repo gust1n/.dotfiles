@@ -1,0 +1,3 @@
+# Read before any config file. Loads config.macos.toml or config.linux.toml
+# on the matching OS, for bootstrap and shells alike.
+auto_env = true
