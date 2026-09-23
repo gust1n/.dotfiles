@@ -11,7 +11,8 @@ vim.lsp.config("lua_ls", {
   settings = {
     Lua = {
       diagnostics = {
-        globals = { "vim", "describe", "it", "before_each", "after_each" },
+        globals = { "vim", "describe", "it", "before_each", "after_each", "setup", "teardown", "pending" },
+        disable = { "missing-fields", "incomplete-signature-doc" },
       },
       runtime = {
         version = "LuaJIT",
@@ -29,7 +30,8 @@ vim.lsp.config("lua_ls", {
           "${3rd}/luv/library",
         },
       },
-      completion = { callSnippet = "Replace" },
+      completion = { callSnippet = "Replace", keywordSnippet = "Replace" },
+      format = { enable = false },
       hint = {
         enable = true,
         paramType = true,

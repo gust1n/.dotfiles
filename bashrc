@@ -1,15 +1,12 @@
-# Interactive bash setup. Symlinked to ~/.bashrc by `mise bootstrap`.
+# Interactive bash setup. Copied to ~/.bashrc by `mise bootstrap`.
 #
 # Environment variables, PATH and aliases are NOT here — they live in
 # config/mise/config.toml under [env] and [shell_alias], so they layer per
 # machine and per profile. Only what mise cannot express belongs in this file:
 # shell functions, `eval` integrations, completions and the prompt.
 
-# PROMPT_COMMAND is per-shell state and must never be exported. An exported value
-# is inherited by every nested shell, which then appends its own hooks to the
-# inherited copy — that is how it ended up running the history commands three
-# times and __ghostty_hook four, and still carrying hooks from tools that had
-# since been removed. Clearing it means each shell builds its own, once.
+# PROMPT_COMMAND is per-shell state. An inherited value would make every nested
+# shell append its hooks again, so each shell starts empty and builds its own.
 unset PROMPT_COMMAND
 
 # Opt this machine into tracked profiles, e.g. `echo work > ~/.mise-env` to load
@@ -24,8 +21,6 @@ fi
 
 # System-wide bashrc.
 [ -f /etc/bashrc ] && . /etc/bashrc
-
-export TERM=screen-256color
 
 # Ghostty shell integration defines __ghostty_hook, used in PROMPT_COMMAND.
 if [[ -n "${GHOSTTY_RESOURCES_DIR:-}" ]]; then
@@ -57,15 +52,19 @@ _herdr_jj_completions() {
 		COMPREPLY=($(compgen -d -- "$cur"))
 		return
 		;;
+	--model)
+		COMPREPLY=($(compgen -W "opus sonnet flash" -- "$cur"))
+		return
+		;;
 	--name | --prompt | --agent)
 		COMPREPLY=()
 		return
 		;;
 	esac
 	if [[ "$cur" == -* ]]; then
-		COMPREPLY=($(compgen -W "--repo --name --prompt --agent" -- "$cur"))
+		COMPREPLY=($(compgen -W "--repo --name --prompt --model --agent" -- "$cur"))
 	else
-		COMPREPLY=($(compgen -W "new rm tidy spawn help" -- "$cur"))
+		COMPREPLY=($(compgen -W "new rm tidy help" -- "$cur"))
 	fi
 }
 complete -F _herdr_jj_completions herdr-jj
@@ -87,27 +86,12 @@ HISTFILESIZE=1000000                 # larger than HISTSIZE, so exits never trun
 HISTCONTROL=ignorespace:ignoredups   # leading space keeps a command out entirely
 HISTTIMEFORMAT='%F %T '              # safe with fzf: its Ctrl-R reads `fc -ln`
 
-# No HISTIGNORE. Filtering "noise" out of the file also makes it unrecallable
-# with up-arrow, and the commands worth filtering by frequency are exactly the
-# ones typed most. Duplicates in the file cost nothing: fzf's Ctrl-R dedupes on
-# display, and `ignoredups` already drops consecutive repeats.
-
 # -a flushes this session's new commands; -n reads back only what other sessions
-# have appended since the last read. Deliberately not `-c -r`, which cleared the
-# list and rebuilt it from the file every prompt — that is what made up-arrow
-# order unpredictable across terminals. `erasedups` is gone too: with `-a` the
-# file is only ever appended to, never rewritten, so it deduplicated nothing.
+# have appended since the last read, so up-arrow order stays stable per
+# terminal. The file is only appended to, so `erasedups` would have no effect.
 PROMPT_COMMAND="history -a; history -n${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 
 ### Functions
-
-# Pick a recent git branch with fzf and check it out.
-gbr() {
-	local branches branch
-	branches=$(git for-each-ref --count=30 --sort=-committerdate refs/heads/ --format="%(refname:short)") &&
-		branch=$(echo "$branches" | fzf-tmux -d $((2 + $(wc -l <<<"$branches"))) +m) &&
-		git checkout "$(echo "$branch" | sed "s/.* //" | sed "s#remotes/[^/]*/##")"
-}
 
 # Attach to a tmux session by name, or pick one with fzf.
 tm() {
@@ -124,14 +108,13 @@ tm() {
 
 reset="\e[0m"
 green="\e[1;32m"
-orange="\e[1;33m"
 red="\e[1;31m"
 violet="\e[1;35m"
 white="\e[1;37m"
 yellow="\e[1;33m"
 
 # Highlight the user name as root, and the hostname over SSH.
-[[ "${USER}" == "root" ]] && userStyle="${red}" || userStyle="${orange}"
+[[ "${USER}" == "root" ]] && userStyle="${red}" || userStyle="${yellow}"
 [[ "${SSH_TTY}" ]] && hostStyle="${red}" || hostStyle="${yellow}"
 
 # Repository status for the prompt. jj wins over git when both are present.
@@ -166,10 +149,8 @@ PS1+="\[${green}\]\w"                                    # working directory
 PS1+="\[${white}\] on \[${violet}\](\$(__jjgit_prompt))" # repo details
 PS1+="\n"
 PS1+="\[${white}\]\$(date +%H:%M) $ \[${reset}\]"
-export PS1
 
 PS2="\[${yellow}\]→ \[${reset}\]"
-export PS2
 
 # Machine-specific shell additions that mise cannot express. Gitignored.
 [ -f ~/.bashrc.local ] && source ~/.bashrc.local

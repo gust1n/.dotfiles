@@ -25,10 +25,6 @@ CODE_DIR="${CODE_DIR:-$HOME/Code}"
 WS_ROOT="${HERDR_JJ_ROOT:-$HOME/.herdr/workspaces}"
 AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
 
-# Canonical model IDs, resolved once, from [env] in config/mise/config.toml.
-OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5-5}}"
-SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
-
 # Model behind the "flash" tier in the picker: agy for throughput.
 FLASH_MODEL="${FLASH_MODEL:-gemini-3.8-flash-medium}"
 
@@ -106,7 +102,7 @@ _discover_repos() {
         # Skip vendored/nested checkouts: tmux plugins, node_modules, backups,
         # agent workspaces. Without this, one repo's submodules bury the list.
         case "$d" in
-          *"/.jj-workspaces/"*|*"/.herdr/"*|*"/node_modules/"*|\
+          *"/.herdr/"*|*"/node_modules/"*|\
           *"/plugins/"*|*"/vendor/"*|*"/bak/"*|*"/.git/"*|*"/.terraform/"*) continue ;;
         esac
         printf '%s\n' "${d#"$CODE_DIR"/}"
@@ -146,7 +142,7 @@ ensure_jj() {
 # this name (remote first) means "continue that", not "branch off trunk".
 base_rev() {
   local repo="$1" name="$2"
-  for r in "${name}@origin" "$name" 'main@origin' 'master@origin' 'trunk()'; do
+  for r in "${name}@origin" "$name" 'trunk()'; do
     rev_exists "$repo" "$r" && { printf '%s\n' "$r"; return; }
   done
   printf '@\n'
@@ -234,7 +230,7 @@ pick_target() {
 
   # "<name>\t<unix-ts>" for one set of bookmarks, newest first, deduped.
   # jj emits a row per local + per remote, so several rows can share a name;
-  # sort -u then a numeric sort by age handles that without cross-referencing.
+  # sorting by name then age and keeping the first row per name dedupes them.
   # $1 = a jj condition selecting which bookmarks to include. The whole line is
   # suppressed when it doesn't match, otherwise a filtered-out bookmark would
   # still emit a bare "\t<timestamp>" row.
@@ -246,7 +242,7 @@ pick_target() {
                  self.normal_target().committer().timestamp().format("%s"), "0")
            ++ "\n",
            "")' 2>/dev/null \
-      | sed '/^$/d' | sort -u \
+      | sed '/^$/d' \
       | sort -t"$(printf '\t')" -k1,1 -k2,2nr | awk -F'\t' '!seen[$1]++' \
       | sort -t"$(printf '\t')" -k2,2nr
   }
@@ -321,18 +317,14 @@ pick_model() {
   printf '%s\n' "${tier:-opus}"
 }
 
-# tier -> a launch command. "flash" means agy; every other tier means claude.
+# tier -> a launch command. "flash" means agy; every other tier means claude,
+# which maps the opus/sonnet aliases to ANTHROPIC_DEFAULT_*_MODEL from mise.
 build_agent_cmd() {
-  local tier="$1" model
-  if [[ "$tier" == "flash" ]]; then
-    printf 'agy --dangerously-skip-permissions --model %s\n' "$FLASH_MODEL"
-    return
-  fi
-  case "$tier" in
-    sonnet) model="$SONNET_MODEL" ;;
-    *)      model="$OPUS_MODEL" ;;
+  case "$1" in
+    flash)  printf 'agy --dangerously-skip-permissions --model %s\n' "$FLASH_MODEL" ;;
+    sonnet) printf 'claude --dangerously-skip-permissions --model sonnet\n' ;;
+    *)      printf 'claude --dangerously-skip-permissions --model opus\n' ;;
   esac
-  printf 'claude --dangerously-skip-permissions --model %s\n' "$model"
 }
 
 # --- commands ---------------------------------------------------------------

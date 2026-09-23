@@ -38,14 +38,3 @@ _G.FORMATTERS.go = { "golangci-lint" }
 
 -- Linters
 _G.LINTERS.go = { "golangcilint" }
-
--- Ignore exit codes from golangci-lint
-vim.api.nvim_create_autocmd("User", {
-  pattern = "VeryLazy",
-  callback = function()
-    local ok, lint = pcall(require, "lint")
-    if ok and lint.linters.golangcilint then
-      lint.linters.golangcilint.ignore_exitcode = true
-    end
-  end,
-})

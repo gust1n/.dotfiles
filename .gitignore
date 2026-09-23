@@ -1,5 +1,4 @@
 bak
-.claude/settings.local.json
 
 # Machine-specific layers. The jj one holds a work identity: this repo is public.
 config/mise/config.local.toml

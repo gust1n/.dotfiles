@@ -1,11 +1,10 @@
 {
-  "awsAuthRefresh": "aws sso login --profile bedrock",
+  "awsAuthRefresh": "aws sso login",
   "cleanupPeriodDays": 3650,
   "env": {
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": "eu-north-1",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "0",
     "GH_PROMPT_DISABLED": "1",
     "JJ_EDITOR": "true"
   },
@@ -32,17 +31,25 @@
       "Bash(pnpm *)",
       "Bash(npm *)",
       "Bash(mise *)"
+    ],
+    "ask": [
+      "Bash(jj git push*)",
+      "Bash(jj push*)",
+      "Bash(git push*)",
+      "Bash(npm publish*)",
+      "Bash(pnpm publish*)"
     ]
   },
   "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
         "hooks": [
           {
             "type": "command",
             "command": "~/.dotfiles/bin/agent-guard",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }

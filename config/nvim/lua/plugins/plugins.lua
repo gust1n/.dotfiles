@@ -10,7 +10,7 @@ return {
 
   -- Mini.nvim collection
   {
-    "echasnovski/mini.nvim",
+    "nvim-mini/mini.nvim",
     config = function()
       require("mini.ai").setup()
       require("mini.comment").setup()
@@ -52,7 +52,7 @@ return {
 
   -- File explorer
   {
-    "kyazdani42/nvim-tree.lua",
+    "nvim-tree/nvim-tree.lua",
     cmd = "NvimTreeToggle",
     opts = {
       renderer = {
@@ -194,5 +194,4 @@ return {
       })
     end,
   },
-
 }

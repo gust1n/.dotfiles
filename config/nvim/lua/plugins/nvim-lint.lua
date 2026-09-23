@@ -16,29 +16,6 @@ return {
           lint.try_lint()
         end,
       })
-
-      -- Add useful commands
-      vim.api.nvim_create_user_command("LintManual", function()
-        lint.try_lint()
-      end, { desc = "Manually trigger linting" })
-
-      vim.api.nvim_create_user_command("LintStatus", function()
-        local diags = vim.diagnostic.get(0)
-        print("=== Lint Status ===")
-        print("File: " .. vim.fn.expand("%:t"))
-        print(
-          "Linters configured for " .. vim.bo.filetype .. ": " .. vim.inspect(lint.linters_by_ft[vim.bo.filetype] or {})
-        )
-        print("Found " .. #diags .. " issue(s):")
-        if #diags == 0 then
-          print("  ✓ No linting issues found")
-        else
-          for _, diag in ipairs(diags) do
-            local severity = diag.severity == 1 and "ERROR" or diag.severity == 2 and "WARN" or "INFO"
-            print("  " .. severity .. " Line " .. (diag.lnum + 1) .. ": " .. diag.message)
-          end
-        end
-      end, { desc = "Show current linting status" })
     end,
   },
 }

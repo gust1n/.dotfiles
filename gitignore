@@ -17,6 +17,5 @@ log/
 *.log
 .env
 
-# Agent workspaces (jj) and per-repo agent settings, which can appear anywhere
-.jj-workspaces/
+# Per-repo agent settings, which can appear anywhere
 **/.claude/settings.local.json

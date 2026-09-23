@@ -11,15 +11,16 @@
 #
 # A jj repo has exactly one MAIN workspace, which stores .jj/repo as the store
 # DIRECTORY; every secondary workspace stores .jj/repo as a FILE pointing at it.
-# Detecting that structurally — rather than matching a path like
-# */.jj-workspaces/* — means the guard keeps working wherever checkouts live,
-# and can't be sidestepped by moving one.
+# Detecting that structurally, not by path, means the guard works wherever
+# checkouts live and can't be sidestepped by moving one.
 #
 # Containment is enforced for the file-editing tools. Bash is best-effort: a
 # denylist of outward-facing commands, not a sandbox. `sed -i` on an absolute
 # path outside the workspace would still get through.
 
 set -o pipefail
+# $CMD is split into words below; never glob-expand them.
+set -f
 
 LOG="${AGENT_GUARD_LOG:-/tmp/agent-guard.log}"
 log() { echo "$(date +%H:%M:%S) $*" >>"$LOG" 2>/dev/null || true; }
@@ -75,7 +76,7 @@ ask() {
 # ones. Fails closed: if the path can't be resolved, it isn't inside.
 inside() {
   local p="${1/#\~/$HOME}"
-  [[ "$p" != /* ]] && p="$ROOT/$p"   # relative paths are relative to the pane cwd
+  [[ "$p" != /* ]] && p="$CWD/$p"
 
   # A symlinked file points outside while its parent dir sits inside, so resolve
   # the link itself first. `readlink -f` is GNU-only (and absent before

@@ -121,16 +121,10 @@ ensure_pr_preflight() {
     fetch_origin
     require_trunk "jj pr"
 
-    local at_empty
-    at_empty=$(jj log -r @ --no-graph -T 'if(empty, "1", "0")' 2>/dev/null)
-    if [[ "$at_empty" != "1" ]]; then
-        local has_description
-        has_description=$(jj log -r @ --no-graph -T 'if(description != "", "1", "0")' 2>/dev/null)
-        if [[ "$has_description" != "1" ]]; then
-            echo "FAIL: current non-empty commit has no description."
-            echo "Run: jj describe -m \"<summary>\""
-            exit 1
-        fi
+    if ! commit_is_empty @ && ! commit_has_description @; then
+        echo "FAIL: current non-empty commit has no description."
+        echo "Run: jj describe -m \"<summary>\""
+        exit 1
     fi
 
     local divergent
@@ -197,8 +191,6 @@ commit_has_description() {
 }
 
 effective_publish_rev() {
-    require_trunk "jj pr"
-
     local rev="@"
     while true; do
         local in_main_lineage
@@ -367,42 +359,25 @@ cmd_pr() {
     local head
     head=$(current_head_bookmark "$target") || fail "Could not determine PR head bookmark."
 
-    # Push
-    local pr_exists
-    pr_exists=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
-    if [[ -n "$pr_exists" && "$pr_exists" != "null" ]]; then
-        # agent-guard lets agents run `jj pr` unasked, so agents may only push
-        # to drafts. --allow-ready makes the guard ask the user instead.
-        if is_agent_session && [[ "$opt_allow_ready" != true ]]; then
-            local is_draft
-            is_draft=$(gh pr view "$pr_exists" --repo "$repo" --json isDraft --jq '.isDraft' 2>/dev/null || echo "")
-            if [[ "$is_draft" != "true" ]]; then
-                echo "PR #$pr_exists is ready for review (or its state is unknown). Nothing was pushed." >&2
-                echo "Ask the user first. If they agree, run: jj pr --allow-ready" >&2
-                exit 1
-            fi
-        fi
-        # Updating existing PR. --allow-backwards because after a rebase the new
-        # commit is sideways from the pushed one - that is the normal case here,
-        # not a mistake: this branch only runs when an open PR already exists for
-        # this head, so repointing it at the current target is the whole job.
-        jj bookmark track "$head" --remote=origin >/dev/null 2>&1 || true
-        jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null || fail "Failed to move $head to publish target."
-        jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
-    else
-        # New PR — move (or create) the head bookmark to the target, then push.
-        # jj git push -c would auto-generate a push-<id> name; using the named
-        # bookmark instead means the PR head matches the workspace name.
-        jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null 2>&1 \
-            || jj bookmark create "$head" -r "$target" >/dev/null 2>&1 \
-            || fail "Failed to set bookmark $head at publish target."
-        jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
+    local pr_number="" pr_url="" pr_is_draft=""
+    read -r pr_number pr_url pr_is_draft < <(gh pr list --repo "$repo" --state open --head "$head" \
+        --json number,url,isDraft --jq '.[0] // empty | "\(.number) \(.url) \(.isDraft)"' 2>/dev/null) || true
+
+    # agent-guard lets agents run `jj pr` unasked, so agents may only push to
+    # drafts. --allow-ready makes the guard ask the user instead.
+    if [[ -n "$pr_number" && "$pr_is_draft" != true && "$opt_allow_ready" != true ]] && is_agent_session; then
+        echo "PR #$pr_number is ready for review. Nothing was pushed." >&2
+        echo "Ask the user first. If they agree, run: jj pr --allow-ready" >&2
+        exit 1
     fi
 
-    # Create or find existing PR
-    local pr_url
-    pr_url=$(gh pr list --repo "$repo" --state open --head "$head" --json url --jq '.[0].url' 2>/dev/null || echo "")
-    if [[ -z "$pr_url" || "$pr_url" == "null" ]]; then
+    # --allow-backwards: after a rebase the target is sideways from the pushed
+    # commit, which is the normal case when a PR is updated.
+    jj bookmark track "$head" --remote=origin >/dev/null 2>&1 || true
+    jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null || fail "Failed to set bookmark $head at publish target."
+    jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
+
+    if [[ -z "$pr_number" ]]; then
         local pr_title
         pr_title=$(pr_title_for_rev "$target" "chore: update $head")
 
@@ -419,9 +394,8 @@ cmd_pr() {
             gh_args+=(--draft)
         fi
 
-        # stderr is deliberately not discarded: without it a caller only sees
-        # "Failed to create PR" and has no way to tell an auth problem from a
-        # protected branch, which is how agents end up reaching for raw gh.
+        # stderr is kept: without it a caller cannot tell an auth problem from a
+        # protected branch, and agents then reach for raw gh.
         local gh_err
         gh_err=$(mktemp)
         pr_url=$(gh pr create "${gh_args[@]}" 2>"$gh_err") || {
@@ -430,8 +404,7 @@ cmd_pr() {
             rm -f "$gh_err" "$pr_body_file"
             exit 1
         }
-        rm -f "$gh_err"
-        rm -f "$pr_body_file"
+        rm -f "$gh_err" "$pr_body_file"
     fi
 
     # A browser tab per push is noise when an agent loops on CI fixes.

@@ -35,54 +35,28 @@ end
 function M.setup_lsp_mappings(bufnr)
   local opts = { buffer = bufnr }
 
-  -- Navigation
-  vim.keymap.set("n", "gd", function()
-    vim.lsp.buf.definition()
-  end, vim.tbl_extend("force", opts, { desc = "Go to definition" }))
-  vim.keymap.set(
-    "n",
-    "gi",
-    "<cmd>FzfLua lsp_implementations<CR>",
-    vim.tbl_extend("force", opts, { desc = "Go to implementation" })
-  )
-  vim.keymap.set(
-    "n",
-    "gr",
-    "<cmd>FzfLua lsp_references<CR>",
-    vim.tbl_extend("force", opts, { desc = "Go to references" })
-  )
+  local function map(mode, lhs, rhs, desc)
+    vim.keymap.set(mode, lhs, rhs, vim.tbl_extend("force", opts, { desc = desc }))
+  end
 
-  -- Documentation and help
-  vim.keymap.set("n", "K", function()
-    vim.lsp.buf.hover()
-  end, vim.tbl_extend("force", opts, { desc = "Hover documentation" }))
-  vim.keymap.set("i", "<C-k>", function()
-    vim.lsp.buf.signature_help()
-  end, vim.tbl_extend("force", opts, { desc = "Signature help" }))
-
-  -- Code actions and refactoring
-  vim.keymap.set("n", "<leader>lr", function()
-    vim.lsp.buf.rename()
-  end, vim.tbl_extend("force", opts, { desc = "Rename symbol" }))
-  vim.keymap.set({ "n", "v" }, "<leader>la", function()
-    require("fzf-lua").lsp_code_actions()
-  end, vim.tbl_extend("force", opts, { desc = "Code actions" }))
-
-  -- Diagnostics
-  vim.keymap.set("n", "dp", function()
-    vim.diagnostic.jump({ count = -1 })
-  end, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
-  vim.keymap.set("n", "dn", function()
+  -- K (hover) and grn (rename) are Neovim defaults.
+  -- grr and gri replace the defaults with fzf-lua pickers.
+  -- dn/dp stand in for ]d/[d, which are awkward on a Swedish layout.
+  map("n", "dn", function()
     vim.diagnostic.jump({ count = 1 })
-  end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
-  vim.keymap.set("n", "<leader>ds", function()
-    vim.diagnostic.open_float({ border = "rounded", source = true })
-  end, vim.tbl_extend("force", opts, { desc = "Show diagnostic details" }))
+  end, "Next diagnostic")
+  map("n", "dp", function()
+    vim.diagnostic.jump({ count = -1 })
+  end, "Previous diagnostic")
+  map("n", "gd", vim.lsp.buf.definition, "Go to definition")
+  map("n", "gri", "<cmd>FzfLua lsp_implementations<CR>", "Go to implementation")
+  map("n", "grr", "<cmd>FzfLua lsp_references<CR>", "Go to references")
+  map("i", "<C-k>", vim.lsp.buf.signature_help, "Signature help")
 
-  -- Workspace symbols
-  vim.keymap.set("n", "<leader>ls", function()
-    require("fzf-lua").lsp_live_workspace_symbols()
-  end, vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
+  map("n", "<leader>lr", vim.lsp.buf.rename, "Rename symbol")
+  map({ "n", "v" }, "<leader>la", "<cmd>FzfLua lsp_code_actions<CR>", "Code actions")
+  map("n", "<leader>ls", "<cmd>FzfLua lsp_live_workspace_symbols<CR>", "Workspace symbols")
+  map("n", "<leader>ds", vim.diagnostic.open_float, "Show diagnostic details")
 end
 
 -- Diagnostic and trouble mappings
@@ -95,7 +69,6 @@ local function setup_diagnostic_mappings()
     "<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
     { desc = "Toggle diagnostics (current buffer)" }
   )
-  -- vim.keymap.set("n", "<leader>ds", "<cmd>Trouble symbols toggle focus=false<cr>", { desc = "Document symbols" })
   vim.keymap.set("n", "<leader>dr", "<cmd>Trouble lsp_references toggle focus=false<cr>", { desc = "LSP references" })
   vim.keymap.set("n", "<leader>dq", "<cmd>Trouble quickfix toggle<cr>", { desc = "Quickfix list" })
 
@@ -121,7 +94,7 @@ end
 
 -- Linting mappings
 local function setup_lint_mappings()
-  vim.keymap.set("n", "<leader>l", function()
+  vim.keymap.set("n", "<leader>ll", function()
     require("lint").try_lint()
   end, { desc = "Lint current file" })
 end

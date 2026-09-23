@@ -1,9 +1,5 @@
 local opt = vim.opt
 
--- disable netrw in favor of nvim-tree
-vim.g.loaded_netrw = 1
-vim.g.loaded_netrwPlugin = 1
-
 opt.breakindent = true -- Enable break indent
 opt.textwidth = 0 -- Disable auto line breaks (configure per filetype instead)
 opt.hlsearch = true -- Set highlight on search

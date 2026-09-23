@@ -23,44 +23,23 @@ For simple requests, skip the ceremony and just execute.
 
 ## Version Control
 
-Custom jj commands:
-- `jj pr` — Create or update a pull request (bookmark + push + gh pr create).
+Custom jj commands. `--help` on each is complete. Do not read the `jj-workflow` source.
+- `jj pr` — Create or update a draft PR: rebase onto `trunk()`, set the bookmark, push, `gh pr create`. The title is the first line of the commit description.
 - `jj pr-checks` — Wait for the PR's CI checks and report pass or fail.
-- `jj pr-edit` — Edit the title or body of an existing PR. Use this instead of `gh pr edit`.
-- `jj sync` — Sync with remote and rebase.
-- `jj start <name>` — Start new feature.
+- `jj pr-edit` — Edit the title or body of an existing PR.
+- `jj sync` — Fetch from origin. It does not rebase.
+- `jj start` — Start a new empty commit on top of `trunk()`.
 
-`--help` on each command is complete. Do not read the `jj-workflow` source.
-
-**Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create` — `jj pr` handles the bookmark, the push and the PR together, and passes `--repo` so it works in a jj workspace with no `.git`.
-
-```bash
-jj pr                  # draft PR; title from the commit description's first line
-jj pr --body "..."     # explicit PR body
-jj pr -r @-            # target a specific revision
-jj pr --no-draft       # ready for review — only when the user asks for that
-```
+**PRs**: Always use `jj pr` and `jj pr-edit`. Never create bookmarks, push, or call `gh pr create` / `gh pr edit` by hand: jj workspaces have no `.git`, and `jj pr` passes `--repo`. On failure it prints the `gh` error. Fix the cause.
 
 - Drafts are the default. Only pass `--no-draft` when the user has said the work is ready.
-- Works against `trunk()` (`main` or `master`).
-- On failure it prints the `gh` error. Fix the cause. Do not fall back to raw `gh pr create`.
-- The PR title is always the first line of the commit description.
+- Agents may push only to draft PRs. `jj pr` refuses a ready PR. Ask the user before you run `jj pr --allow-ready`.
 
 **PR loop**: When the user asks for a PR:
 1. Describe the commit. Run `jj pr`.
 2. Run `jj pr-checks`. It can take many minutes: in Claude Code, run it in the background.
 3. On a failure, read the logs with the `gh run view` command it prints. Fix the code, `jj squash` the fix into the PR commit, run `jj pr`, go to 2.
 4. When it exits 0, report the PR URL to the user.
-
-Agents may push only to draft PRs. `jj pr` refuses a PR that is ready for review; ask the user before you run `jj pr --allow-ready`.
-
-**Editing an existing PR**: Always use `jj pr-edit`. Do NOT call `gh pr edit` directly — it fails in jj workspaces because there is no `.git` directory.
-
-```bash
-jj pr-edit --number 141 --body "..."   # update body
-jj pr-edit --number 141 --title "..."  # update title
-jj pr-edit --number 141 --title "..." --body "..."  # update both
-```
 
 ### The Squash Workflow
 
@@ -75,23 +54,12 @@ Rules:
 
 ### Never let jj block on a prompt
 
-Do not assume there is no TTY: some harnesses run tools in a PTY, so jj sees a
-terminal and opens an editor or a pager that nobody can answer. Always pass
-messages explicitly:
+Tools may run in a PTY, so jj can open an editor or pager that nobody answers.
 
-| Command | Rule |
-|---|---|
-| `jj squash` (both sides described) | use `--use-destination-message` or `-m "..."` |
-| `jj describe` | always `-m "..."` |
-| `jj commit` | always `-m "..."` |
-| `jj split` | always explicit **paths** and `-m "..."` |
-
-Traps:
-- `jj squash` with no flags concatenates both messages. Use `--use-destination-message`.
-- `jj split` with no paths opens a TUI diff editor. Always name the paths.
-- jj ignores `PAGER`, so exporting `PAGER=cat` does nothing. A scope in
-  `config/jj/config.toml` sets `paginate = "never"` for known agent
-  environments; if jj still pages, add `--no-pager`.
+- `jj describe`, `jj commit`: always `-m "..."`.
+- `jj squash` with both sides described: `--use-destination-message` or `-m "..."`. With no flag it concatenates both messages.
+- `jj split`: always name the **paths** and pass `-m "..."`. With no paths it opens a TUI.
+- jj ignores `PAGER`. If jj still pages, add `--no-pager`.
 
 ## Workspace Isolation
 
@@ -126,4 +94,4 @@ jj --at-op <op-id> file show <path>  # view file at that point
 
 - Shell: bash
 - OS: macOS
-- Tools: mise, tmux (C-a prefix), fzf, fd, rg, bat
+- Tools: mise, herdr and tmux (C-a prefix), fzf, fd, rg, bat

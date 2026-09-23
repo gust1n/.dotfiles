@@ -14,22 +14,8 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   desc = "Highlight when yanking text",
   group = vim.api.nvim_create_augroup("YankHighlight", { clear = true }),
   callback = function()
-    vim.highlight.on_yank({ timeout = 200 })
+    vim.hl.on_yank({ timeout = 200 })
   end,
-})
-
--- LSP defaults
-vim.lsp.config("*", {
-  capabilities = {
-    textDocument = {
-      completion = {
-        completionItem = {
-          resolveSupport = { properties = { "documentation", "detail", "additionalTextEdits" } },
-        },
-      },
-      foldingRange = { dynamicRegistration = false, lineFoldingOnly = true },
-    },
-  },
 })
 
 -- When LSP attaches
@@ -42,8 +28,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.opt_local.foldmethod = "expr"
       vim.opt_local.foldexpr = "v:lua.vim.lsp.foldexpr()"
       vim.opt_local.foldtext = "v:lua.vim.lsp.foldtext()"
-      vim.opt_local.foldenable = true
-      vim.opt_local.foldlevel = 99
     end
     require("config.keymaps").setup_lsp_mappings(ev.buf)
   end,

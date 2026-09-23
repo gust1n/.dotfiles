@@ -1,110 +1,37 @@
 # Neovim Agent Guide
 
-## Scope
+`config/nvim/` is linked to `~/.config/nvim` by `[dotfiles]` in `config/mise/config.toml`.
 
-- Path: `config/nvim/`
-- Runtime target: `~/.config/nvim` (symlinked by `install.sh`)
-- Source of truth: this directory
+## Layout
 
-## Strategy
+- `init.lua` — lazy.nvim bootstrap, leader, loads `config/*`, auto-loads every `plugins/lang/*.lua`, then lazy setup. Keep it thin.
+- `lua/config/options.lua` — options, diagnostic config.
+- `lua/config/keymaps.lua` — global keymaps; exports `setup_lsp_mappings()` for `LspAttach`.
+- `lua/config/autocmds.lua` — treesitter start, yank highlight, `LspAttach`, cursor restore.
+- `lua/config/lang.lua` — defines `_G.FORMATTERS`, `_G.LINTERS`, `setup_filetype()`.
+- `lua/plugins/*.lua` — plugin specs. `conform.lua` reads `_G.FORMATTERS`; `nvim-lint.lua` reads `_G.LINTERS`.
+- `lua/plugins/lang/<lang>.lua` — one file per language.
+- `after/queries/go/injections.scm` — SQL/JSON injection in Go strings.
 
-- lazy.nvim for plugin management
-- Minimal plugin surface, prefer built-ins when equivalent
-- Split by concern: core config, plugins, per-language settings
-- Global tables (`_G.LSP_SERVERS`, `_G.FORMATTERS`, `_G.LINTERS`) wire language configs to plugins
-- Tools (LSP servers, formatters, linters) are installed externally via mise, not managed by neovim
+## Language files
 
-## Symlink
+Each `lua/plugins/lang/<lang>.lua`:
+1. Calls `setup_filetype()` for indent and colorcolumn.
+2. Calls `vim.lsp.config()` and `vim.lsp.enable()` for its server.
+3. Sets `_G.FORMATTERS.<ft>` and `_G.LINTERS.<ft>`.
 
-- `install.sh` symlinks all `config/*/` directories to `~/.config/`
-- Behavior: entire `config/nvim/` is mounted as `~/.config/nvim`
-- New files are auto-available at runtime
+- LSP servers, formatters and linters come from `[tools]` in mise. Neovim installs none of them.
+- Add a new language's parser to the list in `lua/plugins/treesitter.lua`.
 
-## Directory Layout
+## Rules
 
-- `init.lua`
-  - lazy.nvim bootstrap, leader key, loads config modules, auto-loads lang files, sets up lazy plugin spec
-- `lua/config/options.lua`
-  - editor options, diagnostic config
-- `lua/config/keymaps.lua`
-  - global keymaps, exports `setup_lsp_mappings()` for LspAttach
-- `lua/config/autocmds.lua`
-  - non-plugin autocmds (yank highlight, LspAttach, cursor restore)
-- `lua/config/lang.lua`
-  - initializes global tables + helper functions for language files
-- `lua/plugins/plugins.lua`
-  - general plugins (colorscheme, mini.nvim, fzf-lua, nvim-tree, gitsigns, lualine, trouble)
-- `lua/plugins/lsp.lua`
-  - nvim-lspconfig setup, iterates `_G.LSP_SERVERS`
-- `lua/plugins/conform.lua`
-  - format-on-save via conform.nvim, uses `_G.FORMATTERS`
-- `lua/plugins/nvim-lint.lua`
-  - linting via nvim-lint, uses `_G.LINTERS`
-- `lua/plugins/treesitter.lua`
-  - treesitter config (highlight, indent, incremental selection, textobjects)
-- `lua/plugins/neotest.lua`
-  - test runner, adapters from `_G.NEOTEST_ADAPTERS`
-- `lua/plugins/lang/*.lua`
-  - per-language config files (LSP, formatters, linters, filetype settings)
-- `after/queries/go/injections.scm`
-  - treesitter injection queries for SQL/JSON in Go strings
+- Do not add plugins without clear justification. Prefer built-ins.
+- No icons or nerd fonts in the UI. Use ASCII (E/W/I/H, +/~/-).
+- Format with stylua (`.stylua.toml`).
 
-## Module Naming
-
-- Namespace: `config` for core, `plugins` for plugin specs, `plugins.lang` for languages
-- Require pattern: `require("config.keymaps")`, `require("plugins.lang.go")`
-
-## Language Configuration Pattern
-
-Each `lua/plugins/lang/<lang>.lua` file:
-1. Calls `setup_filetype()` for indent/colorcolumn settings
-2. Populates `_G.LSP_SERVERS.<server>` with config
-3. Sets `_G.FORMATTERS.<ft>` and `_G.LINTERS.<ft>`
-4. Optionally calls `add_neotest_adapter()` for test support
-
-Tools (LSP servers, formatters, linters) must be installed on PATH via mise — see `config/mise/config.toml`.
-
-Language files are auto-loaded by `init.lua` before lazy.nvim setup.
-
-## LSP Rules
-
-- Server configs defined in `lua/plugins/lang/*.lua` via `_G.LSP_SERVERS`
-- `lua/plugins/lsp.lua` iterates the table, calls `vim.lsp.config()` + `vim.lsp.enable()`
-- LSP keymaps set up in `lua/config/autocmds.lua` via LspAttach event
-- Root markers: relies on lspconfig defaults (includes `.git`)
-
-## Editing Rules
-
-- Keep `init.lua` thin - only bootstrap and loading
-- Core editor config in `lua/config/*`
-- Plugin specs in `lua/plugins/*.lua`
-- Language-specific behavior in `lua/plugins/lang/*.lua`
-- Format with stylua (see `.stylua.toml`: 120 columns, 2-space indent, double quotes)
-- Do not add plugins without clear justification
-
-## Commands
-
-- Startup validation:
+## Verify
 
 ```sh
+stylua --check lua/
 nvim --headless '+qa'
 ```
-
-- Check health:
-
-```sh
-nvim --headless '+checkhealth' '+qa'
-```
-
-- Sync plugins:
-
-```sh
-nvim --headless "+Lazy! sync" +qa
-```
-
-## Style
-
-- Formatting: stylua with `.stylua.toml` (120 col, 2 spaces, double quotes)
-- No icons/nerd fonts in UI - use ASCII symbols (E/W/I/H for diagnostics, +/~/- for git)
-- Colorscheme: onedark (dark style)
-- Global statusline (`laststatus = 3`)

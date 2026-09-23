@@ -3,8 +3,5 @@
 .git/
 node_modules/
 vendor/
-log
-tmp
-tags
 *.min.*
 *.map

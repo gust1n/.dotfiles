@@ -22,7 +22,7 @@ pr = ["util", "exec", "--", "jj-workflow", "pr"]
 "pr-edit" = ["util", "exec", "--", "jj-workflow", "pr-edit"]
 
 # tug: bring nearest bookmark up to recent commit
-tug = ['bookmark', 'move', '--from', 'heads(::@ & bookmarks())', '--to', 'closest_pushable(@)']
+tug = ['bookmark', 'move', '--from', 'closest_bookmark(@)', '--to', 'closest_pushable(@)']
 ll = ["log", "-T", "log_with_files"]
 
 # float: rebase local/wip commits on top of current @
@@ -46,8 +46,8 @@ new-under = ["new", "--before", "roots(local())"]
 # tidy: abandon empty, non-described commits (except working copies and merges)
 tidy = ["abandon", "junk()"]
 
-# retrunk: rebase current branch onto trunk
-# Simplified to avoid floating local() commits which can mess up workspaces.
+# retrunk: rebase current branch onto trunk. Leaves local() commits in place:
+# floating them moves commits that other workspaces may sit on.
 retrunk = ["rebase", "-d", "trunk()"]
 
 [revset-aliases]
