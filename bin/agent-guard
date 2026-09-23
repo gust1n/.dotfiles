@@ -129,17 +129,22 @@ CMD=$(jqr '.tool_input.command // empty')
 
 # --- outward-facing commands: require a human ------------------------------
 # These publish, mutate shared state, or destroy things beyond this checkout.
-# The user pushes and opens PRs themselves (`jj pr`).
+# Agents may open and update draft PRs with `jj pr`, which pushes only the PR
+# head bookmark and refuses PRs that are ready for review. Every other push
+# needs a human.
 
-re() { grep -qiE "$1" <<<"$CMD"; }
+re() { grep -qiE -e "$1" <<<"$CMD"; }
 
 re '(^|[;&|[:space:]])(git|jj)([[:space:]]+git)?[[:space:]]+push' \
-  && ask "Push blocked — the user decides when work is published."
+  && ask "Push blocked — use 'jj pr' for draft PRs. Other pushes need the user."
 
-# jj pr pushes AND opens a PR, so blocking only its parts would leave the
-# wrapper as a way around this list.
-re '(^|[;&|[:space:]])jj[[:space:]]+pr([[:space:]]|$)' \
-  && ask "Publishing blocked — 'jj pr' pushes and opens a PR. Ask the user first."
+# jj-workflow is the script behind `jj pr`, so match both spellings.
+if re '(^|[;&|[:space:]/])(jj|jj-workflow)[[:space:]]+pr([[:space:]]|$)'; then
+  re '--no-draft' \
+    && ask "Ready-for-review PR blocked — only the user marks work ready."
+  re '--allow-ready' \
+    && ask "Push to a ready-for-review PR — the user must approve."
+fi
 
 re 'gh[[:space:]]+pr[[:space:]]+(create|merge|close|edit|comment|review)' \
   && ask "PR mutation blocked — use 'jj pr' only when the user explicitly asks."

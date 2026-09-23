@@ -16,6 +16,8 @@ sync = ["util", "exec", "--", "jj-workflow", "sync"]
 start = ["util", "exec", "--", "jj-workflow", "start"]
 # Create or update a PR for the current change (auto-rebases onto main@origin)
 pr = ["util", "exec", "--", "jj-workflow", "pr"]
+# Wait for the PR's CI checks and report pass/fail
+"pr-checks" = ["util", "exec", "--", "jj-workflow", "pr-checks"]
 # Edit the title/body of an existing PR (jj workspaces have no .git for `gh pr edit`)
 "pr-edit" = ["util", "exec", "--", "jj-workflow", "pr-edit"]
 

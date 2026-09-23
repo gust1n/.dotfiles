@@ -22,6 +22,7 @@ Commands:
   sync          Fetch refs from origin
   start         Start an empty working commit on top of latest trunk()
   pr            Create or update a pull request for the current change
+  pr-checks     Wait for the CI checks of a pull request and report the result
   pr-edit       Edit the title or body of an existing pull request
 
 Run 'jj-workflow <command> --help' for a command's options.
@@ -32,18 +33,60 @@ usage_pr() {
     cat <<'EOF'
 Usage: jj pr [options]
 
-Creates or updates a pull request for the current change: rebases onto
-trunk(), picks the nearest non-empty described commit as the publish
-target, moves the head bookmark there, pushes, and opens the PR.
+Creates or updates the pull request for the current change. Steps:
+  1. Fetch origin and rebase onto trunk() (main or master).
+  2. Pick the publish target: @, or the nearest ancestor that is non-empty or
+     described. The undescribed empty working commit is skipped.
+  3. Move the head bookmark to the target and push it. The head bookmark is
+     the workspace name if that bookmark exists, else gust1n/push-<change-id>.
+  4. If no open PR has that head, create one. Else the push updates it.
+  5. Print the PR URL and start a new empty working commit on top.
 
 Options:
   -r, --revision <rev>   Publish this revision instead of the automatic target
-      --body <text>      PR body (default: the commit description after line 1)
+      --body <text>      PR body for a new PR (default: the commit description
+                         after line 1). Ignored when the PR exists; use pr-edit.
       --draft            Create the PR as a draft (the default)
-      --no-draft         Open a ready-for-review PR instead
+      --no-draft         Create a ready-for-review PR instead
+      --allow-ready      Agent sessions only: allow a push to a PR that is
+                         ready for review. Without it, such a push fails.
   -h, --help             Show this help
 
-The PR title is always the first line of the commit description.
+The PR title is the first line of the commit description. Change the title of
+an existing PR with 'jj pr-edit'.
+
+Next step: 'jj pr-checks' waits for CI and reports the result.
+EOF
+}
+
+usage_pr_checks() {
+    cat <<'EOF'
+Usage: jj pr-checks [options]
+
+Waits for the CI checks of a pull request and reports the result. Read-only:
+it does not push. Prints one line each time the check counts change.
+
+Steps:
+  1. Find the open PR for the head bookmark that 'jj pr' uses.
+  2. Wait until GitHub shows the pushed commit and reports checks for it.
+  3. Poll the checks. Stop at the first failure, or when none are pending.
+
+Options:
+  -n, --number <num>     PR number (default: the PR for the current change)
+      --timeout <min>    Give up after this many minutes (default: 60)
+  -h, --help             Show this help
+
+Exit codes:
+  0  All checks passed or were skipped.
+  1  A check failed or was cancelled. The output lists each failed check with
+     its link, and a 'gh run view ... --log-failed' command for GitHub Actions.
+  2  No checks were reported. The repo may have no CI.
+  3  Timed out, or GitHub did not show the pushed commit.
+
+Fix loop: read the failed logs, fix the code, 'jj squash' the fix into the
+PR commit, run 'jj pr', then run 'jj pr-checks' again.
+
+This can run for many minutes. In Claude Code, run it in the background.
 EOF
 }
 
@@ -211,6 +254,11 @@ post_publish_new_working_commit() {
     echo "Started new working commit on top of published change."
 }
 
+# Same markers as the agent scope in config/jj/config.toml.
+is_agent_session() {
+    [[ "${TERM:-}" == dumb || -n "${AI_AGENT:-}" || -n "${CLAUDECODE:-}" || -n "${ANTIGRAVITY_AGENT:-}" ]]
+}
+
 usage_pr_edit() {
     cat <<'EOF'
 Usage: jj pr-edit [options]
@@ -260,7 +308,7 @@ cmd_pr_edit() {
             -n|--number)   [[ $# -ge 2 ]] || fail "$1 needs a PR number."; opt_number="$2"; shift 2 ;;
             --title)       [[ $# -ge 2 ]] || fail "$1 needs a title."; opt_title="$2"; shift 2 ;;
             --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
-            *)             shift ;;
+            *)             fail "Unknown option '$1'. Run: jj pr-edit --help" ;;
         esac
     done
 
@@ -290,7 +338,7 @@ cmd_pr_edit() {
 cmd_pr() {
     # Draft is the default: an agent that publishes without being asked should
     # not open a review-ready PR. Pass --no-draft to publish for real.
-    local opt_rev="" opt_body="" opt_draft=true
+    local opt_rev="" opt_body="" opt_draft=true opt_allow_ready=false
     # Parse fully before any mutating work, so --help can't fetch/rebase/push.
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -299,7 +347,8 @@ cmd_pr() {
             --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
             --draft)       opt_draft=true; shift ;;
             --no-draft)    opt_draft=false; shift ;;
-            *)             shift ;;
+            --allow-ready) opt_allow_ready=true; shift ;;
+            *)             fail "Unknown option '$1'. Run: jj pr --help" ;;
         esac
     done
 
@@ -322,6 +371,17 @@ cmd_pr() {
     local pr_exists
     pr_exists=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
     if [[ -n "$pr_exists" && "$pr_exists" != "null" ]]; then
+        # agent-guard lets agents run `jj pr` unasked, so agents may only push
+        # to drafts. --allow-ready makes the guard ask the user instead.
+        if is_agent_session && [[ "$opt_allow_ready" != true ]]; then
+            local is_draft
+            is_draft=$(gh pr view "$pr_exists" --repo "$repo" --json isDraft --jq '.isDraft' 2>/dev/null || echo "")
+            if [[ "$is_draft" != "true" ]]; then
+                echo "PR #$pr_exists is ready for review (or its state is unknown). Nothing was pushed." >&2
+                echo "Ask the user first. If they agree, run: jj pr --allow-ready" >&2
+                exit 1
+            fi
+        fi
         # Updating existing PR. --allow-backwards because after a rebase the new
         # commit is sideways from the pushed one - that is the normal case here,
         # not a mistake: this branch only runs when an open PR already exists for
@@ -374,10 +434,128 @@ cmd_pr() {
         rm -f "$pr_body_file"
     fi
 
-    # Open in browser (macOS)
-    command -v open >/dev/null && open "$pr_url" 2>/dev/null || true
+    # A browser tab per push is noise when an agent loops on CI fixes.
+    if ! is_agent_session; then
+        command -v open >/dev/null && open "$pr_url" 2>/dev/null || true
+    fi
     echo "$pr_url"
     post_publish_new_working_commit
+    echo "Next: jj pr-checks"
+}
+
+# The bookmark `jj pr` pushed for the current change. current_head_bookmark
+# falls back to @'s change ID, which is wrong once @ has moved past the
+# published commit, so fall back to the nearest bookmark above trunk() instead.
+checks_head_bookmark() {
+    local head
+    head=$(current_head_bookmark @)
+    if jj log -r "present(bookmarks(exact:\"$head\"))" --no-graph -T '"x"' 2>/dev/null | grep -q .; then
+        echo "$head"
+        return 0
+    fi
+    jj log -r 'heads(::@ & bookmarks() & ~::trunk())' --no-graph \
+        -T 'local_bookmarks.map(|b| b.name()).join("\n") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1
+}
+
+cmd_pr_checks() {
+    local opt_number="" opt_timeout=60
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)     usage_pr_checks; return 0 ;;
+            -n|--number)   [[ $# -ge 2 ]] || fail "$1 needs a PR number."; opt_number="$2"; shift 2 ;;
+            --timeout)     [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || fail "$1 needs a number of minutes."; opt_timeout="$2"; shift 2 ;;
+            *)             fail "Unknown option '$1'. Run: jj pr-checks --help" ;;
+        esac
+    done
+
+    local repo
+    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
+
+    local number="$opt_number"
+    if [[ -z "$number" ]]; then
+        local head
+        head=$(checks_head_bookmark)
+        [[ -n "$head" ]] || fail "No PR bookmark found for the current change. Run 'jj pr' first, or pass --number."
+        number=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
+        [[ -n "$number" && "$number" != "null" ]] || fail "No open PR for bookmark $head. Run 'jj pr' first, or pass --number."
+    fi
+
+    local info head_ref url
+    info=$(gh pr view "$number" --repo "$repo" --json headRefName,url --jq '"\(.headRefName) \(.url)"') \
+        || fail "Could not read PR #$number in $repo."
+    read -r head_ref url <<<"$info"
+    echo "PR #$number: $url"
+
+    # The commit jj last pushed. GitHub can lag a few seconds behind a push,
+    # and until it catches up it reports the checks of the previous commit.
+    local pushed_sha
+    pushed_sha=$(jj log -r "present(remote_bookmarks(exact:\"$head_ref\", exact:\"origin\"))" \
+        --no-graph -T 'commit_id' 2>/dev/null || echo "")
+
+    local deadline=$((SECONDS + opt_timeout * 60))
+    # Checks register within a minute or two of a push. Longer means no CI.
+    local register_deadline=$((SECONDS + 180))
+    local state sha count
+    while true; do
+        state=$(gh pr view "$number" --repo "$repo" --json headRefOid,statusCheckRollup \
+            --jq '"\(.headRefOid) \(.statusCheckRollup | length)"' 2>/dev/null || echo "")
+        read -r sha count <<<"$state"
+        if [[ -n "$sha" && ( -z "$pushed_sha" || "$sha" == "$pushed_sha" ) ]]; then
+            [[ "${count:-0}" -gt 0 ]] && break
+            if (( SECONDS >= register_deadline )); then
+                echo "No checks reported for PR #$number after 3 minutes. The repo may have no CI."
+                exit 2
+            fi
+        elif (( SECONDS >= register_deadline )); then
+            echo "GitHub still shows commit ${sha:-unknown} for PR #$number, not the pushed ${pushed_sha}." >&2
+            echo "Run 'jj pr' to push again, then retry." >&2
+            exit 3
+        fi
+        sleep 5
+    done
+
+    local checks summary last_summary="" fails pending
+    while true; do
+        if checks=$(gh pr checks "$number" --repo "$repo" --json name,bucket,link 2>/dev/null) && [[ -n "$checks" ]]; then
+            summary=$(jq -r '
+                def n(b): map(select(.bucket as $x | b | index($x))) | length;
+                "pending=\(n(["pending"])) pass=\(n(["pass"])) fail=\(n(["fail","cancel"])) skipped=\(n(["skipping"]))"
+            ' <<<"$checks")
+            if [[ "$summary" != "$last_summary" ]]; then
+                echo "$(date +%H:%M:%S) $summary"
+                last_summary="$summary"
+            fi
+
+            fails=$(jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | "  \(.bucket): \(.name)\n    \(.link)"' <<<"$checks")
+            if [[ -n "$fails" ]]; then
+                echo "FAILED checks on PR #$number:"
+                echo "$fails"
+                local jobs
+                jobs=$(jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | .link' <<<"$checks" \
+                    | sed -nE 's#.*/actions/runs/[0-9]+/job/([0-9]+).*#\1#p' | sort -u)
+                if [[ -n "$jobs" ]]; then
+                    echo "Logs of the failed GitHub Actions jobs:"
+                    local job
+                    for job in $jobs; do
+                        echo "  gh run view --job $job --repo $repo --log-failed"
+                    done
+                fi
+                exit 1
+            fi
+
+            pending=$(jq '[.[] | select(.bucket == "pending")] | length' <<<"$checks")
+            if [[ "$pending" == 0 ]]; then
+                echo "All checks passed on PR #$number: $url"
+                exit 0
+            fi
+        fi
+
+        if (( SECONDS >= deadline )); then
+            echo "Timed out after $opt_timeout minutes. Checks still pending on PR #$number." >&2
+            exit 3
+        fi
+        sleep 15
+    done
 }
 
 # --- Main ---
@@ -394,6 +572,9 @@ case "${1:-}" in
         ;;
     pr)
         shift; cmd_pr "$@"
+        ;;
+    pr-checks)
+        shift; cmd_pr_checks "$@"
         ;;
     pr-edit)
         shift; cmd_pr_edit "$@"

@@ -45,7 +45,7 @@ Work-specific bits go in `config.work.toml`, enabled with `echo work > ~/.mise-e
 Each agent gets its own **jj workspace** so several can work in one project in isolation.
 `bin/herdr-jj` creates and reaps those workspaces; `herdr` does everything visual. 
 `bin/agent-guard` is a `PreToolUse` hook that keeps an agent inside its own workspace 
-and asks before anything outward-facing, like a push.
+and asks before anything outward-facing, except a push to a draft PR.
 
 With `ctrl+a` as the prefix: `shift+a` starts or attaches to an agent, `shift+d`
 removes its workspace, `shift+y` sweeps dead ones. Everything else is stock herdr.

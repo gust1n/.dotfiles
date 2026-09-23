@@ -25,9 +25,12 @@ For simple requests, skip the ceremony and just execute.
 
 Custom jj commands:
 - `jj pr` — Create or update a pull request (bookmark + push + gh pr create).
+- `jj pr-checks` — Wait for the PR's CI checks and report pass or fail.
 - `jj pr-edit` — Edit the title or body of an existing PR. Use this instead of `gh pr edit`.
 - `jj sync` — Sync with remote and rebase.
 - `jj start <name>` — Start new feature.
+
+`--help` on each command is complete. Do not read the `jj-workflow` source.
 
 **Creating a PR**: Always use `jj pr`. Do NOT manually create bookmarks, push, or call `gh pr create` — `jj pr` handles the bookmark, the push and the PR together, and passes `--repo` so it works in a jj workspace with no `.git`.
 
@@ -38,11 +41,18 @@ jj pr -r @-            # target a specific revision
 jj pr --no-draft       # ready for review — only when the user asks for that
 ```
 
-Drafts are the default. Only pass `--no-draft` when the user has said the work is ready.
+- Drafts are the default. Only pass `--no-draft` when the user has said the work is ready.
+- Works against `trunk()` (`main` or `master`).
+- On failure it prints the `gh` error. Fix the cause. Do not fall back to raw `gh pr create`.
+- The PR title is always the first line of the commit description.
 
-It works against `trunk()`, so it does not care whether the default branch is `main` or `master`. If it fails it now prints the underlying `gh` error — read that and fix the cause. Do not fall back to raw `gh pr create`; `jj pr` is the only path that keeps the bookmark and the PR head in step.
+**PR loop**: When the user asks for a PR:
+1. Describe the commit. Run `jj pr`.
+2. Run `jj pr-checks`. It can take many minutes: in Claude Code, run it in the background.
+3. On a failure, read the logs with the `gh run view` command it prints. Fix the code, `jj squash` the fix into the PR commit, run `jj pr`, go to 2.
+4. When it exits 0, report the PR URL to the user.
 
-The PR title is always the first line of the commit description.
+Agents may push only to draft PRs. `jj pr` refuses a PR that is ready for review; ask the user before you run `jj pr --allow-ready`.
 
 **Editing an existing PR**: Always use `jj pr-edit`. Do NOT call `gh pr edit` directly — it fails in jj workspaces because there is no `.git` directory.
 
@@ -95,7 +105,7 @@ Rules:
 - Use `jj log -r 'ancestors(@, 10)'` to orient yourself.
 
 If a guard denies a command, that is expected — tell the user, do not work around it.
-Pushing and `jj pr` always prompt: publishing is the user's call, not yours.
+`jj pr` to a draft runs without a prompt. Other pushes, `--no-draft` and `--allow-ready` prompt the user.
 
 To pull in upstream changes:
 ```bash

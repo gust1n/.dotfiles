@@ -9,7 +9,7 @@ Scripts in this repo. All are POSIX-safe bash unless noted.
 Claude Code `PreToolUse` hook. Sandboxes agents running in a jj agent workspace.
 
 - **Main workspace** (`.jj/repo` is a directory) → pass through unchanged.
-- **Agent workspace** (`.jj/repo` is a file) → file-edit tools must target a path inside the workspace; outward-facing bash commands (push, `jj pr`, PR mutations, cloud deletes, publishes, DB DDL, recursive deletes outside the workspace) require explicit user approval.
+- **Agent workspace** (`.jj/repo` is a file) → file-edit tools must target a path inside the workspace; outward-facing bash commands (push, `jj pr --no-draft`/`--allow-ready`, PR mutations, cloud deletes, publishes, DB DDL, recursive deletes outside the workspace) require explicit user approval. Plain `jj pr` (draft PRs) is allowed.
 
 **Usage:** Set as a `PreToolUse` hook in `claude/settings.json`. Not called directly.
 
@@ -90,20 +90,24 @@ Show `jj status` in a herdr popup and wait for a keypress.
 
 Non-interactive jj workflow commands. Exports `JJ_EDITOR=true` and `GH_PROMPT_DISABLED=1` so nothing hangs waiting for an editor or prompt.
 
-Exposed as `jj pr`, `jj pr-edit`, `jj sync`, and `jj start` via shims.
+Exposed as `jj pr`, `jj pr-checks`, `jj pr-edit`, `jj sync`, and `jj start` via shims.
 
 **Usage:**
 
 ```
 jj-workflow sync                               # fetch refs from origin
 jj-workflow start                              # new empty commit on top of trunk()
-jj-workflow pr [-r <rev>] [--body <text>] [--draft|--no-draft]
+jj-workflow pr [-r <rev>] [--body <text>] [--draft|--no-draft] [--allow-ready]
                                                # create or update a PR; draft by default
+jj-workflow pr-checks [-n <number>] [--timeout <min>]
+                                               # wait for CI; exit 0 pass, 1 fail, 2 no checks, 3 timeout
 jj-workflow pr-edit -n <number> [--title <text>] [--body <text>]
                                                # edit title/body of an existing PR
 ```
 
-`pr` automatically: rebases onto `trunk()` (so it works whether the default branch is `main` or `master`), finds the nearest non-empty described commit, moves the head bookmark there, pushes, and opens the PR in the browser. After publishing it creates a new empty working commit. PRs are drafts unless `--no-draft` is passed.
+`pr` automatically: rebases onto `trunk()` (so it works whether the default branch is `main` or `master`), finds the nearest non-empty described commit, moves the head bookmark there, pushes, and opens the PR in the browser. After publishing it creates a new empty working commit. PRs are drafts unless `--no-draft` is passed. In agent sessions it skips the browser and refuses to push to a ready-for-review PR unless `--allow-ready` is passed.
+
+`pr-checks` waits until GitHub reports checks for the pushed commit, then polls them. It stops at the first failure and prints each failed check's link plus a `gh run view --job … --log-failed` command for GitHub Actions jobs.
 
 `pr-edit` derives the GitHub repo from the jj origin remote, so it works in jj workspaces where there is no `.git` directory (unlike `gh pr edit`).
 
