@@ -26,7 +26,7 @@ WS_ROOT="${HERDR_JJ_ROOT:-$HOME/.herdr/workspaces}"
 AGENT_CMD="${HERDR_JJ_AGENT:-claude --dangerously-skip-permissions}"
 
 # Canonical model IDs, resolved once, from [env] in config/mise/config.toml.
-OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5}}"
+OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-${BEDROCK_OPUS_MODEL:-eu.anthropic.claude-opus-5-5}}"
 SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-${BEDROCK_SONNET_MODEL:-eu.anthropic.claude-sonnet-5}}"
 
 # Model behind the "flash" tier in the picker: agy for throughput.
