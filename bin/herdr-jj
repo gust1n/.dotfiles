@@ -45,7 +45,8 @@ need() {
   done
 }
 
-_fzf() { fzf --prompt="$1> " --height=100% --reverse; }
+# No --height: full-screen fzf opens at once, without scrolling the popup.
+_fzf() { fzf --prompt="$1> " --reverse; }
 
 # fzf over "<value>TAB<display>" lines: only the display half is shown and
 # searched, but the full line comes back so the caller can recover the value.
@@ -53,7 +54,7 @@ _fzf() { fzf --prompt="$1> " --height=100% --reverse; }
 # --no-sort preserves the ranking we fed in.
 _fzf_or_new() {
   local out query match
-  out=$(fzf --prompt="$1> " --height=100% --reverse --no-sort \
+  out=$(fzf --prompt="$1> " --reverse --no-sort \
             --delimiter='\t' --with-nth=2.. --nth=2.. \
             --print-query 2>/dev/null) || true
   query=$(sed -n '1p' <<<"$out")
@@ -310,7 +311,7 @@ pick_model() {
       'opus    planner / orchestrator' \
       'sonnet  worker / balanced' \
       'flash   gemini flash / throughput (agy)' \
-    | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
+    | fzf --prompt='model> ' --reverse --no-sort --no-multi \
           --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
   local tier="${choice%% *}"  # first word; empty if Esc
   printf '%s\n' "${tier:-opus}"
