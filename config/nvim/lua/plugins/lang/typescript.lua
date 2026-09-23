@@ -7,7 +7,6 @@ setup_filetype({ "typescript", "typescriptreact", "javascript", "javascriptreact
 })
 
 -- LSP (tsgo from @typescript/native-preview in project node_modules)
-vim.lsp.config("tsgo", {})
 vim.lsp.enable("tsgo")
 
 -- Formatters

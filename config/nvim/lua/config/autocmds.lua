@@ -1,11 +1,10 @@
--- Enable treesitter highlighting for all filetypes with a parser
+-- Start treesitter highlighting for every filetype with a parser. start() also
+-- turns off regex syntax highlighting.
 vim.api.nvim_create_autocmd("FileType", {
   desc = "Start treesitter highlighting",
   group = vim.api.nvim_create_augroup("TreesitterHighlight", { clear = true }),
   callback = function(ev)
-    if pcall(vim.treesitter.start, ev.buf) then
-      vim.bo[ev.buf].syntax = ""
-    end
+    pcall(vim.treesitter.start, ev.buf)
   end,
 })
 

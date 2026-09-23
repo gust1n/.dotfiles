@@ -15,9 +15,8 @@ if not vim.uv.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Remap space as leader key, need to go before lazy setup
+-- Leader must be set before lazy setup
 vim.g.mapleader = " "
-vim.g.maplocalleader = "\\" -- I don't use local leader
 
 -- Disable netrw in favor of nvim-tree
 vim.g.loaded_netrw = 1
@@ -28,10 +27,9 @@ require("config/options")
 require("config/keymaps")
 require("config/autocmds")
 
--- Load simplified language system
 require("config/lang")
 
--- Auto-load all language configurations
+-- Load every language file
 local lang_path = vim.fn.stdpath("config") .. "/lua/plugins/lang"
 local lang_files = vim.fn.glob(lang_path .. "/*.lua", false, true)
 for _, file in ipairs(lang_files) do
@@ -45,11 +43,9 @@ require("lazy").setup({
     -- Load plugins from ./lua/plugins
     { import = "plugins" },
   },
-  -- Configure any other settings here. See the documentation for more details.
-  -- colorscheme that will be used when installing plugins.
   install = { colorscheme = { "onedark" } },
   change_detection = {
-    notify = false, -- get a notification when changes are found
+    notify = false,
   },
 })
 

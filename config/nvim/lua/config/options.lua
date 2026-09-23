@@ -1,8 +1,6 @@
 local opt = vim.opt
 
 opt.breakindent = true -- Enable break indent
-opt.textwidth = 0 -- Disable auto line breaks (configure per filetype instead)
-opt.hlsearch = true -- Set highlight on search
 opt.ignorecase = true -- Ignore case sensitive match in search
 opt.mouse = "" -- Disable mouse
 opt.number = true -- Show line numbers
@@ -18,7 +16,6 @@ opt.swapfile = false -- disable annoying swap files
 -- Folding options
 opt.foldlevel = 99 -- Start with all folds open
 opt.foldlevelstart = 99 -- Start with all folds open when opening files
-opt.foldenable = true -- Enable folding
 
 -- Configure diagnostic signs to use ASCII symbols
 vim.diagnostic.config({
@@ -36,9 +33,7 @@ vim.diagnostic.config({
     border = "rounded",
     source = true,
     format = function(diagnostic)
-      local source = diagnostic.source and ("[%s] "):format(diagnostic.source) or ""
-      local code = diagnostic.code and ("[%s] "):format(diagnostic.code) or ""
-      return ("%s%s%s"):format(source, code, diagnostic.message)
+      return diagnostic.code and ("[%s] %s"):format(diagnostic.code, diagnostic.message) or diagnostic.message
     end,
   },
   update_in_insert = false,

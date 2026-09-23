@@ -55,7 +55,6 @@ for url in reversed(urls):
 [[ -n "$urls" ]] || { _notify "No URLs found"; exit 0; }
 
 selected=$(printf '%s\n' "$urls" \
-  | fzf --prompt="Open URL> " --height=100% --reverse --no-multi \
-        --bind='ctrl-j:down,ctrl-k:up')
+  | fzf --prompt="Open URL> " --height=100% --reverse --no-multi)
 
 [[ -n "$selected" ]] && open "$selected"

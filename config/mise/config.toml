@@ -91,8 +91,8 @@ LANG = "en_US.UTF-8"
 LC_ALL = "en_US.UTF-8"
 CLICOLOR = "1" # BSD ls colours, so no macOS-only `ls -G` alias is needed
 
-# Read by awscli and Claude Code alike. Override in config.work.toml for a work
-# SSO profile.
+# Read by awscli and Claude Code alike, including for Claude Code's small
+# model. Override in config.work.toml for a work SSO profile.
 AWS_PROFILE = "bedrock"
 AWS_REGION = "eu-north-1"
 
@@ -100,7 +100,7 @@ ANTHROPIC_DEFAULT_OPUS_MODEL = "{{ vars.opus_model }}"
 ANTHROPIC_DEFAULT_SONNET_MODEL = "{{ vars.sonnet_model }}"
 
 FZF_DEFAULT_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
-FZF_DEFAULT_OPTS = "--bind J:down,K:up --reverse"
+FZF_DEFAULT_OPTS = "--reverse"
 FZF_CTRL_T_COMMAND = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git"
 FZF_CTRL_T_OPTS = "--preview 'bat -n --color=always {}' --bind 'ctrl-/:change-preview-window(down|hidden|)'"
 FZF_ALT_C_COMMAND = "fd --type d --strip-cwd-prefix --hidden --follow --exclude .git"
@@ -128,7 +128,6 @@ run = "mise bootstrap dotfiles status --missing"
 
 [shell_alias]
 rg = "rg --hidden" # rg skips .git unconditionally; ~/.ignore covers the rest
-tmux = "tmux -u"
 "cd..." = "cd ../.."
 "cd...." = "cd ../../.."
 "cd....." = "cd ../../../.."
@@ -146,7 +145,7 @@ tmux = "tmux -u"
 "~/.config/tmux" = "~/.dotfiles/config/tmux"
 
 "~/.inputrc" = "~/.dotfiles/inputrc"
-"~/.gitignore" = "~/.dotfiles/gitignore"
+"~/.config/git/ignore" = "~/.dotfiles/gitignore" # git and jj read this path by default
 "~/.ignore" = "~/.dotfiles/ignore"
 
 # Copies, not symlinks — these are what installers append to. A copy sends the

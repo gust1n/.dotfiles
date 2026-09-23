@@ -5,7 +5,7 @@ return {
   -- Colorscheme
   {
     "navarasu/onedark.nvim",
-    opts = { style = "dark" },
+    opts = {},
   },
 
   -- Mini.nvim collection
@@ -89,9 +89,6 @@ return {
           },
         },
       },
-      git = {
-        enable = true,
-      },
       diagnostics = {
         enable = true,
         show_on_dirs = true,
@@ -117,13 +114,6 @@ return {
         topdelete = { text = "^" },
         changedelete = { text = "~" },
         untracked = { text = "?" },
-      },
-      signcolumn = true,
-      current_line_blame = false,
-      current_line_blame_opts = {
-        virt_text = true,
-        virt_text_pos = "eol",
-        delay = 1000,
       },
     },
   },
@@ -167,13 +157,6 @@ return {
     cmd = "Trouble",
     config = function()
       require("trouble").setup({
-        signs = {
-          error = "E",
-          warning = "W",
-          hint = "H",
-          information = "I",
-          other = "?",
-        },
         icons = {
           indent = {
             fold_open = "v ",

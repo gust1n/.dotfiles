@@ -1,4 +1,4 @@
-# Global git excludes (core.excludesfile → ~/.gitignore).
+# Global git and jj excludes (~/.config/git/ignore, the default core.excludesFile).
 #
 # Only things that are noise in EVERY repo. Anything specific to one repo,
 # including this one, belongs in that repo's own .gitignore — an entry here

@@ -4,9 +4,7 @@
   "env": {
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": "eu-north-1",
-    "GH_PROMPT_DISABLED": "1",
-    "JJ_EDITOR": "true"
+    "GH_PROMPT_DISABLED": "1"
   },
   "attribution": {
     "commit": "",

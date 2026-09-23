@@ -51,7 +51,6 @@ fi
 
 # ~/.gitconfig stays unmanaged: `gh auth login` writes machine-specific absolute
 # paths into it, which have no business in the repo.
-git config --global core.excludesfile ~/.gitignore
 git config --global user.name >/dev/null 2>&1 ||
 	echo >&2 "set your git identity: git config --global user.name '…' && git config --global user.email '…'"
 

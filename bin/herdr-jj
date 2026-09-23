@@ -45,7 +45,7 @@ need() {
   done
 }
 
-_fzf() { fzf --prompt="$1> " --height=100% --reverse --bind='ctrl-j:down,ctrl-k:up'; }
+_fzf() { fzf --prompt="$1> " --height=100% --reverse; }
 
 # fzf over "<value>TAB<display>" lines: only the display half is shown and
 # searched, but the full line comes back so the caller can recover the value.
@@ -55,7 +55,7 @@ _fzf_or_new() {
   local out query match
   out=$(fzf --prompt="$1> " --height=100% --reverse --no-sort \
             --delimiter='\t' --with-nth=2.. --nth=2.. \
-            --bind='ctrl-j:down,ctrl-k:up' --print-query 2>/dev/null) || true
+            --print-query 2>/dev/null) || true
   query=$(sed -n '1p' <<<"$out")
   match=$(sed -n '2p' <<<"$out")
   if [[ -n "$match" ]]; then printf '%s\n' "$match"
@@ -311,7 +311,6 @@ pick_model() {
       'sonnet  worker / balanced' \
       'flash   gemini flash / throughput (agy)' \
     | fzf --prompt='model> ' --height=30% --reverse --no-sort --no-multi \
-          --bind='ctrl-j:down,ctrl-k:up' \
           --header='↵ accept · esc = opus (default)' 2>/dev/null) || true
   local tier="${choice%% *}"  # first word; empty if Esc
   printf '%s\n' "${tier:-opus}"
