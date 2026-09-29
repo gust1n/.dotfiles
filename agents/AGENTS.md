@@ -95,3 +95,4 @@ jj --at-op <op-id> file show <path>  # view file at that point
 - Shell: bash
 - OS: macOS
 - Tools: mise, herdr and tmux (C-a prefix), fzf, fd, rg, bat
+- `rg` is recursive by default. `rg -r` is `--replace`, not recursive.
