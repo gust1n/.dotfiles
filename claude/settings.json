@@ -38,7 +38,7 @@
       "Bash(pnpm publish*)"
     ]
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -173,7 +173,7 @@
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": false
   },
   "effortLevel": "high",
   "tui": "fullscreen",
