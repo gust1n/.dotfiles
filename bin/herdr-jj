@@ -427,11 +427,6 @@ cmd_new() {
   add_err=$( cd "$repo" && jj workspace add --name "$name" -r "$base" "$path" 2>&1 ) \
     || die_pause "jj workspace add failed (name=$name base=$base): $add_err"
 
-  # Give the agent a bookmark to land work on, matching the workspace name.
-  jj -R "$path" bookmark create "$name" -r '@' >/dev/null 2>&1 \
-    || jj -R "$path" bookmark set "$name" -r '@' >/dev/null 2>&1 \
-    || echo "warning: could not create bookmark $name" >&2
-
   # Trust mise config files in the workspace so the agent shell can find tools
   # immediately — without this, mise shows a trust prompt before claude starts.
   command -v mise >/dev/null 2>&1 && mise trust "$path" >/dev/null 2>&1 || true
