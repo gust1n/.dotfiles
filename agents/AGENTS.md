@@ -24,22 +24,29 @@ For simple requests, skip the ceremony and just execute.
 ## Version Control
 
 Custom jj commands. `--help` on each is complete. Do not read the `jj-workflow` source.
-- `jj pr` — Create or update a draft PR: rebase onto `trunk()`, set the bookmark, push, `gh pr create`. The title is the first line of the commit description.
-- `jj pr-checks` — Wait for the PR's CI checks and report pass or fail.
+- `jj pr` — Publish the stack: one draft PR per commit in `trunk()..@`. Each PR's base is the PR below it. Rebases onto `trunk()`, creates bookmarks, pushes. The title is the first line of the commit description. Safe to repeat.
+- `jj pr-checks` — Wait for CI on every PR of the stack and report pass or fail.
 - `jj pr-edit` — Edit the title or body of an existing PR.
 - `jj sync` — Fetch from origin. It does not rebase.
 - `jj start` — Start a new empty commit on top of `trunk()`.
 
-**PRs**: Always use `jj pr` and `jj pr-edit`. Never create bookmarks, push, or call `gh pr create` / `gh pr edit` by hand: jj workspaces have no `.git`, and `jj pr` passes `--repo`. On failure it prints the `gh` error. Fix the cause.
+**PRs**: Always use `jj pr` and `jj pr-edit`. Never create bookmarks, push, or call `gh pr create` / `gh pr edit` or `gh stack` by hand: jj workspaces have no `.git`, and `jj pr` passes `--repo`. On failure it prints the error. Fix the cause.
 
 - Drafts are the default. Only pass `--no-draft` when the user has said the work is ready.
-- Agents may push only to draft PRs. `jj pr` refuses a ready PR. Ask the user before you run `jj pr --allow-ready`.
+- `jj pr` refuses to push to a ready PR. To push to one, run `jj pr --allow-ready` directly. The guard prompts the user. Do not ask in chat first.
 
-**PR loop**: When the user asks for a PR:
-1. Describe the commit. Run `jj pr`.
+**Stacks**: One commit is one PR. A workspace holds one linear stack.
+- Make one commit per reviewable step: `jj commit -m "..."`.
+- Fix a lower commit in place: `jj absorb` moves each hunk to the commit that last changed those lines. Or `jj squash --into <change>`. Descendants rebase automatically.
+- Check the stack: `jj log -r 'stack()'`. `jj log -r 'stack_broken()'` must be empty before `jj pr`.
+- After the user merges a PR, run `jj pr`. It rebases, drops the merged commit, and moves the next PR's base to `trunk()`.
+- Commits below another workspace's working copy are immutable. Do not pass `--ignore-immutable`. Ask the user.
+
+**PR loop**: When the user asks for PRs:
+1. Describe every commit. Run `jj pr`.
 2. Run `jj pr-checks`. It can take many minutes: in Claude Code, run it in the background.
-3. On a failure, read the logs with the `gh run view` command it prints. Fix the code, `jj squash` the fix into the PR commit, run `jj pr`, go to 2.
-4. When it exits 0, report the PR URL to the user.
+3. On a failure, read the logs with the `gh run view` command it prints. Fix the code, move the fix into the commit of that PR, run `jj pr`, go to 2.
+4. When it exits 0, report the PR URLs to the user, bottom first.
 
 ### The Squash Workflow
 

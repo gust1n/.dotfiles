@@ -8,6 +8,7 @@ set -euo pipefail
 # instead of prompting. Exported, so every jj/gh child process inherits it.
 export JJ_EDITOR=true
 export GH_PROMPT_DISABLED=1
+export GH_STACK_NO_UPDATE_NOTIFIER=1
 
 fail() {
     echo "$1" >&2
@@ -21,9 +22,10 @@ Usage: jj-workflow <command> [options]
 Commands:
   sync          Fetch refs from origin
   start         Start an empty working commit on top of latest trunk()
-  pr            Create or update a pull request for the current change
-  pr-checks     Wait for the CI checks of a pull request and report the result
+  pr            Publish the stack: one pull request per commit
+  pr-checks     Wait for the CI checks of the stack's pull requests
   pr-edit       Edit the title or body of an existing pull request
+  clean         Delete the bookmarks of your merged pull requests
 
 Run 'jj-workflow <command> --help' for a command's options.
 EOF
@@ -33,27 +35,39 @@ usage_pr() {
     cat <<'EOF'
 Usage: jj pr [options]
 
-Creates or updates the pull request for the current change. Steps:
-  1. Fetch origin and rebase onto trunk() (main or master).
-  2. Pick the publish target: @, or the nearest ancestor that is non-empty or
-     described. The undescribed empty working commit is skipped.
-  3. Move the head bookmark to the target and push it. The head bookmark is
-     the workspace name if that bookmark exists, else gust1n/push-<change-id>.
-  4. If no open PR has that head, create one. Else the push updates it.
-  5. Print the PR URL and start a new empty working commit on top.
+Publishes the stack. Each non-empty commit in trunk()..@ becomes one pull
+request. Each PR's base is the PR below it. The bottom PR targets trunk().
+Steps:
+  1. Fetch origin. Rebase the stack onto trunk(). A commit that becomes empty
+     (its PR was merged) is dropped.
+  2. Stop if a commit in the stack has a conflict, is divergent, has no
+     description, is a merge, or starts with "wip:" or "local:".
+  3. Give each commit that has no bookmark a new one, named by the
+     templates.git_push_bookmark config.
+  4. If the GitHub stack does not match the local order (a commit was
+     inserted, removed or moved), unstack it. Move each PR with a wrong base
+     to trunk(), so the push cannot mark it merged.
+  5. Push all bookmarks with jj.
+  6. Create the missing PRs. Line 1 of the commit description is the title,
+     the rest is the body. Set the base of each PR to the PR below it.
+  7. Link the PRs as a GitHub stack with 'gh stack link'. After an unstack,
+     the stack gets a new number.
+  8. Print the PRs, bottom first. Start a new empty working commit on top.
+
+Run it again after each change, and after a PR of the stack merges. It is safe
+to repeat.
 
 Options:
-  -r, --revision <rev>   Publish this revision instead of the automatic target
-      --body <text>      PR body for a new PR (default: the commit description
-                         after line 1). Ignored when the PR exists; use pr-edit.
-      --draft            Create the PR as a draft (the default)
-      --no-draft         Create a ready-for-review PR instead
+  -r, --revision <rev>   Publish the stack up to this commit. Default: @, or the
+                         nearest ancestor that is non-empty or described.
+      --draft            Create new PRs as drafts (the default)
+      --no-draft         Create new PRs ready for review
       --allow-ready      Agent sessions only: allow a push to a PR that is
                          ready for review. Without it, such a push fails.
   -h, --help             Show this help
 
-The PR title is the first line of the commit description. Change the title of
-an existing PR with 'jj pr-edit'.
+The PR title is the first line of the commit description. Change the title or
+body of an existing PR with 'jj pr-edit'.
 
 Next step: 'jj pr-checks' waits for CI and reports the result.
 EOF
@@ -63,32 +77,63 @@ usage_pr_checks() {
     cat <<'EOF'
 Usage: jj pr-checks [options]
 
-Waits for the CI checks of a pull request and reports the result. Read-only:
-it does not push. Prints one line each time the check counts change.
+Waits for the CI checks of each PR in the stack (trunk()..@), bottom first, and
+reports the result. Read-only: it does not push. Prints one line each time the
+check counts of a PR change.
 
-Steps:
-  1. Find the open PR for the head bookmark that 'jj pr' uses.
-  2. Wait until GitHub shows the pushed commit and reports checks for it.
-  3. Poll the checks. Stop at the first failure, or when none are pending.
+For each PR:
+  1. Wait until GitHub shows the pushed commit and reports checks for it.
+  2. Poll the checks. Stop at the first failure, or when none are pending.
 
 Options:
-  -n, --number <num>     PR number (default: the PR for the current change)
-      --timeout <min>    Give up after this many minutes (default: 60)
+  -n, --number <num>     Wait for this PR only
+      --timeout <min>    Give up on a PR after this many minutes (default: 60)
   -h, --help             Show this help
 
-Exit codes:
+Exit codes (the worst result of all PRs):
   0  All checks passed or were skipped.
   1  A check failed or was cancelled. The output lists each failed check with
      its link, and a 'gh run view ... --log-failed' command for GitHub Actions.
   2  No checks were reported. The repo may have no CI.
   3  Timed out, or GitHub did not show the pushed commit.
 
-Fix loop: read the failed logs, fix the code, 'jj squash' the fix into the
-PR commit, run 'jj pr', then run 'jj pr-checks' again.
+Fix loop: read the failed logs, fix the code, move the fix into the commit of
+that PR ('jj absorb', or 'jj squash --into <change>'), run 'jj pr', then run
+'jj pr-checks' again.
 
 This can run for many minutes. In Claude Code, run it in the background.
 EOF
 }
+
+usage_pr_edit() {
+    cat <<'EOF'
+Usage: jj pr-edit [options]
+
+Edits the title or body of an existing pull request.
+Does not push. Use this to update metadata without republishing.
+
+Options:
+  -n, --number <num>   PR number to edit (required)
+      --title <text>   New PR title
+      --body <text>    New PR body
+  -h, --help           Show this help
+
+Note: jj workspaces have no .git directory, so plain 'gh pr edit' fails.
+This command derives the repo from the jj origin remote.
+EOF
+}
+
+usage_clean() {
+    cat <<'EOF'
+Usage: jj clean
+
+Deletes each local bookmark whose PR you authored is merged, and deletes the
+bookmark on origin too if it is still there. Repos that delete head branches
+on merge do not need this: 'jj sync' then removes the bookmarks.
+EOF
+}
+
+# --- Helpers ---
 
 fetch_origin() {
     jj git fetch --remote origin >/dev/null 2>&1 || fail "Failed to fetch from origin."
@@ -117,32 +162,6 @@ require_trunk() {
     exit 1
 }
 
-ensure_pr_preflight() {
-    fetch_origin
-    require_trunk "jj pr"
-
-    if ! commit_is_empty @ && ! commit_has_description @; then
-        echo "FAIL: current non-empty commit has no description."
-        echo "Run: jj describe -m \"<summary>\""
-        exit 1
-    fi
-
-    local divergent
-    divergent=$(jj log -r 'mutable() & divergent() & ::@' --no-graph 2>/dev/null || true)
-    if [[ -n "$divergent" ]]; then
-        echo "FAIL: mutable divergent change IDs detected."
-        echo "$divergent"
-        exit 1
-    fi
-
-    local rebased
-    rebased=$(jj log -r '@ & descendants(trunk())' --no-graph 2>/dev/null || true)
-    if [[ -z "$rebased" ]]; then
-        echo "Rebasing onto latest trunk()..."
-        jj rebase -d 'trunk()' >/dev/null || fail "Failed to rebase onto trunk()."
-    fi
-}
-
 github_repo_from_origin() {
     local remote_url
     remote_url=$(jj git remote list 2>/dev/null | awk '$1=="origin"{print $2; exit}')
@@ -155,25 +174,6 @@ github_repo_from_origin() {
         return 0
     fi
     return 1
-}
-
-current_head_bookmark() {
-    local rev="${1:-@}"
-
-    local ws
-    ws=$(jj workspace list -T 'if(self.target().current_working_copy(), self.name(), "") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1)
-    if [[ -n "$ws" && "$ws" != "default" ]]; then
-        # Use the workspace bookmark as long as it exists *somewhere* — it need
-        # not be at $rev yet; cmd_pr moves it to the target before pushing.
-        if jj log -r "present(bookmarks(\"$ws\"))" --no-graph -T '""' >/dev/null 2>&1; then
-            echo "$ws"
-            return 0
-        fi
-    fi
-
-    local change_id
-    change_id=$(jj log --no-graph -r "$rev" -T 'change_id.short()' 2>/dev/null)
-    echo "gust1n/push-${change_id}"
 }
 
 commit_is_empty() {
@@ -215,25 +215,84 @@ effective_publish_rev() {
     done
 }
 
-pr_title_for_rev() {
+# The commits that make up the stack below and including $1. Empty commits get
+# no PR: the working commit, and commits whose changes are already in trunk().
+stack_revset() {
+    printf '(trunk()..(%s)) & ~empty()' "$1"
+}
+
+# Change IDs of the stack, bottom first.
+stack_changes() {
+    jj log -r "$(stack_revset "$1")" --reversed --no-graph -T 'change_id ++ "\n"' 2>/dev/null | sed '/^$/d'
+}
+
+# The local bookmarks on one commit, space-separated.
+bookmarks_on() {
+    jj log -r "$1" --no-graph -T 'local_bookmarks.map(|b| b.name()).join(" ")' 2>/dev/null
+}
+
+# "<number> <isDraft> <baseRefName> <url>" of the open PR for a head bookmark,
+# or nothing.
+open_pr_for_head() {
+    gh pr list --repo "$1" --state open --head "$2" --json number,isDraft,baseRefName,url \
+        --jq '.[0] // empty | "\(.number) \(.isDraft) \(.baseRefName) \(.url)"' 2>/dev/null || true
+}
+
+trunk_bookmark() {
+    jj log -r 'trunk()' --no-graph -T 'remote_bookmarks.filter(|b| b.remote() == "origin").map(|b| b.name()).join("\n")' 2>/dev/null | head -n1
+}
+
+# True if the local bookmark points somewhere else than its copy on origin.
+bookmark_needs_push() {
+    jj log -r "bookmarks(exact:\"$1\") ~ present(remote_bookmarks(exact:\"$1\", exact:\"origin\"))" \
+        --no-graph -T '"x"' 2>/dev/null | grep -q .
+}
+
+# Rebase the stack below $1 onto trunk() when trunk() has moved. Commits that
+# the rebase empties are abandoned: that is how a merged PR leaves the stack.
+rebase_onto_trunk() {
     local rev="$1"
-    local default_title="$2"
-    local description
-    description=$(jj log -r "$rev" --no-graph -T 'description' 2>/dev/null)
-    local title
-    title=$(echo "$description" | head -n1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    if [[ -n "$title" ]]; then
-        echo "$title"
-    else
-        echo "$default_title"
+    if [[ -z "$(jj log -r "($rev) & descendants(trunk())" --no-graph -T '"x"' 2>/dev/null)" ]]; then
+        echo "Rebasing onto latest trunk()..."
+        jj rebase -b "$rev" -o 'trunk()' --skip-emptied >/dev/null || fail "Failed to rebase onto trunk()."
     fi
+}
+
+# Fail with one line per commit that cannot be published, and how to fix it.
+require_clean_stack() {
+    local top="$1"
+    local bad
+    bad=$(jj log -r "$(stack_revset "$top") & (conflicts() | divergent() | description(exact:\"\") | merges() | description(glob:\"wip:*\") | description(glob:\"local:*\"))" \
+        --reversed --no-graph -T '
+            change_id.short() ++ ":"
+            ++ if(conflict, " conflict")
+            ++ if(divergent, " divergent")
+            ++ if(!description, " no-description")
+            ++ if(parents.len() > 1, " merge")
+            ++ if(description.starts_with("wip:") || description.starts_with("local:"), " wip")
+            ++ "\n"' 2>/dev/null | sed '/^$/d')
+    [[ -z "$bad" ]] && return 0
+
+    echo "FAIL: these commits cannot be published:" >&2
+    sed 's/^/  /' <<<"$bad" >&2
+    cat >&2 <<'EOF'
+Fix each one, then run 'jj pr' again:
+  conflict        Edit the conflicted files in that commit ('jj new <change>',
+                  edit, 'jj squash'), or run 'jj resolve -r <change>'.
+  divergent       jj converge --no-interactive
+  no-description  jj describe -r <change> -m "<summary>"
+  merge           Rebase into a linear stack. A GitHub stack is linear.
+  wip             Move it above the commits to publish, or publish below it
+                  with 'jj pr -r <change>'.
+EOF
+    exit 1
 }
 
 pr_body_for_rev() {
     local rev="$1"
     local description
     description=$(jj log -r "$rev" --no-graph -T 'description' 2>/dev/null)
-    echo "$description" | tail -n +2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    echo "$description" | tail -n +2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/./,$!d'
 }
 
 post_publish_new_working_commit() {
@@ -251,22 +310,51 @@ is_agent_session() {
     [[ "${TERM:-}" == dumb || -n "${AI_AGENT:-}" || -n "${CLAUDECODE:-}" || -n "${ANTIGRAVITY_AGENT:-}" ]]
 }
 
-usage_pr_edit() {
-    cat <<'EOF'
-Usage: jj pr-edit [options]
+has_gh_stack() {
+    gh extension list 2>/dev/null | grep -q 'github/gh-stack'
+}
 
-Edits the title or body of an existing pull request.
-Does not push. Use this to update metadata without republishing.
+# Prints the GitHub stacks to unstack before 'jj pr' pushes, one per line.
+# Arguments: the PR number of each local commit, bottom first, or "-" for a
+# commit with no PR yet. 'gh stack link' only appends, so a stack is kept only
+# if its open PRs are the bottom of the local stack, in order, or the local
+# stack is the bottom of it.
+stacks_to_unstack() {
+    local repo="$1"; shift
+    local local_prs=("$@") n s stacks=()
+    for n in "${local_prs[@]}"; do
+        [[ "$n" == - ]] && continue
+        s=$(gh api "repos/$repo/pulls/$n" --jq '.stack.number // empty' 2>/dev/null || true)
+        [[ -n "$s" && " ${stacks[*]} " != *" $s "* ]] && stacks+=("$s")
+    done
+    [[ ${#stacks[@]} -eq 0 ]] && return 0
+    if [[ ${#stacks[@]} -eq 1 ]]; then
+        local open=() i
+        read -r -a open < <(gh api "repos/$repo/stacks/${stacks[0]}" \
+            --jq '[.pull_requests[] | select(.state == "open") | .number] | join(" ")' 2>/dev/null; echo) || true
+        [[ ${#open[@]} -gt 0 ]] || fail "Could not read GitHub stack #${stacks[0]}."
+        local match=true
+        for i in "${!open[@]}"; do
+            [[ $i -lt ${#local_prs[@]} ]] || break
+            [[ "${local_prs[$i]}" == "${open[$i]}" ]] || { match=false; break; }
+        done
+        [[ "$match" == true ]] && return 0
+    fi
+    printf '%s\n' "${stacks[@]}"
+}
 
-Options:
-  -n, --number <num>   PR number to edit (required)
-      --title <text>   New PR title
-      --body <text>    New PR body
-  -h, --help           Show this help
-
-Note: jj workspaces have no .git directory, so plain 'gh pr edit' fails.
-This command derives the repo from the jj origin remote.
-EOF
+link_github_stack() {
+    local repo="$1" base="$2"; shift 2
+    local stack_no out
+    stack_no=$(gh api "repos/$repo/pulls/$1" --jq '.stack.number // empty' 2>/dev/null || true)
+    # GitHub stack numbers share the PR number sequence, so a stack number
+    # never matches a PR.
+    if out=$(GH_REPO="$repo" gh stack link --base "$base" ${stack_no:+"$stack_no"} "$@" 2>&1); then
+        grep -E '^✓' <<<"$out" || true
+    else
+        echo "warning: the PRs are published, but 'gh stack link' failed:" >&2
+        sed 's/^/  /' <<<"$out" >&2
+    fi
 }
 
 # --- Subcommands ---
@@ -330,13 +418,12 @@ cmd_pr_edit() {
 cmd_pr() {
     # Draft is the default: an agent that publishes without being asked should
     # not open a review-ready PR. Pass --no-draft to publish for real.
-    local opt_rev="" opt_body="" opt_draft=true opt_allow_ready=false
+    local opt_rev="" opt_draft=true opt_allow_ready=false
     # Parse fully before any mutating work, so --help can't fetch/rebase/push.
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)     usage_pr; return 0 ;;
             -r|--revision) [[ $# -ge 2 ]] || fail "$1 needs a revision."; opt_rev="$2"; shift 2 ;;
-            --body)        [[ $# -ge 2 ]] || fail "$1 needs a body."; opt_body="$2"; shift 2 ;;
             --draft)       opt_draft=true; shift ;;
             --no-draft)    opt_draft=false; shift ;;
             --allow-ready) opt_allow_ready=true; shift ;;
@@ -344,114 +431,152 @@ cmd_pr() {
         esac
     done
 
-    ensure_pr_preflight
+    has_gh_stack || fail "The gh-stack extension is not installed. Run: gh extension install github/gh-stack"
+
+    fetch_origin
+    require_trunk "jj pr"
 
     local repo
     repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
 
-    local target
-    if [[ -n "$opt_rev" ]]; then
-        target="$opt_rev"
-    else
-        target=$(effective_publish_rev) || fail "Could not determine publish target revision."
+    rebase_onto_trunk "${opt_rev:-@}"
+
+    local top_rev="$opt_rev"
+    if [[ -z "$top_rev" ]]; then
+        top_rev=$(effective_publish_rev) || exit 1
     fi
+    # A change ID, not a revset like @-: later steps create commits.
+    local top
+    top=$(jj log -r "$top_rev" --no-graph -T 'change_id' 2>/dev/null) && [[ -n "$top" ]] \
+        || fail "Could not resolve revision $top_rev."
 
-    local head
-    head=$(current_head_bookmark "$target") || fail "Could not determine PR head bookmark."
+    require_clean_stack "$top"
 
-    local pr_number="" pr_url="" pr_is_draft=""
-    read -r pr_number pr_url pr_is_draft < <(gh pr list --repo "$repo" --state open --head "$head" \
-        --json number,url,isDraft --jq '.[0] // empty | "\(.number) \(.url) \(.isDraft)"' 2>/dev/null) || true
+    # A bookmark on an empty commit would get an empty PR.
+    local stray
+    stray=$(jj log -r "(trunk()..$top) & empty() & bookmarks()" --no-graph \
+        -T 'local_bookmarks.map(|b| b.name()).join(" ") ++ " "' 2>/dev/null)
+    [[ -z "${stray// /}" ]] \
+        || fail "Bookmark on an empty commit in the stack: $stray. It would open an empty PR. Ask the user whether to delete it."
+
+    local changes=() c
+    while read -r c; do changes+=("$c"); done < <(stack_changes "$top")
+    [[ ${#changes[@]} -gt 0 ]] || fail "No non-empty commits to publish between trunk() and ${opt_rev:-@}."
+
+    # One bookmark per commit. A commit that already has one keeps it, so a
+    # PR opened before stays attached to its commit.
+    local tmpl
+    tmpl=$(jj config get templates.git_push_bookmark 2>/dev/null) || tmpl='"push-" ++ change_id.short()'
+    local heads=() names name
+    for c in "${changes[@]}"; do
+        names=$(bookmarks_on "$c")
+        if [[ -z "$names" ]]; then
+            name=$(jj log -r "$c" --no-graph -T "$tmpl")
+            jj bookmark create "$name" -r "$c" >/dev/null || fail "Failed to create bookmark $name."
+        elif [[ "$names" == *" "* ]]; then
+            fail "Commit ${c:0:12} has several bookmarks ($names). One commit is one PR. Ask the user which bookmark to keep."
+        else
+            name="$names"
+        fi
+        heads+=("$name")
+    done
+
+    local trunk_name
+    trunk_name=$(trunk_bookmark)
+    [[ -n "$trunk_name" ]] || fail "Could not find the origin bookmark of trunk()."
 
     # agent-guard lets agents run `jj pr` unasked, so agents may only push to
     # drafts. --allow-ready makes the guard ask the user instead.
-    if [[ -n "$pr_number" && "$pr_is_draft" != true && "$opt_allow_ready" != true ]] && is_agent_session; then
-        echo "PR #$pr_number is ready for review. Nothing was pushed." >&2
-        echo "Ask the user first. If they agree, run: jj pr --allow-ready" >&2
+    local numbers=() bases=() want_bases=() drafts=() urls=() ready=()
+    local i h number is_draft base url
+    for i in "${!heads[@]}"; do
+        h="${heads[$i]}"
+        want_bases[$i]="$trunk_name"
+        [[ $i -gt 0 ]] && want_bases[$i]="${heads[$i-1]}"
+        number="" is_draft="" base="" url=""
+        read -r number is_draft base url < <(open_pr_for_head "$repo" "$h"; echo) || true
+        numbers[$i]="${number:--}" bases[$i]="$base" drafts[$i]="$is_draft" urls[$i]="$url"
+        if [[ -n "$number" && "$is_draft" != true ]] && bookmark_needs_push "$h"; then
+            ready+=("#$number")
+        fi
+    done
+    if [[ ${#ready[@]} -gt 0 && "$opt_allow_ready" != true ]] && is_agent_session; then
+        echo "Ready for review: ${ready[*]}. Nothing was pushed." >&2
+        echo "To push anyway, run: jj pr --allow-ready. The guard prompts the user for approval. Do not ask in chat first." >&2
         exit 1
     fi
 
-    # --allow-backwards: after a rebase the target is sideways from the pushed
-    # commit, which is the normal case when a PR is updated.
-    jj bookmark track "$head" --remote=origin >/dev/null 2>&1 || true
-    jj bookmark set "$head" -r "$target" --allow-backwards >/dev/null || fail "Failed to set bookmark $head at publish target."
-    jj git push --remote origin --bookmark "$head" || fail "Failed to push bookmark $head."
+    # GitHub refuses a base change on a stacked PR. So a stack that no longer
+    # matches is unstacked, and linked again later under a new stack number.
+    local s unstack
+    unstack=$(stacks_to_unstack "$repo" "${numbers[@]}") || exit 1
+    for s in $unstack; do
+        echo "GitHub stack #$s does not match the local stack. Unstacking it."
+        GH_REPO="$repo" gh stack unstack "$s" >/dev/null 2>&1 || fail "Failed to unstack GitHub stack #$s."
+    done
 
-    if [[ -z "$pr_number" ]]; then
-        local pr_title
-        pr_title=$(pr_title_for_rev "$target" "chore: update $head")
+    # GitHub marks a PR merged when a push puts its head commit into its base
+    # branch. After a reorder, the old base can be such a branch. So move each
+    # PR with a wrong base to trunk before the push.
+    for i in "${!heads[@]}"; do
+        [[ "${numbers[$i]}" == - || "${bases[$i]}" == "${want_bases[$i]}" || "${bases[$i]}" == "$trunk_name" ]] && continue
+        gh pr edit "${numbers[$i]}" --repo "$repo" --base "$trunk_name" >/dev/null \
+            || fail "Failed to change the base of PR #${numbers[$i]} from ${bases[$i]} to $trunk_name."
+        bases[$i]="$trunk_name"
+    done
 
-        local pr_body_file
-        pr_body_file=$(mktemp)
-        if [[ -n "$opt_body" ]]; then
-            echo "$opt_body" > "$pr_body_file"
-        else
-            pr_body_for_rev "$target" > "$pr_body_file"
+    local push_args=(--remote origin)
+    for h in "${heads[@]}"; do push_args+=(--bookmark "exact:$h"); done
+    jj git push "${push_args[@]}" || fail "jj git push failed. Its output is above."
+
+    # gh stack link can create PRs too, but it pushes with git, which a jj
+    # workspace does not have, and it cannot set the title or body.
+    local titles=() created=false body_file
+    for i in "${!heads[@]}"; do
+        h="${heads[$i]}"
+        titles[$i]=$(jj log -r "${changes[$i]}" --no-graph -T 'description.first_line()' 2>/dev/null)
+        if [[ "${numbers[$i]}" == - ]]; then
+            body_file=$(mktemp)
+            pr_body_for_rev "${changes[$i]}" > "$body_file"
+            local create_args=(--repo "$repo" --head "$h" --base "${want_bases[$i]}" --title "${titles[$i]}" --body-file "$body_file")
+            [[ "$opt_draft" == true ]] && create_args+=(--draft)
+            gh pr create "${create_args[@]}" >/dev/null || { rm -f "$body_file"; fail "Failed to create the PR for $h."; }
+            rm -f "$body_file"
+            created=true
+            number="" is_draft="" base="" url=""
+            read -r number is_draft base url < <(open_pr_for_head "$repo" "$h"; echo) || true
+            [[ -n "$number" ]] || fail "No open PR for $h after create."
+            numbers[$i]="$number" bases[$i]="$base" drafts[$i]="$is_draft" urls[$i]="$url"
+        elif [[ "${bases[$i]}" != "${want_bases[$i]}" ]]; then
+            gh pr edit "${numbers[$i]}" --repo "$repo" --base "${want_bases[$i]}" >/dev/null \
+                || fail "Failed to change the base of PR #${numbers[$i]} from ${bases[$i]} to ${want_bases[$i]}."
         fi
+    done
 
-        local gh_args=(--repo "$repo" --head "$head" --title "$pr_title" --body-file "$pr_body_file")
-        if [[ "$opt_draft" == true ]]; then
-            gh_args+=(--draft)
-        fi
+    echo
+    echo "Stack, bottom first:"
+    for i in "${!heads[@]}"; do
+        printf '  #%s %s%s\n      %s\n' "${numbers[$i]}" "${titles[$i]}" \
+            "$([[ "${drafts[$i]}" == true ]] && echo " (draft)")" "${urls[$i]}"
+    done
+    url="${urls[${#urls[@]}-1]}"
 
-        # stderr is kept: without it a caller cannot tell an auth problem from a
-        # protected branch, and agents then reach for raw gh.
-        local gh_err
-        gh_err=$(mktemp)
-        pr_url=$(gh pr create "${gh_args[@]}" 2>"$gh_err") || {
-            echo "gh pr create failed for $head:" >&2
-            cat "$gh_err" >&2
-            rm -f "$gh_err" "$pr_body_file"
-            exit 1
-        }
-        rm -f "$gh_err" "$pr_body_file"
+    if [[ ${#numbers[@]} -ge 2 ]]; then
+        link_github_stack "$repo" "$trunk_name" "${numbers[@]}"
     fi
 
     # A browser tab per push is noise when an agent loops on CI fixes.
-    if ! is_agent_session; then
-        command -v open >/dev/null && open "$pr_url" 2>/dev/null || true
+    if [[ "$created" == true ]] && ! is_agent_session; then
+        command -v open >/dev/null && open "$url" 2>/dev/null || true
     fi
-    echo "$pr_url"
     post_publish_new_working_commit
     echo "Next: jj pr-checks"
 }
 
-# The bookmark `jj pr` pushed for the current change. current_head_bookmark
-# falls back to @'s change ID, which is wrong once @ has moved past the
-# published commit, so fall back to the nearest bookmark above trunk() instead.
-checks_head_bookmark() {
-    local head
-    head=$(current_head_bookmark @)
-    if jj log -r "present(bookmarks(exact:\"$head\"))" --no-graph -T '"x"' 2>/dev/null | grep -q .; then
-        echo "$head"
-        return 0
-    fi
-    jj log -r 'heads(::@ & bookmarks() & ~::trunk())' --no-graph \
-        -T 'local_bookmarks.map(|b| b.name()).join("\n") ++ "\n"' 2>/dev/null | sed '/^$/d' | head -n1
-}
-
-cmd_pr_checks() {
-    local opt_number="" opt_timeout=60
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)     usage_pr_checks; return 0 ;;
-            -n|--number)   [[ $# -ge 2 ]] || fail "$1 needs a PR number."; opt_number="$2"; shift 2 ;;
-            --timeout)     [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || fail "$1 needs a number of minutes."; opt_timeout="$2"; shift 2 ;;
-            *)             fail "Unknown option '$1'. Run: jj pr-checks --help" ;;
-        esac
-    done
-
-    local repo
-    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
-
-    local number="$opt_number"
-    if [[ -z "$number" ]]; then
-        local head
-        head=$(checks_head_bookmark)
-        [[ -n "$head" ]] || fail "No PR bookmark found for the current change. Run 'jj pr' first, or pass --number."
-        number=$(gh pr list --repo "$repo" --state open --head "$head" --json number --jq '.[0].number' 2>/dev/null || echo "")
-        [[ -n "$number" && "$number" != "null" ]] || fail "No open PR for bookmark $head. Run 'jj pr' first, or pass --number."
-    fi
+# Waits for the checks of one PR. Exits with the codes in usage_pr_checks, so
+# call it in a subshell.
+wait_pr_checks() {
+    local repo="$1" number="$2" timeout="$3"
 
     local info head_ref url
     info=$(gh pr view "$number" --repo "$repo" --json headRefName,url --jq '"\(.headRefName) \(.url)"') \
@@ -465,7 +590,7 @@ cmd_pr_checks() {
     pushed_sha=$(jj log -r "present(remote_bookmarks(exact:\"$head_ref\", exact:\"origin\"))" \
         --no-graph -T 'commit_id' 2>/dev/null || echo "")
 
-    local deadline=$((SECONDS + opt_timeout * 60))
+    local deadline=$((SECONDS + timeout * 60))
     # Checks register within a minute or two of a push. Longer means no CI.
     local register_deadline=$((SECONDS + 180))
     local state sha count
@@ -495,7 +620,7 @@ cmd_pr_checks() {
                 "pending=\(n(["pending"])) pass=\(n(["pass"])) fail=\(n(["fail","cancel"])) skipped=\(n(["skipping"]))"
             ' <<<"$checks")
             if [[ "$summary" != "$last_summary" ]]; then
-                echo "$(date +%H:%M:%S) $summary"
+                echo "$(date +%H:%M:%S) #$number $summary"
                 last_summary="$summary"
             fi
 
@@ -524,11 +649,92 @@ cmd_pr_checks() {
         fi
 
         if (( SECONDS >= deadline )); then
-            echo "Timed out after $opt_timeout minutes. Checks still pending on PR #$number." >&2
+            echo "Timed out after $timeout minutes. Checks still pending on PR #$number." >&2
             exit 3
         fi
         sleep 15
     done
+}
+
+cmd_pr_checks() {
+    local opt_number="" opt_timeout=60
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)     usage_pr_checks; return 0 ;;
+            -n|--number)   [[ $# -ge 2 ]] || fail "$1 needs a PR number."; opt_number="$2"; shift 2 ;;
+            --timeout)     [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || fail "$1 needs a number of minutes."; opt_timeout="$2"; shift 2 ;;
+            *)             fail "Unknown option '$1'. Run: jj pr-checks --help" ;;
+        esac
+    done
+
+    local repo
+    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
+
+    local numbers=()
+    if [[ -n "$opt_number" ]]; then
+        numbers=("$opt_number")
+    else
+        local c h number rest
+        while read -r c; do
+            for h in $(bookmarks_on "$c"); do
+                read -r number rest < <(open_pr_for_head "$repo" "$h"; echo) || true
+                [[ -n "${number:-}" ]] && numbers+=("$number")
+            done
+        done < <(stack_changes @)
+        [[ ${#numbers[@]} -gt 0 ]] || fail "No open PR for the stack. Run 'jj pr' first, or pass --number."
+    fi
+
+    # Worst result wins: a failure beats a timeout beats "no CI" beats a pass.
+    local worst=0 rc n
+    for n in "${numbers[@]}"; do
+        rc=0
+        ( wait_pr_checks "$repo" "$n" "$opt_timeout" ) || rc=$?
+        case "$rc" in
+            1) worst=1 ;;
+            3) [[ $worst == 1 ]] || worst=3 ;;
+            2) [[ $worst == 0 ]] && worst=2 ;;
+        esac
+    done
+    if [[ ${#numbers[@]} -gt 1 ]]; then
+        case "$worst" in
+            0) echo "All checks passed on ${#numbers[@]} PRs." ;;
+            *) echo "Not all checks passed on the ${#numbers[@]} PRs of the stack. See above." ;;
+        esac
+    fi
+    exit "$worst"
+}
+
+cmd_clean() {
+    case "${1:-}" in
+        -h|--help) usage_clean; return 0 ;;
+        "") ;;
+        *) fail "Unknown option '$1'. Run: jj clean --help" ;;
+    esac
+
+    fetch_origin
+    local repo
+    repo=$(github_repo_from_origin) || fail "Could not infer GitHub repo from origin remote."
+
+    local merged
+    merged=$(gh pr list --repo "$repo" --state merged --author @me --limit 200 \
+        --json headRefName --jq '.[].headRefName' 2>/dev/null) || fail "Could not list merged PRs."
+
+    local b deleted=()
+    while read -r b; do
+        [[ -n "$b" ]] && grep -qxF -- "$b" <<<"$merged" && deleted+=("$b")
+    done < <(jj bookmark list -T 'if(!remote, name ++ "\n")' 2>/dev/null)
+
+    if [[ ${#deleted[@]} -eq 0 ]]; then
+        echo "No bookmarks of merged PRs to delete."
+        return 0
+    fi
+
+    printf 'Deleting: %s\n' "${deleted[@]}"
+    jj bookmark delete "${deleted[@]}" >/dev/null || fail "Failed to delete local bookmarks."
+    for b in "${deleted[@]}"; do
+        jj git push --remote origin --bookmark "$b" >/dev/null 2>&1 || true
+    done
+    echo "Done."
 }
 
 # --- Main ---
@@ -551,6 +757,9 @@ case "${1:-}" in
         ;;
     pr-edit)
         shift; cmd_pr_edit "$@"
+        ;;
+    clean)
+        shift; cmd_clean "$@"
         ;;
     *)
         echo "jj-workflow: unknown command '$1'" >&2

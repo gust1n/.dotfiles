@@ -14,12 +14,14 @@ diff-formatter = ["difft", "--color=always", "$left", "$right"]
 sync = ["util", "exec", "--", "jj-workflow", "sync"]
 # Start a new empty working commit on top of latest main@origin
 start = ["util", "exec", "--", "jj-workflow", "start"]
-# Create or update a PR for the current change (auto-rebases onto main@origin)
+# Publish the stack, one PR per commit (auto-rebases onto trunk())
 pr = ["util", "exec", "--", "jj-workflow", "pr"]
-# Wait for the PR's CI checks and report pass/fail
+# Wait for the stack's CI checks and report pass/fail
 "pr-checks" = ["util", "exec", "--", "jj-workflow", "pr-checks"]
 # Edit the title/body of an existing PR (jj workspaces have no .git for `gh pr edit`)
 "pr-edit" = ["util", "exec", "--", "jj-workflow", "pr-edit"]
+# Delete the bookmarks of merged PRs, locally and on origin
+clean = ["util", "exec", "--", "jj-workflow", "clean"]
 
 # tug: bring nearest bookmark up to recent commit
 tug = ['bookmark', 'move', '--from', 'closest_bookmark(@)', '--to', 'closest_pushable(@)']
@@ -59,9 +61,18 @@ retrunk = ["rebase", "-d", "trunk()"]
 
 # Empty, non-described commits that can be cleaned up.
 # working_copies(), not @: every agent workspace has its own empty undescribed @,
-# and abandoning those detaches the sibling workspace and drops its bookmark.
-# bookmarks() guards a freshly created workspace, whose bookmark sits on an empty commit.
+# and abandoning those detaches the sibling workspace.
+# bookmarks() keeps any commit that a bookmark names.
 'junk()' = 'empty() & description(exact:"") & mutable() & ~working_copies() & ~merges() & ~bookmarks()'
+
+# Commits below another workspace's working copy are immutable, so one agent
+# cannot rewrite a stack that another workspace sits on. Override once with
+# --ignore-immutable.
+'immutable_heads()' = 'builtin_immutable_heads() | (working_copies() ~ @)'
+
+# The commits `jj pr` publishes, one PR each, and the ones that block it.
+'stack()' = 'trunk()..@ & ~empty()'
+'stack_broken()' = 'stack() & (conflicts() | divergent() | description(exact:"") | merges() | local())'
 
 [snapshot]
 auto-update-stale = true

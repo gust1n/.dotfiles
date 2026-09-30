@@ -96,9 +96,13 @@ rg = "rg --hidden" # rg skips .git unconditionally; ~/.ignore covers the rest
 "cd...." = "cd ../../.."
 "cd....." = "cd ../../../.."
 
-# agy installs and updates itself, and is not in the mise registry.
-[bootstrap.hooks]
-post-tools = "command -v agy >/dev/null || curl -fsSL https://antigravity.google/cli/install.sh | bash"
+[bootstrap.hooks.post-tools]
+run = [
+  # agy installs and updates itself, and is not in the mise registry.
+  "command -v agy >/dev/null || curl -fsSL https://antigravity.google/cli/install.sh | bash",
+  # `jj pr` links each stack as a GitHub stack with it.
+  "gh extension list | grep -q github/gh-stack || gh extension install github/gh-stack",
+]
 
 [dotfiles]
 # Every app config dir in config/. This repo is ~/.config/mise, so the glob

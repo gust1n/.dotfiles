@@ -130,9 +130,9 @@ CMD=$(jqr '.tool_input.command // empty')
 
 # --- outward-facing commands: require a human ------------------------------
 # These publish, mutate shared state, or destroy things beyond this checkout.
-# Agents may open and update draft PRs with `jj pr`, which pushes only the PR
-# head bookmark and refuses PRs that are ready for review. Every other push
-# needs a human.
+# Agents may open and update draft PRs with `jj pr`, which pushes only the
+# stack's PR bookmarks and refuses PRs that are ready for review. Every other
+# push needs a human.
 
 re() { grep -qiE -e "$1" <<<"$CMD"; }
 
@@ -146,6 +146,12 @@ if re '(^|[;&|[:space:]/])(jj|jj-workflow)[[:space:]]+pr([[:space:]]|$)'; then
   re '--allow-ready' \
     && ask "Push to a ready-for-review PR — the user must approve."
 fi
+
+# The tools behind `jj pr` push and edit PRs without its draft check.
+re 'gh[[:space:]]+stack[[:space:]]+(link|submit|push|sync|rebase|modify|unstack|delete|init|add|merge)' \
+  && ask "gh stack mutation blocked — use 'jj pr'."
+re '(^|[;&|[:space:]/])(jj|jj-workflow)[[:space:]]+clean([[:space:]]|$)' \
+  && ask "'jj clean' deletes bookmarks on origin — the user must approve."
 
 re 'gh[[:space:]]+pr[[:space:]]+(create|merge|close|edit|comment|review)' \
   && ask "PR mutation blocked — use 'jj pr' only when the user explicitly asks."
