@@ -50,13 +50,15 @@ bun = "latest"
 # `--model sonnet` through ANTHROPIC_DEFAULT_*_MODEL.
 [vars]
 opus_model = "eu.anthropic.claude-opus-5-5"
-sonnet_model = "eu.anthropic.claude-sonnet-5"
+sonnet_model = "eu.anthropic.claude-sonnet-5-5"
 
 [env]
 EDITOR = "nvim"
 LANG = "en_US.UTF-8"
 LC_ALL = "en_US.UTF-8"
 CLICOLOR = "1" # BSD ls colours, so no macOS-only `ls -G` alias is needed
+# Parallel agents each default to -p=NumCPU (18) and exhaust RAM into swap.
+GOFLAGS = "-p=4"
 
 # Read by awscli and Claude Code alike, including for Claude Code's small
 # model. Override in config.work.toml for a work SSO profile.
