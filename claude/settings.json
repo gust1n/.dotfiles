@@ -136,6 +136,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.config/mise/bin/jj-snapshot",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionEnd": [

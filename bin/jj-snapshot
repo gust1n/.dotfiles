@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Claude Code Stop hook: snapshot the working copy once per turn, so `jj op log`
+# holds every edit, even from a turn that ran no jj command.
+dir=$(jq -r '.cwd // empty' 2>/dev/null || true)
+cd "${dir:-$PWD}" 2>/dev/null || exit 0
+jj --no-pager status >/dev/null 2>&1 || true
+exit 0
