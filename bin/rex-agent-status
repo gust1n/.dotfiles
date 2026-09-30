@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Claude Code hook: reports the agent's state to Rex with OSC 7501, so Rex can
+# show it on tab headers and in the session picker.
+#
+# Hooks run without a terminal, so the report goes to the tty of the nearest
+# ancestor that has one: the claude process. Outside Rex it does nothing.
+#
+# Claude fires no hook when you interrupt it with Esc, so an interrupted turn
+# shows as working until the next prompt or until claude exits.
+
+[ -n "${REX_BLOCK:-}" ] || exit 0
+
+INPUT=$(cat)
+jqr() { jq -r "$1" 2>/dev/null <<<"$INPUT"; }
+
+kind= msg=
+case "$(jqr '.hook_event_name // empty')" in
+  SessionStart) state=idle ;;
+  UserPromptSubmit | PostToolUse | PostToolUseFailure) state=working ;;
+  PreToolUse) state=blocked kind=question msg="Question for you" ;; # AskUserQuestion only
+  Notification) state=blocked kind=permission msg=$(jqr '.message // empty') ;;
+  Stop) state=done ;;
+  SessionEnd) state=clear ;;
+  *) exit 0 ;;
+esac
+
+pid=$PPID tty=
+while [ "${pid:-0}" -gt 1 ]; do
+  t=$(ps -o tty= -p "$pid" | tr -d ' ')
+  if [ -n "$t" ] && [ "$t" != "??" ]; then tty=/dev/$t; break; fi
+  pid=$(ps -o ppid= -p "$pid" | tr -d ' ')
+done
+[ -w "$tty" ] || exit 0
+
+report="state=$state:app=claude-code"
+[ -n "$kind" ] && report+=":kind=$kind"
+# Rex discards a report whose msg holds control characters.
+msg=$(printf '%s' "$msg" | tr '\n\t' '  ' | tr -d '[:cntrl:]')
+[ -n "$msg" ] && report+=":msg=$(printf '%s' "$msg" | base64 | tr -d '\n')"
+
+printf '\033]7501;%s\033\\' "$report" >"$tty"
+exit 0
